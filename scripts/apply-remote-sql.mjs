@@ -33,11 +33,29 @@ const sql = readFileSync(file, 'utf8');
 console.log(`Target project : ${ref}`);
 console.log(`SQL file       : ${file} (${sql.length} bytes)`);
 
-const response = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-  method: 'POST',
-  headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-  body: JSON.stringify({ query: sql }),
-});
+// Failing to reach the API is not a decision the database made, and this tool
+// is used in sequences — a reset followed by a seed — where losing the second
+// step leaves the environment empty. Connection failures are retried; a query
+// the database rejected is reported as-is below, never retried.
+const ATTEMPTS = 4;
+let response;
+for (let attempt = 1; ; attempt += 1) {
+  try {
+    response = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ query: sql }),
+    });
+    break;
+  } catch (error) {
+    if (attempt === ATTEMPTS) {
+      console.error(`FAIL: could not reach the Management API after ${ATTEMPTS} attempts: ${error}`);
+      process.exit(1);
+    }
+    console.error(`  retrying (${attempt}/${ATTEMPTS - 1}) after a connection failure…`);
+    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+  }
+}
 
 const raw = await response.text();
 if (!response.ok) {
