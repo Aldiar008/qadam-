@@ -24,7 +24,7 @@ const DEFAULTS = {
   anthropicBaseUrl: 'https://api.anthropic.com',
   openaiModel: 'gpt-4o-mini',
   openaiBaseUrl: 'https://api.openai.com',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.6-flash',
   geminiBaseUrl: 'https://generativelanguage.googleapis.com',
   timeoutMs: 20_000,
   maxAttempts: 3,
@@ -158,6 +158,21 @@ export function createOpenAiProvider(config: ProviderConfig): AiProvider {
   };
 }
 
+/**
+ * Gemini spends output tokens on thinking before it emits anything, and this
+ * call fills a fixed schema — thinking only starves the answer. The two model
+ * generations disagree on how to say "don't": 2.x takes a token budget and
+ * rejects `thinkingLevel`, 3.x takes a level and rejects `thinkingBudget` with
+ * a bare 400. Picking the wrong one fails the request outright, so the shape is
+ * chosen from the model name, and an unrecognised name sends neither.
+ */
+export function thinkingConfigFor(model: string): Record<string, unknown> | undefined {
+  const generation = /^gemini-(\d+)/.exec(model.trim().toLowerCase())?.[1];
+  if (!generation) return undefined;
+  if (Number(generation) >= 3) return { thinkingLevel: 'low' };
+  return { thinkingBudget: 0 };
+}
+
 export function createGeminiProvider(config: ProviderConfig): AiProvider {
   return {
     name: 'gemini',
@@ -174,10 +189,7 @@ export function createGeminiProvider(config: ProviderConfig): AiProvider {
             temperature: request.temperature,
             maxOutputTokens: request.maxOutputTokens,
             responseMimeType: 'application/json',
-            // The 2.5 models spend maxOutputTokens on thinking before they emit
-            // anything. This call fills a fixed schema, so thinking would only
-            // starve the answer and occasionally return an empty candidate.
-            thinkingConfig: { thinkingBudget: 0 },
+            ...(thinkingConfigFor(config.model) ? { thinkingConfig: thinkingConfigFor(config.model) } : {}),
           },
         }),
       });

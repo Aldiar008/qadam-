@@ -42,3 +42,6 @@ Thumbs.db
 
 # Внутренний документ стратегии — не в публичный репозиторий
 SERPIN_QADAM_Winning_Blueprint.pdf
+
+# Vercel
+.vercel/

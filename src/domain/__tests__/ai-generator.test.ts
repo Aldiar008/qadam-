@@ -13,7 +13,7 @@ import { generateDeterministicProposal } from '../../ai/deterministic.ts';
 import { generateCampaignProposal } from '../../ai/generator.ts';
 import { buildCampaignPrompt } from '../../ai/prompt.ts';
 import { checkContentSafety, neutraliseInjection, redact, sanitiseForPrompt } from '../../ai/redaction.ts';
-import { readProviderConfig } from '../../ai/providers.ts';
+import { readProviderConfig, thinkingConfigFor } from '../../ai/providers.ts';
 
 const INPUT: CampaignGenerationInput = {
   businessType: 'Кофейня',
@@ -432,6 +432,16 @@ test('gemini is selected only by its own key', () => {
 
   const configured = readProviderConfig({ QADAM_AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'test-key' });
   assert.equal(configured?.provider, 'gemini');
-  assert.equal(configured?.model, 'gemini-2.5-flash');
+  assert.equal(configured?.model, 'gemini-3.6-flash');
   assert.equal(configured?.baseUrl, 'https://generativelanguage.googleapis.com');
+});
+
+test('gemini thinking is disabled in the shape each model generation accepts', () => {
+  // Verified against the live API: 3.x answers 400 to thinkingBudget, 2.x
+  // answers 400 to thinkingLevel. Sending the wrong one loses the request.
+  assert.deepEqual(thinkingConfigFor('gemini-3.6-flash'), { thinkingLevel: 'low' });
+  assert.deepEqual(thinkingConfigFor('gemini-3.5-flash'), { thinkingLevel: 'low' });
+  assert.deepEqual(thinkingConfigFor('gemini-2.5-flash'), { thinkingBudget: 0 });
+  assert.deepEqual(thinkingConfigFor('gemini-2.0-flash'), { thinkingBudget: 0 });
+  assert.equal(thinkingConfigFor('gemini-flash-latest'), undefined, 'an unversioned name must not guess');
 });
