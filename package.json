@@ -26,6 +26,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run check:markup && npm run check:secrets && npm run check:data-layer && npm run check:types-drift && npm run build",
     "test:release": "node tests/release/run-all.mjs",
     "test:modes": "node tests/release/mode-separation.mjs",
+    "seed:remote": "node scripts/make-remote-demo-seed.mjs",
     "dev:all": "node scripts/dev-all.mjs",
     "dev:stop": "supabase stop"
   },
