@@ -25,14 +25,28 @@ begin
 end $$;
 
 -- Every table in public at once, so foreign keys never dictate an order and no
--- table is missed when the schema grows.
+-- table is missed when the schema grows — except the reference tables, which
+-- are not the seed's to restore.
+--
+-- Plans, their entitlements, the retention schedule and the data inventory are
+-- inserted by migrations, never by supabase/seed.sql. Locally that distinction
+-- is invisible, because `supabase db reset` replays the migrations and the seed
+-- together. Here only the seed comes back, so emptying these leaves every
+-- business resolving to no plan at all: a business without a subscription falls
+-- back to `free`, and if `free` and its entitlements are gone, the fallback
+-- finds nothing. The first thing that breaks is compiling a Growth Contract,
+-- which is the centre of the demonstration — it refuses with
+-- "Тариф none: 0/0 за период" and nothing about the message suggests the seed.
 do $$
 declare statement text;
+declare preserved constant text[] := array[
+ 'plans', 'plan_entitlements', 'entitlements', 'retention_policies', 'data_inventory'
+];
 begin
  select 'truncate table ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' restart identity cascade'
  into statement
  from pg_tables
- where schemaname = 'public';
+ where schemaname = 'public' and tablename <> all (preserved);
 
  if statement is null then
   raise exception 'QADAM demo reset found no tables in public — refusing to continue against an unexpected database.';
@@ -47,5 +61,22 @@ delete from auth.identities;
 delete from auth.sessions;
 delete from auth.refresh_tokens;
 delete from auth.users;
+
+-- If a later migration starts providing reference data of its own, the list
+-- above will be short by exactly that table and nothing will say so. This
+-- catches the case the demonstration actually depends on, loudly and before
+-- the transaction commits.
+do $$
+begin
+ if not exists (select 1 from public.plans where code = 'free')
+    or not exists (
+      select 1 from public.plan_entitlements pe
+      join public.plans p on p.id = pe.plan_id
+      join public.entitlements e on e.id = pe.entitlement_id
+      where p.code = 'free' and e.key = 'growth_contracts_month'
+    ) then
+  raise exception 'QADAM demo reset would leave the environment without a usable plan: the free plan or its entitlements are missing.';
+ end if;
+end $$;
 
 commit;
