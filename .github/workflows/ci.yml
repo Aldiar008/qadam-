@@ -1,0 +1,206 @@
+name: CI
+
+# Every pull request and every push to a long-lived branch runs the same checks.
+# Nothing here talks to a production project: the database is a throwaway
+# Supabase instance started inside the runner, and the production seed is
+# explicitly forbidden below.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # A CI run must never point at a real project by accident.
+  QADAM_APP_MODE: DEMO_MODE
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  static:
+    name: Lint, types and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # `npm ci` and not `npm install`: it installs exactly what the lockfile
+      # says and fails if package.json and the lockfile disagree.
+      - name: Install from the lockfile
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Markup checks
+        run: npm run check:markup
+
+      - name: Secret boundary
+        run: npm run check:secrets
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: build-time-placeholder
+          SUPABASE_SECRET_KEY: build-time-placeholder
+
+  database:
+    name: Migration replay, RLS and advisors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install from the lockfile
+        run: npm ci
+
+      # This is the migration replay: an empty database, every migration in
+      # order, then the seed. A migration that only works against a database
+      # that already has the previous state fails here.
+      - name: Start a clean database and replay every migration
+        run: supabase start -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Guard against a production seed
+        run: |
+          if grep -rniE 'prod(uction)?[-_ ]?(seed|data)|real customer' supabase/seed.sql; then
+            echo "The seed must contain synthetic data only."
+            exit 1
+          fi
+
+      - name: Data layer contract
+        run: npm run check:data-layer
+
+      - name: pgTAP, including the RLS suites
+        run: supabase test db --local supabase/tests/database
+
+      - name: Two-tenant RLS matrix and static security scan
+        run: |
+          node tests/security/rls-matrix.mjs
+          node tests/security/static-scan.mjs
+        env:
+          QADAM_DB_CONTAINER: supabase_db_${{ github.event.repository.name }}
+
+      - name: Schema lint
+        run: supabase db lint --local --level error --fail-on error
+
+      - name: Security and performance advisors
+        run: supabase db advisors --local --type all --level warn --fail-on error
+
+      # Generated types are committed, so a schema change that was not
+      # regenerated shows up as a diff here rather than as a runtime surprise.
+      - name: Generated types are in sync with the schema
+        run: |
+          supabase gen types --local --schema public > /tmp/database.generated.ts
+          if ! diff -q /tmp/database.generated.ts src/types/database.generated.ts; then
+            echo "src/types/database.generated.ts is stale. Run: npm run db:types > src/types/database.generated.ts"
+            diff /tmp/database.generated.ts src/types/database.generated.ts | head -40
+            exit 1
+          fi
+
+  e2e:
+    name: Browser acceptance, security and accessibility
+    runs-on: ubuntu-latest
+    needs: [static, database]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install from the lockfile
+        run: npm ci
+
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the database
+        run: supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Build and start the production server
+        run: |
+          npm run build
+          npm start &
+          npx wait-on http://localhost:3000 -t 60000
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CI_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.CI_SUPABASE_SECRET_KEY }}
+          QADAM_JOB_SECRET: ci-job-secret-value-not-a-real-one
+          QADAM_WEBHOOK_SECRET: ci-webhook-secret-value-not-a-real-one
+
+      - name: Owner, customer and admin journeys
+        run: npm run test:e2e
+        env:
+          QADAM_DB_CONTAINER: supabase_db_${{ github.event.repository.name }}
+
+      - name: HTTP security suite
+        run: node tests/security/http-suite.mjs
+        env:
+          QADAM_DB_CONTAINER: supabase_db_${{ github.event.repository.name }}
+          QADAM_JOB_SECRET: ci-job-secret-value-not-a-real-one
+          QADAM_WEBHOOK_SECRET: ci-webhook-secret-value-not-a-real-one
+
+      - name: Accessibility and responsive audit
+        run: npm run test:a11y
+        env:
+          QADAM_DB_CONTAINER: supabase_db_${{ github.event.repository.name }}
+
+      - name: Keep the evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-evidence
+          path: |
+            tests/e2e/results/
+            tests/e2e/screenshots/
+            tests/security/results/
+            tests/a11y/results/
+          retention-days: 14
+
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan the history for committed credentials
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No .env file may be committed
+        run: |
+          if git ls-files | grep -E '^\.env($|\.local$|\.production$)'; then
+            echo "An environment file is committed. Remove it and rotate the values."
+            exit 1
+          fi

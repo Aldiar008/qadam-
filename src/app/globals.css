@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Clean warm white Apple-inspired palette */
+  --background: #FAF9F5;
+  --foreground: #0F172A;
+
+  /* Surfaces */
+  --surface: #FFFFFF;
+  --surface-muted: #F3F4F1;
+  --surface-glow: rgba(13, 148, 136, 0.06);
+
+  /* Primary brand color - confident emerald green.
+     Kept at teal-700 rather than teal-600: #0D9488 measures 3.74:1 against
+     white, below the 4.5:1 WCAG AA needs for normal text, and it is used both
+     as a text colour on white and as a background under white text. #0F766E
+     clears 5.47:1 in both directions. */
+  --primary: #0F766E;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #115E59;
+
+  /* Secondary */
+  --secondary: #E2E8F0;
+  --secondary-foreground: #1E293B;
+
+  /* Tech accent blue */
+  --accent: #2563EB;
+  --accent-foreground: #FFFFFF;
+
+  /* Status. Each pair carries white text, so each background has to clear
+     4.5:1 against white on its own: the previous #10B981 managed 2.54:1 and
+     #D97706 managed 3.19:1. */
+  --success: #047857;
+  --success-foreground: #FFFFFF;
+  --warning: #B45309;
+  --warning-foreground: #FFFFFF;
+  --danger: #DC2626;
+  --danger-foreground: #FFFFFF;
+
+  /* Borders & muted */
+  --border: #E2E8F0;
+  --ring: #0F766E;
+  --muted: #F1F5F9;
+  /* #64748B measured 4.31:1 on the muted surface, just under AA. */
+  --muted-foreground: #52606E;
+
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'IBM Plex Mono', monospace;
+}
+
+.dark {
+  --background: #090D16;
+  --foreground: #F8FAFC;
+  --surface: #0F172A;
+  --surface-muted: #1E293B;
+  --border: #334155;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    position: relative;
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--ring) 72%, white);
+    outline-offset: 3px;
+  }
+  button, a { touch-action: manipulation; }
+}
+
+/* Lenis owns desktop scroll interpolation. Disable native smooth scrolling
+   only while Lenis is active so the two animations never fight each other. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+/* Tabular numbers for financial metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.45);
+}
+
+/* Motion transition tokens */
+.motion-fast {
+  transition: color 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.motion-standard {
+  transition: color 260ms cubic-bezier(0.16, 1, 0.3, 1), background-color 260ms cubic-bezier(0.16, 1, 0.3, 1), border-color 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Shared page entrance: content stays readable without JavaScript and each
+   meaningful block reveals once as it enters the viewport. */
+.scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, 1.5rem, 0) scale(0.992);
+  transition:
+    opacity 380ms cubic-bezier(0.16, 1, 0.3, 1) var(--scroll-reveal-delay, 0ms),
+    transform 380ms cubic-bezier(0.16, 1, 0.3, 1) var(--scroll-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.scroll-reveal--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* One continuous Starfield surface: no visual seams between landing sections. */
+.qadam-starfield-page > section {
+  padding-block: clamp(3rem, 4vw, 4.5rem) !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  background-color: color-mix(in srgb, var(--background) 82%, transparent) !important;
+}
+
+.qadam-starfield-page > section:first-of-type {
+  padding-top: clamp(8rem, 10vw, 10rem) !important;
+}
+
+.qadam-starfield-page > section[data-cinematic-hero][data-scroll-reveal] {
+  min-height: 100svh;
+  padding: 0 !important;
+  background: var(--background) !important;
+}
+
+@media (max-width: 767px) {
+  .qadam-starfield-page > section {
+    padding-block: 3.25rem !important;
+    background-color: color-mix(in srgb, var(--background) 88%, transparent) !important;
+  }
+
+  .qadam-starfield-page > section:first-of-type {
+    padding-top: 8rem !important;
+  }
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .scroll-reveal,
+  .scroll-reveal.scroll-reveal--visible {
+    opacity: 1;
+    transform: none;
+  }
+}

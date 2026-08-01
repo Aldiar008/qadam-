@@ -1,0 +1,82 @@
+name: Deploy
+
+# Deployment is gated on CI. A failing check means no deploy — the `needs`
+# dependency below is the whole point of this file, not a formality.
+#
+# Nothing here is wired to a real project yet: no remote Supabase project is
+# linked and no hosting provider is configured, so every job is a no-op that
+# states what it will do. That is deliberate — a deploy pipeline that pretends
+# to work is worse than one that says it is not connected.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Refuse to deploy on a failing CI run
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI must have succeeded
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success'
+        run: |
+          echo "CI concluded '${{ github.event.workflow_run.conclusion }}'. Not deploying."
+          exit 1
+
+  migrate:
+    name: Apply migrations to the target environment
+    runs-on: ubuntu-latest
+    needs: [gate]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse to run without an explicit project reference
+        run: |
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            echo "BLOCKED: no Supabase project is linked for this environment."
+            echo "Set SUPABASE_PROJECT_REF and SUPABASE_ACCESS_TOKEN on the environment first."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Push migrations
+        run: supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # The demo seed exists to make a local machine useful. Loading it into a
+      # shared environment would mix synthetic rows into real tenants, and every
+      # honesty guarantee in this product depends on that never happening.
+      - name: The seed is never applied outside a developer machine
+        run: echo "supabase/seed.sql is local-only by design and is not applied here."
+
+  release:
+    name: Deploy the application
+    runs-on: ubuntu-latest
+    needs: [migrate]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Hosting is not configured
+        run: |
+          echo "BLOCKED: no hosting provider is connected for this project."
+          echo "When one is chosen, this job builds with that environment's variables and promotes the build."
+          exit 1

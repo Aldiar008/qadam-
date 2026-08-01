@@ -1,0 +1,44 @@
+# Зависимости
+node_modules/
+
+# Сборка Next
+.next/
+out/
+*.tsbuildinfo
+
+# Переменные окружения. Коммитится только .env.example с плейсхолдерами —
+# CI отдельно падает, если .env оказался в индексе.
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Supabase: временные файлы CLI. Миграции и seed коммитятся.
+supabase/.temp/
+supabase/.branches/
+
+# Артефакты прогонов: результаты и скриншоты пересоздаются каждым запуском
+tests/e2e/results/
+tests/e2e/screenshots/
+tests/security/results/
+tests/a11y/results/
+tests/perf/results/
+tests/release/results/
+
+# Черновики и логи локальных прогонов
+tmp/
+*.log
+
+# Скиллы агентов ставятся командой `npx skills add`, а не коммитятся
+.agents/
+.claude/
+
+# ОС и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Внутренний документ стратегии — не в публичный репозиторий
+SERPIN_QADAM_Winning_Blueprint.pdf

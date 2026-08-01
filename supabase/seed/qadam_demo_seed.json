@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "environment": "local_dev_only",
+  "business": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "name": "TAMYR Coffee",
+    "city": "Алматы",
+    "district": "Бостандыкский",
+    "capacity": 38,
+    "currency": "KZT",
+    "timezone": "Asia/Almaty",
+    "average_check_minor": 3450,
+    "margin_floor_bps": 4200
+  },
+  "counts": {
+    "customers": 180,
+    "transactions": 1129,
+    "segments": 5,
+    "campaigns": 3,
+    "content_items": 3,
+    "recommendations": 3,
+    "automations": 3,
+    "tools": 12,
+    "templates": 3,
+    "daily_analytics": 120,
+    "activity_logs": 20
+  },
+  "canonical_outcome": {
+    "delivered": 18,
+    "opened": 15,
+    "redeemed": 9,
+    "influenced_revenue_minor": 103500,
+    "incremental_estimate_minor": 48700,
+    "incremental_contribution_minor": 18200,
+    "campaign_cost_minor": 6800,
+    "simulated_roi_bps": 16800,
+    "simulated_owner_time_saved_minutes": 145
+  },
+  "domain_fixture": {
+    "period": { "start": "2026-07-22T00:00:00.000Z", "end": "2026-07-30T00:00:00.000Z" },
+    "signal": { "weekday_window": "15:00-18:00", "delta_bps": -2700, "confidence": 0.82 },
+    "segments": { "inactive_days": 30, "inactive_count": 64, "eligible_count": 18, "minimum_return_score": 0.8 },
+    "gos_inputs": { "P": 0.88, "S": 0.85, "R": 0.9, "V": 0.9, "G": 0.9, "C": 0.9, "D": 0.82, "A": 0.8, "L": 0.75 },
+    "simulator": {
+      "eligible_audience": 18,
+      "baseline_conversion": 0.2,
+      "uplift": { "pessimistic": 0.3, "base": 0.5, "optimistic": 0.67 },
+      "average_order_value_minor": 3500,
+      "unit_cost_minor": 1400,
+      "contribution_margin": 0.6,
+      "channel_cost_per_contact_minor": 10,
+      "fixed_cost_minor": 6800,
+      "budget_minor": 120000,
+      "duration_days": 7,
+      "frequency_cap": 1,
+      "cannibalization": 0.1,
+      "safe_gift": { "type": "gift_with_threshold", "gift_cost_minor": 300, "threshold_minor": 3500 },
+      "unsafe_discount": { "type": "percentage_discount", "discount_bps": 2000 }
+    },
+    "impact_assumptions": {
+      "exposed_purchases": 30,
+      "expected_baseline_purchases": 20,
+      "incremental_aov_minor": 4870,
+      "contribution_margin": 0.5,
+      "discount_leakage_minor": 2150,
+      "variable_cost_minor": 2000,
+      "channel_cost_minor": 2000,
+      "forecast_minor": 50000
+    }
+  },
+  "generator": "../seed.sql"
+}
