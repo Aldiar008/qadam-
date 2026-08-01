@@ -12,13 +12,33 @@ export const PASSWORD = 'QadamLocal!2026';
 export const DB_CONTAINER = process.env.QADAM_DB_CONTAINER ?? 'supabase_db_qadam_serpin';
 export const SHOTS = 'tests/e2e/screenshots';
 
+/**
+ * A deployed environment has no local container to exec into, so the same
+ * assertions reach it over the Management API instead. Set the project ref and
+ * the checks that prove UI claims against the database keep working against a
+ * real deployment; leave it unset and nothing about local runs changes.
+ */
+export const REMOTE_REF = process.env.QADAM_SUPABASE_PROJECT_REF ?? '';
+
+/**
+ * Every wait below was tuned against a local stack, where a page is a few
+ * milliseconds away. A deployed target adds the trip to whatever region it
+ * runs in, twice per navigation, and a 30s ceiling that never came close
+ * locally starts to be reached — which reads as a product failure when it is
+ * a distance. The waits scale instead of being raised for everyone, so a local
+ * run still fails fast on something genuinely stuck.
+ */
+const REMOTE_TARGET = !/localhost|127\.0\.0\.1/.test(BASE);
+export const PATIENCE = Number(process.env.QADAM_E2E_PATIENCE ?? (REMOTE_TARGET ? 4 : 1));
+const patient = (ms) => Math.round(ms * PATIENCE);
+
 /** Single-value SQL read straight from Postgres, used to prove UI claims. */
 export function db(sql) {
-  return execFileSync(
-    'docker',
-    ['exec', '-i', DB_CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-A', '-t', '-c', sql],
-    { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
-  )
+  const [command, args] = REMOTE_REF
+    ? ['node', ['tests/e2e/remote-query.mjs', sql]]
+    : ['docker', ['exec', '-i', DB_CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-A', '-t', '-c', sql]];
+
+  return execFileSync(command, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
     .replace(/\r/g, '')
     .trim();
 }
@@ -47,6 +67,11 @@ export async function openBrowser(options = {}) {
     timezoneId: 'Asia/Almaty',
     ...options.context,
   });
+  // Playwright's own 30s default applies to every goto and click that does not
+  // pass a timeout, so scaling only the explicit waits would leave the most
+  // common call in the suite tuned for localhost.
+  context.setDefaultTimeout(patient(30_000));
+  context.setDefaultNavigationTimeout(patient(30_000));
   const problems = [];
   context.on('page', (page) => {
     page.on('console', (message) => {
@@ -69,7 +94,7 @@ export async function login(page, email, password = PASSWORD) {
   await page.fill('input[name=email]', email);
   await page.fill('input[name=password]', password);
   await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 }),
+    page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: patient(30_000) }),
     page.click('form:has(input[name=password]) button[type=submit], form:has(input[name=password]) button:not([type])'),
   ]);
   return page.url();
@@ -83,9 +108,9 @@ export async function login(page, email, password = PASSWORD) {
 export async function gotoReady(page, path, options = {}) {
   await page.goto(path.startsWith('http') ? path : BASE + path, { waitUntil: 'domcontentloaded' });
   await page
-    .waitForFunction(() => !document.body.innerText.includes('Загружаем данные бизнеса'), null, { timeout: options.timeout ?? 20_000 })
+    .waitForFunction(() => !document.body.innerText.includes('Загружаем данные бизнеса'), null, { timeout: options.timeout ?? patient(20_000) })
     .catch(() => {});
-  await page.waitForLoadState('networkidle', { timeout: options.timeout ?? 20_000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: options.timeout ?? patient(20_000) }).catch(() => {});
   return page.url();
 }
 
@@ -98,11 +123,11 @@ export async function shot(page, name) {
 /** Clicks a submit button and waits for the server action round trip to land. */
 export async function submit(page, selector, options = {}) {
   const before = page.url();
-  await page.click(selector, { timeout: options.timeout ?? 15_000 });
+  await page.click(selector, { timeout: options.timeout ?? patient(15_000) });
   await page
-    .waitForFunction((url) => window.location.href !== url, before, { timeout: options.timeout ?? 20_000 })
+    .waitForFunction((url) => window.location.href !== url, before, { timeout: options.timeout ?? patient(20_000) })
     .catch(() => {});
-  await page.waitForLoadState('networkidle', { timeout: options.timeout ?? 30_000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: options.timeout ?? patient(30_000) }).catch(() => {});
   return page.url();
 }
 

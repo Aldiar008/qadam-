@@ -45,3 +45,6 @@ SERPIN_QADAM_Winning_Blueprint.pdf
 
 # Vercel
 .vercel/
+
+.vercel
+.env*

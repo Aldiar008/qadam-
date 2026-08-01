@@ -7,9 +7,33 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 
 const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin'];
+
+// Resetting the local stack while the suites drive a deployed environment
+// would prove nothing and quietly desynchronise the run, so the target decides.
+const remote = Boolean(process.env.QADAM_SUPABASE_PROJECT_REF) || !/localhost|127\.0\.0\.1/.test(process.env.QADAM_E2E_BASE ?? 'localhost');
 const skipReset = process.env.QADAM_E2E_SKIP_RESET === '1';
 
-if (!skipReset) {
+const remoteRef = process.env.QADAM_SUPABASE_PROJECT_REF;
+
+if (skipReset) {
+  process.stdout.write('Skipping the reset by request; exact-seed assertions may not hold.\n');
+} else if (remote) {
+  // The suites assert exact seed figures and mutate what they drive, so a run
+  // that starts from the previous run's leftovers reports differences that are
+  // its own doing. A deployed target gets the same clean start as a local one,
+  // by the only route available to it.
+  if (!remoteRef || !process.env.SUPABASE_ACCESS_TOKEN) {
+    process.stdout.write(
+      'Target is deployed but QADAM_SUPABASE_PROJECT_REF / SUPABASE_ACCESS_TOKEN are not both set.\n' +
+        'Running against whatever state it is in; exact-seed assertions may not hold.\n',
+    );
+  } else {
+    process.stdout.write(`Restoring project ${remoteRef} to the committed seed...\n`);
+    for (const file of ['supabase/seed/remote_demo_reset.sql', 'supabase/seed/remote_demo_seed.sql']) {
+      execFileSync(process.execPath, ['scripts/apply-remote-sql.mjs', remoteRef, file], { stdio: 'inherit' });
+    }
+  }
+} else {
   process.stdout.write('Resetting the local database to the committed seed...\n');
   execFileSync('npx', ['supabase', 'db', 'reset', '--local'], { stdio: 'inherit', shell: true });
 }

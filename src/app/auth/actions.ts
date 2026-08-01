@@ -14,7 +14,15 @@ const safeNext = (form: FormData, fallback: string) => {
 
 async function postAuthPath(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, requested?: string) {
   const { data: member } = await supabase.from('business_members').select('business_id').eq('user_id', userId).eq('status', 'active').order('created_at').limit(1).maybeSingle();
-  if (!member) return '/onboarding';
+  if (!member) {
+    // A platform administrator holds no tenant membership by design, so the
+    // absence of one is not evidence that they still have to onboard — it is
+    // evidence that the console is where they belong. The role is read through
+    // the same security-definer function the console itself trusts, never from
+    // user metadata.
+    const { data: isPlatformAdmin } = await supabase.rpc('is_current_platform_admin');
+    return isPlatformAdmin ? '/admin' : '/onboarding';
+  }
   const [{ data: profile }, { data: session }] = await Promise.all([
     supabase.from('business_profiles').select('business_id').eq('business_id', member.business_id).maybeSingle(),
     supabase.from('onboarding_sessions').select('status').eq('business_id', member.business_id).eq('user_id', userId).maybeSingle(),
