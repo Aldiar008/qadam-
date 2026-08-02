@@ -4821,6 +4821,15 @@ export type Database = {
       }
       is_current_platform_admin: { Args: never; Returns: boolean }
       issue_telegram_link: { Args: { p_business_id: string }; Returns: Json }
+      launch_contract_from_chat: {
+        Args: {
+          p_channel: string
+          p_chat_id: string
+          p_contract_id: string
+          p_name: string
+        }
+        Returns: Json
+      }
       launch_growth_contract: {
         Args: {
           p_channel: string
@@ -4832,6 +4841,13 @@ export type Database = {
         Returns: Json
       }
       mark_admin_reauth: { Args: never; Returns: Json }
+      owner_chats: {
+        Args: { p_business_id: string }
+        Returns: {
+          chat_id: string
+        }[]
+      }
+      owner_digest: { Args: { p_business_id: string }; Returns: Json }
       platform_overview: {
         Args: {
           p_business_type: string

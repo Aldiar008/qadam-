@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runDueAutomations, runOutboxBatch } from '@/server/execution/worker';
 import { detectAndRecord } from '@/server/qadam/signal-detection';
+import { sendOwnerDigest } from '@/server/qadam/owner-assistant';
 
 /**
  * Protected job endpoint.
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'rate_limited', retryAfterSeconds: 60 }, { status: 429 });
   }
 
-  let body: { businessId?: string; cycleKey?: string; limit?: number };
+  let body: { businessId?: string; cycleKey?: string; limit?: number; digest?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -108,7 +109,20 @@ export async function POST(request: Request) {
 
     const automations = await runDueAutomations(db, businessId, cycleKey, 'scheduler');
     const outbox = await runOutboxBatch(db, businessId, `job:${cycleKey}`, Math.min(50, Number(body.limit ?? 20)));
-    report.push({ businessId, signal, automations: automations.ran, outbox });
+
+    // The assistant writes last, so it reports the state after this cycle
+    // rather than the one before it. Its failure is never the cycle's failure:
+    // a chat that could not be written to has no bearing on work already done.
+    let digest: unknown;
+    if (body.digest !== false) {
+      try {
+        digest = await sendOwnerDigest(db, businessId);
+      } catch (error) {
+        digest = { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+
+    report.push({ businessId, signal, automations: automations.ran, outbox, digest });
   }
 
   return NextResponse.json({ cycleKey, businesses: report.length, report }, { status: 200 });

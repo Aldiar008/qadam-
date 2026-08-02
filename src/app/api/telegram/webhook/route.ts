@@ -34,6 +34,11 @@ interface TelegramUpdate {
     from?: { id?: number | string; first_name?: string; username?: string };
     text?: string;
   };
+  callback_query?: {
+    id?: string;
+    data?: string;
+    message?: { chat?: { id?: number | string } };
+  };
 }
 
 const api = (method: string) => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN ?? ''}/${method}`;
@@ -68,6 +73,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
 
+  // A pressed button arrives as a callback, not a message. Telegram keeps the
+  // spinner turning until it is answered, so it is answered even when the
+  // action is refused — a button that appears stuck reads as a broken product.
+  if (update.callback_query) {
+    return handleCallback(update.callback_query);
+  }
+
   const chatId = update.message?.chat?.id;
   const text = String(update.message?.text ?? '').trim();
   // Telegram retries anything that is not 2xx. An update this bot has no answer
@@ -100,6 +112,57 @@ export async function POST(request: Request) {
     'Владельцу: в кабинете, в разделе «Автоматизации», есть код привязки — откройте ссылку оттуда.',
   ].join('\n'));
   return NextResponse.json({ ok: true, handled: 'help' });
+}
+
+/**
+ * Handles a pressed button.
+ *
+ * The callback carries a contract id and nothing else. Whether this chat may
+ * launch that contract is decided in the database, from the linkage, not from
+ * anything the button says about itself.
+ */
+async function handleCallback(query: NonNullable<TelegramUpdate['callback_query']>) {
+  const chat = String(query.message?.chat?.id ?? '');
+  const data = String(query.data ?? '');
+  const answer = async (text: string) => {
+    if (!process.env.TELEGRAM_BOT_TOKEN || !query.id) return;
+    await fetch(api('answerCallbackQuery'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: query.id, text, show_alert: false }),
+    }).catch(() => {});
+  };
+
+  const contractId = /^launch:([0-9a-f-]{36})$/.exec(data)?.[1];
+  if (!chat || !contractId) {
+    await answer('Не понял эту кнопку.');
+    return NextResponse.json({ ok: true, handled: 'callback_unknown' });
+  }
+
+  const db = createAdminClient();
+  const { data: launched, error } = await db.rpc('launch_contract_from_chat', {
+    p_chat_id: chat,
+    p_contract_id: contractId,
+    p_name: 'Запуск из Telegram',
+    p_channel: 'telegram',
+  });
+
+  if (error) {
+    await answer('Запуск отклонён.');
+    await reply(chat, `Запустить не получилось: ${error.message}`);
+    return NextResponse.json({ ok: true, handled: 'launch_refused', reason: error.message });
+  }
+
+  const result = (launched ?? {}) as { duplicate?: boolean };
+  await answer(result.duplicate ? 'Эта кампания уже запущена.' : 'Принято.');
+  await reply(chat, result.duplicate
+    ? 'Эта кампания уже была запущена — второй раз она не уйдёт.'
+    : [
+        'Кампания подтверждена и поставлена в очередь.',
+        '',
+        'Перед каждой отправкой заново проверяются согласие, тихие часы и лимиты: получателей может оказаться меньше, чем в плане, и это нормально. Отчёт пришлю, когда цикл отработает.',
+      ].join('\n'));
+  return NextResponse.json({ ok: true, handled: 'launched' });
 }
 
 /**
