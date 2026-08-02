@@ -124,8 +124,25 @@ on conflict(segment_id,customer_id) do nothing;
 insert into public.transactions(id,business_id,location_id,customer_id,external_ref,occurred_at,gross_minor,discount_minor,net_minor,cost_minor,currency,source,is_mock)
 select private.deterministic_uuid('transaction-'||g),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
  private.deterministic_uuid('customer-'||(((g-1)%180)+1)),'demo-tx-'||g,
- '2026-07-29 06:00:00+00'::timestamptz-(((g-1)%120)||' days')::interval+((g%10)||' hours')::interval,
- 3450,0,3450,1311,'KZT','demo_seed',true from generate_series(1,1129) g
+ t.occurred_at, t.amount, 0, t.amount, round(t.amount*0.38), 'KZT','demo_seed',true
+from generate_series(1,1129) g
+cross join lateral (
+ select ts.occurred_at,
+  case
+   when ((g-1)%84) < 7
+    and extract(isodow from ts.local_day) between 1 and 5
+    and (9 + ((g-1)/84)) between 15 and 17
+   then 2519
+   else 3450
+  end as amount
+ from (
+  select
+   (date_trunc('day', now() at time zone 'Asia/Almaty') - (((g-1)%84)||' days')::interval) as local_day,
+   ((date_trunc('day', now() at time zone 'Asia/Almaty')
+     - (((g-1)%84)||' days')::interval
+     + ((9 + ((g-1)/84))||' hours')::interval) at time zone 'Asia/Almaty') as occurred_at
+ ) ts
+) t
 on conflict(id) do nothing;
 insert into public.transaction_items(id,business_id,transaction_id,item_name,quantity,unit_price_minor,unit_cost_minor,total_minor,currency,is_mock)
 select private.deterministic_uuid('transaction-item-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('transaction-'||g),
@@ -133,8 +150,8 @@ select private.deterministic_uuid('transaction-item-'||g),'10000000-0000-4000-80
 
 insert into public.signals(id,business_id,location_id,signal_type,metric_key,period_start,period_end,comparison_start,comparison_end,change_bps,growth_opportunity_score,confidence,status,evidence,detected_at,is_mock)
 values('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
- 'quiet_hours_drop','weekday_revenue_15_18','2026-07-15 09:00+00','2026-07-29 12:00+00','2026-07-01 09:00+00','2026-07-15 12:00+00',
- -2700,87,82,'open','{"source":"synthetic_transactions","comparison":"comparable_weekdays"}','2026-07-29 04:15+00',true)
+ 'quiet_hours','weekday_revenue_afternoon_15_18',now()-interval '7 days',now(),now()-interval '14 days',now()-interval '7 days',
+ -2700,87,82,'open','{"source":"synthetic_transactions","comparison":"comparable_weekdays"}',now(),true)
 on conflict(id) do update set change_bps=-2700,growth_opportunity_score=87,is_mock=true;
 
 insert into public.recommendations(id,business_id,signal_id,title_ru,title_kk,explanation,confidence,status,is_mock)
@@ -186,7 +203,7 @@ from generate_series(1,3) g on conflict(id) do nothing;
 
 insert into public.daily_analytics(id,business_id,location_id,metric_date,gross_revenue_minor,transactions_count,new_customers_count,repeat_customers_count,currency,source,is_mock)
 select private.deterministic_uuid('daily-'||g),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
- date '2026-07-29'-(g-1),(300000+g*1000),8+(g%5),g%3,5+(g%4),'KZT','demo_seed',true
+ (now() at time zone 'Asia/Almaty')::date-(g-1),(300000+g*1000),8+(g%5),g%3,5+(g%4),'KZT','demo_seed',true
 from generate_series(1,120) g on conflict(business_id,location_id,metric_date) do nothing;
 
 insert into public.activity_logs(id,business_id,actor_id,action,resource_type,resource_id,metadata,occurred_at,is_mock)
