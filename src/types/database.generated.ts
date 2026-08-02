@@ -4909,6 +4909,24 @@ export type Database = {
         }
         Returns: Json
       }
+      record_detected_signal: {
+        Args: {
+          p_assumptions: Json
+          p_baseline: Json
+          p_business_id: string
+          p_change_bps: number
+          p_comparison_end: string
+          p_comparison_start: string
+          p_confidence: number
+          p_delta: Json
+          p_evidence: Json
+          p_metric_key: string
+          p_period_end: string
+          p_period_start: string
+          p_signal_type: string
+        }
+        Returns: Json
+      }
       rollback_template: {
         Args: {
           p_reason: string

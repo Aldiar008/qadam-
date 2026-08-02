@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runDueAutomations, runOutboxBatch } from '@/server/execution/worker';
+import { detectAndRecord } from '@/server/qadam/signal-detection';
 
 /**
  * Protected job endpoint.
@@ -93,9 +94,21 @@ export async function POST(request: Request) {
 
   const report: Record<string, unknown>[] = [];
   for (const businessId of businessIds) {
+    // Detection first: an automation that fires on a signal should see the
+    // measurement taken from today's data, not last cycle's.
+    let signal: unknown;
+    try {
+      const outcome = await detectAndRecord(db, businessId);
+      signal = outcome.detected ? { metricKey: outcome.metricKey, changeBps: outcome.detected.evidence.deltaBps } : { missing: outcome.missing };
+    } catch (error) {
+      // One business whose numbers cannot be read must not stop the cycle for
+      // everyone else, but the failure is reported rather than swallowed.
+      signal = { error: error instanceof Error ? error.message : String(error) };
+    }
+
     const automations = await runDueAutomations(db, businessId, cycleKey, 'scheduler');
     const outbox = await runOutboxBatch(db, businessId, `job:${cycleKey}`, Math.min(50, Number(body.limit ?? 20)));
-    report.push({ businessId, automations: automations.ran, outbox });
+    report.push({ businessId, signal, automations: automations.ran, outbox });
   }
 
   return NextResponse.json({ cycleKey, businesses: report.length, report }, { status: 200 });
