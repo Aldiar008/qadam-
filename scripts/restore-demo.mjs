@@ -48,4 +48,33 @@ for (const [file, label] of steps) {
   }
 }
 
+/**
+ * One cycle right after the seed, when there is a stand to call.
+ *
+ * The seed writes a signal so «Сегодня» is never empty. But the detector
+ * re-measures the same sales on the next cycle and can honestly land a point or
+ * two away from the seeded figure — and a number that changes in the middle of a
+ * demonstration is the one thing worth avoiding. Running the cycle now makes the
+ * figure on screen the measured one from the start, and fills the recommendation
+ * list from it.
+ */
+const stand = process.env.QADAM_STAND_URL ?? 'https://qadam-growth-os.vercel.app';
+const jobSecret = process.env.QADAM_JOB_SECRET;
+if (jobSecret) {
+  try {
+    const response = await fetch(`${stand.replace(/\/$/, '')}/api/jobs/run-cycle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-qadam-job-secret': jobSecret },
+      body: JSON.stringify({ cycleKey: `restore-${Date.now()}` }),
+    });
+    console.log(response.ok
+      ? 'Цикл прогнан: сигнал измерен по продажам, рекомендации собраны.'
+      : `Цикл не прогнан (${response.status}). Стенд восстановлен, но «Сегодня» покажет seed-значение до следующего цикла.`);
+  } catch (error) {
+    console.log(`Цикл не прогнан (${error instanceof Error ? error.message : error}). Это не отменяет восстановления.`);
+  }
+} else {
+  console.log('QADAM_JOB_SECRET не задан — цикл не прогонялся. Сигнал пересчитается сам в течение пяти минут.');
+}
+
 console.log(`\nPASS: стенд ${ref} восстановлен.`);

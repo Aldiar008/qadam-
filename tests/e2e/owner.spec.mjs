@@ -124,7 +124,13 @@ try {
   // Экран печатает человеческий заголовок сигнала, а ключ метрики остаётся в
   // evidence: проверять надо, что сигнал показан, а не как он назван внутри.
   r.check('the top signal is rendered', today, (v) => /Тихие часы|weekday_revenue/.test(v));
-  r.check('signal magnitude comes from the database', db(`select round(change_bps/100.0)::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_afternoon_15_18' limit 1`), (v) => v.includes('27') || v.includes('-27'));
+  // The check is named for what it should assert: that the figure on screen is
+  // the figure in the database. Pinning it to «27» asserted the opposite — that
+  // the number is a constant — and went red the moment the detector re-measured
+  // the demo's own sales and honestly got −22%.
+  const measuredBps = db(`select change_bps::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_afternoon_15_18' limit 1`);
+  r.check('signal magnitude comes from the database', today, (v) => v.includes(String(Math.round(Number(measuredBps) / 100))));
+  r.check('and it is a real drop, not a rounding artefact', measuredBps, (v) => Number(v) <= -1500);
   r.check('64 inactive customers in the segment', db(`select count(*) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'`), '64');
   r.check('18 of them consent to Telegram marketing', db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'))`), '18');
   await shot(page, 'owner-04-today-signal');
