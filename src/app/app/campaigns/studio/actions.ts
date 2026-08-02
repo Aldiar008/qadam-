@@ -199,10 +199,21 @@ export async function compileStudioContract() {
   const { data: signal } = await session.ctx.supabase.from('signals')
     .select('id').eq('business_id', session.ctx.businessId).eq('status', 'open')
     .order('growth_opportunity_score', { ascending: false }).limit(1).maybeSingle();
-  const { data: recommendation } = await session.ctx.supabase.from('recommendations')
+  let { data: recommendation } = await session.ctx.supabase.from('recommendations')
     .select('id').eq('business_id', session.ctx.businessId).in('status', ['open', 'accepted'])
     .order('confidence', { ascending: false }).limit(1).maybeSingle();
-  if (!signal || !recommendation) backTo(1, '&error=' + encodeURIComponent('Нужны открытый сигнал и рекомендация.'));
+
+  // Rejecting every suggestion used to end the road here permanently. If a
+  // signal exists, a recommendation for it can always be rebuilt.
+  if (signal && !recommendation) {
+    await session.ctx.supabase.rpc('refresh_my_recommendations');
+    ({ data: recommendation } = await session.ctx.supabase.from('recommendations')
+      .select('id').eq('business_id', session.ctx.businessId).in('status', ['open', 'accepted'])
+      .order('confidence', { ascending: false }).limit(1).maybeSingle());
+  }
+
+  if (!signal) backTo(1, '&error=' + encodeURIComponent('Пока нет измеренного сигнала: нужны продажи хотя бы за две сопоставимые недели.'));
+  if (!recommendation) backTo(1, '&error=' + encodeURIComponent('Сигнал есть, но рекомендацию собрать не удалось. Откройте «Рекомендации» и нажмите «Пересобрать по сигналам».'));
 
   // Entitlement is checked server-side, and a refusal must not cost the owner
   // their draft: the wizard state stays exactly where it is.

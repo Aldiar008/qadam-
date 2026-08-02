@@ -4901,6 +4901,7 @@ export type Database = {
         Args: { p_reason: string; p_version_id: string }
         Returns: Json
       }
+      recommend_from_signals: { Args: { p_business_id: string }; Returns: Json }
       recompute_campaign_impact: {
         Args: { p_campaign_id: string; p_measurement_version: string }
         Returns: Json
@@ -4970,6 +4971,7 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_my_recommendations: { Args: never; Returns: Json }
       remember_channel_address: {
         Args: {
           p_address: string

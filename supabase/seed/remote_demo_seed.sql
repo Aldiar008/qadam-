@@ -89,6 +89,57 @@ on conflict(business_id) do update set monthly_budget_minor=60000,is_mock=false;
 -- check against anything. These are written in the shape
 -- `public.preview_segment_audience` executes, and the memberships below are
 -- derived from the same conditions, so the card and the list agree.
+-- Меню заведения с ценой и себестоимостью.
+--
+-- Без него Margin Shield считал вклад-маржу от одного среднего чека, в промпт AI
+-- уходил пустой каталог, генератор рекомендаций честно отвечал «не хватает
+-- себестоимости позиций», а в Telegram-приложении гостю нечего было показать.
+insert into public.catalog_items(id,business_id,location_id,sku,item_kind,name_ru,name_kk,price_minor,cost_minor,currency,is_active,is_mock)
+select private.deterministic_uuid('catalog-'||t.sku),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+ t.sku,'product',t.name_ru,t.name_kk,t.price,t.cost,'KZT',true,true
+from (values
+ ('espresso','Эспрессо','Эспрессо',700,210),
+ ('americano','Американо','Американо',900,250),
+ ('cappuccino','Капучино','Капучино',1400,500),
+ ('latte','Латте','Латте',1500,540),
+ ('raf','Раф','Раф',1800,650),
+ ('flat_white','Флэт-уайт','Флэт-уайт',1600,570),
+ ('tea','Чай','Шай',800,180),
+ ('croissant','Круассан','Круассан',900,600),
+ ('almond_croissant','Круассан с миндалём','Бадаммен круассан',1200,760),
+ ('cheesecake','Чизкейк','Чизкейк',1900,900),
+ ('cinnamon_roll','Синнабон','Синнабон',1400,700),
+ ('sandwich','Сэндвич','Сэндвич',2200,1250),
+ ('porridge','Овсяная каша','Сұлы ботқасы',1500,620),
+ ('lemonade','Лимонад','Лимонад',1300,430)
+) as t(sku,name_ru,name_kk,price,cost)
+on conflict(business_id,sku) do update set price_minor=excluded.price_minor,cost_minor=excluded.cost_minor,is_active=true,is_mock=true;
+
+-- Часы работы: без них сигнал «свободные окна» и автоматизация «тихие часы»
+-- всегда находили ноль, потому что таблица была пуста.
+insert into public.operating_hours(id,business_id,location_id,day_of_week,opens_at,closes_at,is_closed,is_mock)
+select private.deterministic_uuid('hours-'||d),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+ d, case when d in (0,6) then time '09:00' else time '08:00' end,
+ case when d in (0,6) then time '21:00' else time '22:00' end, false, true
+from generate_series(0,6) d
+on conflict(location_id,day_of_week) do update set opens_at=excluded.opens_at,closes_at=excluded.closes_at,is_mock=true;
+
+-- Загрузка по часам за последние две недели: будни 15–18 заметно свободнее.
+insert into public.capacity_slots(id,business_id,location_id,starts_at,ends_at,capacity,booked,is_mock)
+select private.deterministic_uuid('slot-'||d||'-'||h),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+ date_trunc('hour', now()) - ((d||' days')::interval) - (((24 - h)||' hours')::interval),
+ date_trunc('hour', now()) - ((d||' days')::interval) - (((23 - h)||' hours')::interval),
+ 38,
+ case
+   when extract(isodow from (now() - (d||' days')::interval)) >= 6 then 20 + (d + h) % 8
+   when h between 15 and 17 then 6 + (d + h) % 4
+   when h between 8 and 10 then 24 + (d + h) % 6
+   else 16 + (d + h) % 7
+ end,
+ true
+from generate_series(1,14) d cross join generate_series(8,21) h
+on conflict(location_id,starts_at) do nothing;
+
 insert into public.customer_segments(id,business_id,code,name_ru,name_kk,definition,is_dynamic,status,is_mock,last_evaluated_at)
 select private.deterministic_uuid('segment-'||g),'10000000-0000-4000-8000-000000000001',
  (array['inactive_30','eligible_winback','new','loyal','vip'])[g],

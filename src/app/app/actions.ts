@@ -429,6 +429,25 @@ export async function previewSegmentAudience(rule: SegmentRule): Promise<{ match
  * владельцем отдельно» — separately from where, exactly, was never built. The
  * database still enforces them; this only lets the owner set them.
  */
+/**
+ * Rebuilds the recommendation list from the signals already measured.
+ *
+ * Without this the list only ever shrank: onboarding wrote three rows, nothing
+ * else ever wrote one, and Campaign Studio refuses to compile without an open
+ * recommendation — so rejecting all three locked the owner out of their own
+ * product with no way back.
+ */
+export async function refreshRecommendations() {
+  const ctx = await requireBusinessContext();
+  if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
+  const { data, error } = await ctx.supabase.rpc('refresh_my_recommendations');
+  if (error) redirect('/app/recommendations?error=' + encodeURIComponent(describeDbError(error)));
+  const result = (data ?? {}) as { created?: number; refreshed?: number };
+  revalidatePath('/app/recommendations');
+  revalidatePath('/app/today');
+  redirect(`/app/recommendations?refreshed=${result.created ?? 0}:${result.refreshed ?? 0}`);
+}
+
 export async function saveBusinessLimits(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) throw new Error('FORBIDDEN');

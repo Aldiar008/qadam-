@@ -32,6 +32,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export interface DetectionOutcome {
   detected: DetectedSignal | null;
   metricKey: string | null;
+  /**
+   * Everything the detector found this run, strongest first.
+   *
+   * Only the single sharpest finding used to be recorded, so a business with a
+   * quiet-hours dip *and* a growing pile of dormant guests was told about one
+   * of them and the other was measured and thrown away. Each becomes its own
+   * signal, and therefore its own recommendation.
+   */
+  all: readonly { signal: DetectedSignal; metricKey: string }[];
   /** Present when nothing could be decided, naming what is missing. */
   missing: string | null;
   transactions: number;
@@ -110,7 +119,7 @@ export async function detectForBusiness(db: SupabaseClient, businessId: string, 
   // answer is "not yet", said plainly, with the number still needed.
   if (rows.length < 30) {
     return {
-      detected: null, metricKey: null, transactions: rows.length, windowDays: 14,
+      detected: null, metricKey: null, all: [], transactions: rows.length, windowDays: 14,
       missing: `Для сравнения двух недель нужно не меньше 30 продаж, сейчас ${rows.length}. Загрузите историю продаж или подключите источник.`,
     };
   }
@@ -121,7 +130,7 @@ export async function detectForBusiness(db: SupabaseClient, businessId: string, 
   const band = worstBand({ rows, timezone, capacity, invalidRowShare: 0, now });
   if (!band) {
     return {
-      detected: null, metricKey: null, transactions: rows.length, windowDays: 14,
+      detected: null, metricKey: null, all: [], transactions: rows.length, windowDays: 14,
       missing: 'Нет ни одного будничного окна, где на прошлой неделе была выручка, — сравнивать не с чем.',
     };
   }
@@ -147,17 +156,22 @@ export async function detectForBusiness(db: SupabaseClient, businessId: string, 
 
   if (!detected.length) {
     return {
-      detected: null, metricKey: null, transactions: rows.length, windowDays: 14,
+      detected: null, metricKey: null, all: [], transactions: rows.length, windowDays: 14,
       missing: 'Показатели держатся ровно: ни одно окно не просело настолько, чтобы это было отличимо от обычного разброса.',
     };
   }
 
-  const strongest = detected.reduce((worstSoFar, signal) =>
-    Math.abs(signal.evidence.deltaBps) > Math.abs(worstSoFar.evidence.deltaBps) ? signal : worstSoFar);
+  const ranked = [...detected]
+    .sort((a, b) => Math.abs(b.evidence.deltaBps) - Math.abs(a.evidence.deltaBps))
+    .map((signal) => ({
+      signal,
+      metricKey: signal.type === 'quiet_hours' ? `weekday_revenue_${band.label}` : signal.type,
+    }));
 
   return {
-    detected: strongest,
-    metricKey: strongest.type === 'quiet_hours' ? `weekday_revenue_${band.label}` : strongest.type,
+    detected: ranked[0].signal,
+    metricKey: ranked[0].metricKey,
+    all: ranked,
     missing: null,
     transactions: rows.length,
     windowDays: 14,
@@ -173,27 +187,35 @@ export async function detectForBusiness(db: SupabaseClient, businessId: string, 
  */
 export async function detectAndRecord(db: SupabaseClient, businessId: string, now = Date.now()): Promise<DetectionOutcome> {
   const outcome = await detectForBusiness(db, businessId, now);
-  if (!outcome.detected || !outcome.metricKey) return outcome;
+  if (!outcome.all.length) return outcome;
 
-  const { evidence } = outcome.detected;
-  const { error } = await db.rpc('record_detected_signal', {
-    p_business_id: businessId,
-    p_signal_type: outcome.detected.type,
-    p_metric_key: outcome.metricKey,
-    p_period_start: new Date(now - 7 * DAY_MS).toISOString(),
-    p_period_end: new Date(now).toISOString(),
-    p_comparison_start: new Date(now - 14 * DAY_MS).toISOString(),
-    p_comparison_end: new Date(now - 7 * DAY_MS).toISOString(),
-    p_change_bps: evidence.deltaBps,
-    p_confidence: Math.round(evidence.confidence * 100),
-    p_evidence: evidence.explanation as unknown as Record<string, unknown>,
-    p_baseline: { value: evidence.baseline },
-    p_delta: { value: evidence.current - evidence.baseline, bps: evidence.deltaBps },
-    p_assumptions: evidence.assumptions,
-  });
-  // A measurement that could not be written is not a measurement anyone will
-  // see, and the caller has to be able to say so rather than report success.
-  if (error) throw new Error(`could not record the signal for ${businessId}: ${error.message}`);
+  for (const { signal, metricKey } of outcome.all) {
+    const { evidence } = signal;
+    const { error } = await db.rpc('record_detected_signal', {
+      p_business_id: businessId,
+      p_signal_type: signal.type,
+      p_metric_key: metricKey,
+      p_period_start: new Date(now - 7 * DAY_MS).toISOString(),
+      p_period_end: new Date(now).toISOString(),
+      p_comparison_start: new Date(now - 14 * DAY_MS).toISOString(),
+      p_comparison_end: new Date(now - 7 * DAY_MS).toISOString(),
+      p_change_bps: evidence.deltaBps,
+      p_confidence: Math.round(evidence.confidence * 100),
+      p_evidence: evidence.explanation as unknown as Record<string, unknown>,
+      p_baseline: { value: evidence.baseline },
+      p_delta: { value: evidence.current - evidence.baseline, bps: evidence.deltaBps },
+      p_assumptions: evidence.assumptions,
+    });
+    // A measurement that could not be written is not a measurement anyone will
+    // see, and the caller has to be able to say so rather than report success.
+    if (error) throw new Error(`could not record the ${metricKey} signal for ${businessId}: ${error.message}`);
+  }
+
+  // A signal without a recommendation is a diagnosis with no treatment, which is
+  // exactly where this product used to stop.
+  const { error: recommendError } = await db.rpc('recommend_from_signals', { p_business_id: businessId });
+  if (recommendError) throw new Error(`could not turn signals into recommendations for ${businessId}: ${recommendError.message}`);
+
   return outcome;
 }
 

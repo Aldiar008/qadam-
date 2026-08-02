@@ -100,7 +100,9 @@ export async function POST(request: Request) {
     let signal: unknown;
     try {
       const outcome = await detectAndRecord(db, businessId);
-      signal = outcome.detected ? { metricKey: outcome.metricKey, changeBps: outcome.detected.evidence.deltaBps } : { missing: outcome.missing };
+      signal = outcome.all.length
+        ? { recorded: outcome.all.map((item) => ({ metricKey: item.metricKey, changeBps: item.signal.evidence.deltaBps })) }
+        : { missing: outcome.missing };
     } catch (error) {
       // One business whose numbers cannot be read must not stop the cycle for
       // everyone else, but the failure is reported rather than swallowed.
