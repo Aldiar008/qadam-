@@ -65,6 +65,9 @@ async function resolveChannel(db: SupabaseClient, businessId: string, channel: s
     // The secret lives in the server environment, keyed per business channel,
     // and is never stored in a table a member can read.
     secret: process.env[`QADAM_WEBHOOK_SECRET_${channel.toUpperCase()}`] ?? process.env.QADAM_WEBHOOK_SECRET,
+    // Vendor tokens are separate from the webhook signing secret: one proves
+    // who we are to a provider, the other proves a payload came from us.
+    token: channel === 'telegram' ? process.env.TELEGRAM_BOT_TOKEN : undefined,
   };
 }
 
@@ -180,8 +183,21 @@ export async function runOutboxBatch(db: SupabaseClient, businessId: string, wor
       channel: channel as ChannelKind,
       endpoint: channelConfig.endpoint,
       secret: channelConfig.secret,
+      token: channelConfig.token,
       timeoutMs: SEND_TIMEOUT_MS,
     });
+
+    // The adapter is handed an address, never a database handle: resolving who
+    // a `customer:<uuid>` reference points at is the application's job, and
+    // keeping it here means an adapter cannot quietly decide who to send to.
+    const { data: address, error: addressError } = await db.rpc('resolve_channel_address', {
+      p_business_id: businessId,
+      p_channel: channel,
+      p_customer_id: customerId || delivery.customer_id,
+    });
+    if (addressError) {
+      throw new Error(`could not resolve the ${channel} address for ${businessId}: ${addressError.message}`);
+    }
 
     const { data: content } = delivery.content_item_id
       ? await db.from('content_items').select('body').eq('id', delivery.content_item_id).maybeSingle()
@@ -197,7 +213,7 @@ export async function runOutboxBatch(db: SupabaseClient, businessId: string, wor
         body: content?.body ?? '',
         // Only an opaque reference crosses the boundary — never the address itself.
         recipientRef: `customer:${delivery.customer_id}`,
-        metadata: { deliveryId, businessId },
+        metadata: { deliveryId, businessId, ...(address ? { chatId: String(address) } : {}) },
       });
       receipt = await adapter.send(prepared, controller.signal);
     } catch (sendError) {

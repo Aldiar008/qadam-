@@ -30,6 +30,8 @@ export interface AdapterConfig {
   endpoint?: string;
   /** Server-only. Never read outside this module. */
   secret?: string;
+  /** Vendor bot token, server-only. Kept apart from `secret`, which signs webhooks. */
+  token?: string;
   timeoutMs?: number;
 }
 
@@ -248,8 +250,125 @@ export function createUnimplementedVendorAdapter(channel: ChannelKind): Connecto
 }
 
 /** Adapter selection is server-side and driven by the stored channel row. */
+/**
+ * Telegram, over the Bot API.
+ *
+ * The bot can only message someone who has messaged it first — that is the
+ * platform's rule, not a limitation of this code, and it is the reason the
+ * customer journey starts from a QR deep link rather than from a list of
+ * contacts. The chat id that conversation produces is stored in
+ * `private.channel_addresses`, which is what `recipientRef` resolves against.
+ *
+ * `recipientRef` arrives as `customer:<uuid>`; the caller has already resolved
+ * it to a chat id and put it in `metadata.chatId`. The adapter never reads the
+ * database: adapters move bytes, and giving one a database handle would make it
+ * a place where sending decisions could quietly be made.
+ */
+export function createTelegramAdapter(config: AdapterConfig): ConnectorAdapter {
+  // The timeout arrives as an AbortSignal from the worker, which owns the
+  // deadline for the whole dispatch; a second one here would only disagree.
+  const api = (method: string) => `https://api.telegram.org/bot${config.token ?? ''}/${method}`;
+
+  const call = async (method: string, body: unknown, signal: AbortSignal): Promise<Record<string, unknown>> => {
+    if (!config.token) throw new ConnectorError('not_configured', 'TELEGRAM_BOT_TOKEN is missing', false);
+    const response = await fetch(api(method), {
+      method: 'POST',
+      signal,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await response.text();
+    // 429 carries a retry_after; 5xx is the platform, not the message.
+    if (response.status === 429 || response.status >= 500) {
+      throw new ConnectorError('provider_unavailable', `telegram responded ${response.status}`, true);
+    }
+    let parsed: { ok?: boolean; description?: string; result?: unknown };
+    try {
+      parsed = JSON.parse(text || '{}');
+    } catch {
+      throw new ConnectorError('provider_rejected', 'telegram returned a body that is not JSON', false);
+    }
+    if (!response.ok || parsed.ok === false) {
+      throw new ConnectorError('provider_rejected', `telegram refused: ${parsed.description ?? text.slice(0, 200)}`, false);
+    }
+    return (parsed.result ?? {}) as Record<string, unknown>;
+  };
+
+  return {
+    name: 'telegram',
+    channel: config.channel,
+    canSendExternally: true,
+    async prepare(message) {
+      return { ...message, channel: config.channel };
+    },
+    async send(message: PreparedMessage, signal: AbortSignal): Promise<SendReceipt> {
+      const chatId = message.metadata.chatId;
+      // No chat means this person never opened the bot. That is an ordinary
+      // state, and calling it a failure to send would be inaccurate: there was
+      // nowhere to send.
+      if (!chatId) {
+        return {
+          status: 'skipped', providerMessageRef: null, retryable: false, simulated: false,
+          error: 'no_telegram_chat: получатель не начинал диалог с ботом',
+        };
+      }
+      try {
+        const result = await call('sendMessage', {
+          chat_id: chatId,
+          text: message.body,
+          disable_web_page_preview: true,
+        }, signal);
+        const messageId = result.message_id;
+        return {
+          status: 'sent',
+          providerMessageRef: messageId ? `tg:${chatId}:${messageId}` : `tg:${chatId}:${message.idempotencyKey}`,
+          retryable: false,
+          simulated: false,
+          error: null,
+        };
+      } catch (error) {
+        const failure = error instanceof ConnectorError ? error : new ConnectorError('provider_unavailable', String(error), true);
+        return { status: 'failed', providerMessageRef: null, retryable: failure.retryable, simulated: false, error: failure.message };
+      }
+    },
+    async status(providerMessageRef: string): Promise<DeliveryStatus> {
+      // The Bot API has no delivery-status endpoint. Saying "unknown" is the
+      // truthful answer; inventing "delivered" would be the tempting one.
+      return {
+        status: 'unknown',
+        providerMessageRef,
+        raw: { reason: 'telegram exposes no per-message delivery status' },
+      };
+    },
+    async cancel() {
+      return { cancelled: false, reason: 'telegram cannot recall a delivered message' };
+    },
+    async healthCheck(signal: AbortSignal): Promise<HealthCheckResult> {
+      const checkedAt = new Date().toISOString();
+      if (!config.token) {
+        return { ok: false, state: 'not_configured', checkedAt, evidence: { required_credentials: ['TELEGRAM_BOT_TOKEN'] }, error: 'token missing' };
+      }
+      try {
+        const me = await call('getMe', {}, signal);
+        return {
+          ok: true,
+          // A working bot token is a real connection, and the tenant's mode
+          // decides whether that may be called `connected`.
+          state: 'connected',
+          checkedAt,
+          evidence: { health_check: 'getMe', bot: String(me.username ?? ''), can_read_all_group_messages: Boolean(me.can_read_all_group_messages) },
+          error: null,
+        };
+      } catch (error) {
+        return { ok: false, state: 'error', checkedAt, evidence: { health_check: 'getMe' }, error: String(error instanceof Error ? error.message : error) };
+      }
+    },
+  };
+}
+
 export function createAdapter(adapterName: string, config: AdapterConfig): ConnectorAdapter {
   if (adapterName === 'webhook') return createWebhookAdapter(config);
+  if (adapterName === 'telegram') return createTelegramAdapter(config);
   if (adapterName === 'mock') return createMockAdapter(config.channel);
   return createUnimplementedVendorAdapter(config.channel);
 }

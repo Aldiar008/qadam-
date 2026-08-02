@@ -4696,6 +4696,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_telegram_link: {
+        Args: { p_chat_id: string; p_code: string }
+        Returns: Json
+      }
       complete_onboarding: {
         Args: {
           p_expected_version: number
@@ -4809,6 +4813,7 @@ export type Database = {
         Returns: Json
       }
       is_current_platform_admin: { Args: never; Returns: boolean }
+      issue_telegram_link: { Args: { p_business_id: string }; Returns: Json }
       launch_growth_contract: {
         Args: {
           p_channel: string
@@ -4926,6 +4931,24 @@ export type Database = {
           p_signal_type: string
         }
         Returns: Json
+      }
+      remember_channel_address: {
+        Args: {
+          p_address: string
+          p_business_id: string
+          p_channel: string
+          p_customer_id?: string
+          p_owner_user_id?: string
+        }
+        Returns: Json
+      }
+      resolve_channel_address: {
+        Args: {
+          p_business_id: string
+          p_channel: string
+          p_customer_id: string
+        }
+        Returns: string
       }
       rollback_template: {
         Args: {

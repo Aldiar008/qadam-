@@ -24,7 +24,11 @@ if (!ref || !token) {
 // A read that fails to connect is not an answer about the product, but it
 // aborts the suite as if it were. Reaching the API is retried; a query the
 // database actually rejected is not, because that is a real result.
-const ATTEMPTS = 4;
+// Six attempts backing off to half a minute in total. Four attempts spaced
+// half a second apart covered a dropped packet and nothing else: a connection
+// that is out for twenty seconds — which this network does — aborted a suite
+// mid-run and read as a product failure.
+const ATTEMPTS = 6;
 let response;
 for (let attempt = 1; ; attempt += 1) {
   try {
@@ -39,7 +43,7 @@ for (let attempt = 1; ; attempt += 1) {
       console.error(`could not reach the Management API after ${ATTEMPTS} attempts: ${error}`);
       process.exit(1);
     }
-    await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt * attempt));
   }
 }
 

@@ -149,6 +149,25 @@ export async function toggleEmergencyStop(form: FormData) {
  * The database refuses to store `connected` without evidence, so a channel can
  * never be labelled live on the strength of a form submission alone.
  */
+/**
+ * Issues a one-hour, single-use code that attaches the owner's Telegram chat.
+ *
+ * The code is what the bot verifies; the cabinet never sees a chat id and the
+ * bot never sees a session. That keeps the two identities separate — a leaked
+ * link cannot be replayed into an account, and a leaked session cannot be
+ * turned into a chat.
+ */
+export async function issueTelegramLink() {
+  const ctx = await requireBusinessContext();
+  if (!canManage(ctx.role)) back('?error=forbidden');
+
+  const { data, error } = await ctx.supabase.rpc('issue_telegram_link', { p_business_id: ctx.businessId });
+  if (error) back('?error=' + encodeURIComponent(describeDbError(error)));
+
+  const result = (data ?? {}) as { code?: string };
+  back('?telegram_code=' + encodeURIComponent(String(result.code ?? '')));
+}
+
 export async function checkConnectorHealth(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) back('?error=forbidden');

@@ -10,6 +10,7 @@ import {
   runAutomationNow,
   runDemoCycle,
   toggleEmergencyStop,
+  issueTelegramLink,
   transitionAutomationRule,
 } from './actions';
 
@@ -33,6 +34,9 @@ export default async function AutomationsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  // The bot's username is public by nature — it is in the link every guest
+  // scans — so it is a plain configuration value, not a secret.
+  const telegramBot = process.env.NEXT_PUBLIC_TELEGRAM_BOT ?? 'qadam_serpin_bot';
   const data = await getAutomationsData();
   const canEdit = canMarket(data.role);
   const isManager = canManage(data.role);
@@ -75,6 +79,30 @@ export default async function AutomationsPage({
           {params.connector && `Проверка канала завершена: ${decodeURIComponent(params.connector)}.`}
         </div>
       )}
+
+      {/* Telegram assistant ------------------------------------------------ */}
+      <section className="rounded-3xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-bold">Ассистент в Telegram</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Бот присылает сигнал дня и принимает подтверждение запуска. Он ничего не отправляет
+          клиентам сам: отправка по-прежнему проходит через согласие, тихие часы и лимиты.
+        </p>
+        {params.telegram_code ? (
+          <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm">
+            <p className="font-bold text-emerald-900">Код привязки создан. Он действует один час и срабатывает один раз.</p>
+            <p className="mt-2">Откройте эту ссылку в Telegram:</p>
+            <code className="mt-2 block break-all rounded-xl bg-surface p-3 font-mono text-xs">
+              https://t.me/{telegramBot}?start=o_{params.telegram_code}
+            </code>
+          </div>
+        ) : (
+          <form action={issueTelegramLink} className="mt-4">
+            <button className="min-h-11 rounded-xl border border-border px-5 text-sm font-bold">
+              Получить ссылку привязки
+            </button>
+          </form>
+        )}
+      </section>
 
       {/* Emergency stop --------------------------------------------------- */}
       <section className={`rounded-3xl border p-6 ${stopped ? 'border-rose-500/40 bg-rose-500/5' : 'border-border bg-surface'}`}>
