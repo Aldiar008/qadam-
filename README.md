@@ -11,7 +11,7 @@ AI-маркетолог для малого офлайн-бизнеса в Ка�
 
 | Ссылка | Что это |
 |---|---|
-| https://qadam-demo.vercel.app | Одно приложение, в котором можно попробовать **и** демонстрационное заведение, **и** боевое |
+| https://qadam-growth-os.vercel.app | Одно приложение, в котором можно попробовать **и** демонстрационное заведение, **и** боевое |
 
 На `/login` кнопка «Войти в DEMO_MODE» открывает заполненную кофейню TAMYR —
 это заведение с `mode='demo'`. Регистрация через `/signup` создаёт **боевое**
@@ -144,7 +144,7 @@ SUPABASE_ACCESS_TOKEN=sbp_... node scripts/apply-remote-sql.mjs <ref> supabase/s
 ```bash
 export SUPABASE_ACCESS_TOKEN=sbp_...
 export QADAM_SUPABASE_PROJECT_REF=<ref демо-проекта>
-QADAM_E2E_BASE=https://qadam-demo.vercel.app npm run test:e2e
+QADAM_E2E_BASE=https://qadam-growth-os.vercel.app npm run test:e2e
 ```
 
 E2E, security и a11y против **локальной** сборки требуют запущенного продакшн-сервера:
