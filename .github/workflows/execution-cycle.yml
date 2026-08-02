@@ -1,0 +1,71 @@
+name: Execution cycle
+
+# The product has no scheduler of its own: `/api/jobs/run-cycle` is a protected
+# endpoint that runs due automations and drains the outbox when something calls
+# it. Locally `npm run dev:all` calls it every minute. A deployed stand had
+# nothing calling it at all, so automations never ran and the send queue only
+# grew — which looked like a broken product and was really a missing caller.
+#
+# This is that caller. It is deliberately not a Vercel Cron job: on the free
+# plan those fire once a day and send a bare GET, while this endpoint requires
+# a POST carrying a shared secret. Once a day would also be useless for anyone
+# trying the stand.
+#
+# GitHub's scheduler is best-effort — a run can be late or skipped under load.
+# That is acceptable here and stated rather than hidden: nothing in the product
+# assumes an exact cadence, because the endpoint is idempotent per cycle key.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# Two overlapping ticks would only produce a 409 from the replay guard, but
+# there is no reason to spend a runner on proving that.
+concurrency:
+  group: execution-cycle
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run one execution cycle
+        env:
+          STAND_URL: ${{ vars.QADAM_STAND_URL }}
+          JOB_SECRET: ${{ secrets.QADAM_JOB_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${STAND_URL:-}" ] || [ -z "${JOB_SECRET:-}" ]; then
+            echo "QADAM_STAND_URL (variable) and QADAM_JOB_SECRET (secret) must both be set."
+            echo "Refusing to guess a target."
+            exit 1
+          fi
+
+          # The cycle key is what makes a repeated call a no-op instead of a
+          # double send, so it has to be unique per intended cycle.
+          CYCLE_KEY="gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date -u +%Y%m%d%H%M)"
+
+          STATUS=$(curl -sS -o response.json -w '%{http_code}' \
+            --retry 3 --retry-all-errors --retry-delay 5 --max-time 120 \
+            -X POST "${STAND_URL}/api/jobs/run-cycle" \
+            -H "content-type: application/json" \
+            -H "x-qadam-job-secret: ${JOB_SECRET}" \
+            -d "{\"cycleKey\":\"${CYCLE_KEY}\",\"limit\":25}")
+
+          echo "HTTP ${STATUS}"
+          head -c 2000 response.json || true
+          echo
+
+          case "${STATUS}" in
+            200) echo "Cycle ran."; exit 0 ;;
+            # Both mean the endpoint protected itself correctly, and the work
+            # will be picked up by the next tick. Neither is a build failure.
+            409) echo "Replayed cycle key — nothing to do."; exit 0 ;;
+            429) echo "Rate limited — the next tick will pick this up."; exit 0 ;;
+            503) echo "The stand has no QADAM_JOB_SECRET configured."; exit 1 ;;
+            401) echo "The stand rejected the secret. It differs from this repository's."; exit 1 ;;
+            *)   echo "Unexpected status ${STATUS}."; exit 1 ;;
+          esac
