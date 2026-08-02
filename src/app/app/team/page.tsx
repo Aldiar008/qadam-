@@ -66,9 +66,13 @@ export default async function TeamPage({
         </div>
       )}
 
-      <section className="rounded-3xl border border-border bg-surface p-6">
+      {/* The table needs 680px and the narrowest supported screen is 320px, so it
+          scrolls inside its own box. `overflow-x-auto` alone is not enough: a
+          flex or grid child defaults to min-width:auto and grows to fit its
+          content instead of shrinking, which pushes the whole page sideways. */}
+      <section className="min-w-0 rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Участники ({(members ?? []).length})</h2>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 min-w-0 overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
             <caption className="sr-only">Участники команды и их роли</caption>
             <thead className="bg-surface-muted text-xs text-muted-foreground">
@@ -180,12 +184,12 @@ export default async function TeamPage({
         </section>
       )}
 
-      <section className="rounded-3xl border border-border bg-surface p-6">
+      <section className="min-w-0 rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Матрица прав</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Критические действия отмечены звёздочкой: каждое из них записывается в журнал.
         </p>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 min-w-0 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <caption className="sr-only">Какие роли какие действия могут выполнять</caption>
             <thead className="bg-surface-muted text-xs text-muted-foreground">
