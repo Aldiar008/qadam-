@@ -150,17 +150,25 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Start the database
-        run: supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor
+        run: |
+          supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector,supavisor
+          # The local stack's keys are deterministic — the same on every machine
+          # and in every job — so they are read from the stack that was just
+          # started rather than stored as repository secrets. They were stored
+          # as secrets that nobody had set, so the application was built with an
+          # empty publishable key: pages rendered, and every sign-up silently
+          # failed to navigate. That is what kept this job red.
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(supabase status -o json | jq -r .PUBLISHABLE_KEY)" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=$(supabase status -o json | jq -r .SECRET_KEY)" >> "$GITHUB_ENV"
 
       - name: Build and start the production server
         run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "Публикуемый ключ пуст — сборка была бы без авторизации."; exit 1; }
           npm run build
           npm start &
           npx wait-on http://localhost:3000 -t 60000
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CI_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_SECRET_KEY: ${{ secrets.CI_SUPABASE_SECRET_KEY }}
           QADAM_JOB_SECRET: ci-job-secret-value-not-a-real-one
           QADAM_WEBHOOK_SECRET: ci-webhook-secret-value-not-a-real-one
 
