@@ -25,11 +25,15 @@ export const siteConfig = {
     { titleRu: 'Рекомендации', titleKk: 'Ұсыныстар', href: '/app/recommendations', icon: 'Sparkles' },
     { titleRu: 'Кампании', titleKk: 'Кампаниялар', href: '/app/campaigns', icon: 'Send' },
     { titleRu: 'Контент', titleKk: 'Контент', href: '/app/content', icon: 'PenTool' },
+    // Лояльность и Тариф — полноценные рабочие разделы, на которые не вела ни
+    // одна ссылка из меню: попасть туда можно было только по прямому адресу.
+    { titleRu: 'Лояльность', titleKk: 'Адалдық', href: '/app/loyalty', icon: 'QrCode' },
     { titleRu: 'Аналитика', titleKk: 'Аналитика', href: '/app/analytics', icon: 'BarChart3' },
     { titleRu: 'Автоматизации', titleKk: 'Автоматтандыру', href: '/app/automations', icon: 'Sliders' },
     { titleRu: 'Уведомления', titleKk: 'Хабарламалар', href: '/app/notifications', icon: 'Bell' },
     { titleRu: 'Команда', titleKk: 'Команда', href: '/app/team', icon: 'Users' },
     { titleRu: 'Инструменты', titleKk: 'Құралдар', href: '/app/tools', icon: 'Wrench' },
+    { titleRu: 'Тариф', titleKk: 'Тариф', href: '/app/plan', icon: 'CreditCard' },
     { titleRu: 'Настройки', titleKk: 'Баптаулар', href: '/app/settings', icon: 'Settings' },
   ],
   adminNav: [

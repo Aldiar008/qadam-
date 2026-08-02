@@ -7,6 +7,7 @@ import type { PromotionMechanic } from '@/domain/index.ts';
 import { DomainError } from '@/domain/shared.ts';
 import { GrowthContractService } from '@/server/domain/growth-contract-service';
 import { canMarket, requireBusinessContext } from '@/server/qadam/repository';
+import { loadGosInputs } from '@/server/qadam/gos-facts';
 import { describeDbError } from '@/server/qadam/errors';
 
 const textValue = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
@@ -62,12 +63,12 @@ function buildMechanic(form: FormData): PromotionMechanic {
  */
 export async function compileCampaignDraft(form: FormData) {
   const ctx = await requireBusinessContext();
-  const back = `/app/campaigns/new?segment=${encodeURIComponent(textValue(form, 'segment'))}&channel=${encodeURIComponent(textValue(form, 'channel') || 'whatsapp')}`;
+  const back = `/app/campaigns/new?segment=${encodeURIComponent(textValue(form, 'segment'))}&channel=${encodeURIComponent(textValue(form, 'channel') || 'telegram')}`;
   if (!canMarket(ctx.role)) failTo(back, 'Недостаточно прав для подготовки кампании.');
 
   const signalId = textValue(form, 'signalId');
   const recommendationId = textValue(form, 'recommendationId');
-  const channel = textValue(form, 'channel') || 'whatsapp';
+  const channel = textValue(form, 'channel') || 'telegram';
   const audienceCustomerIds = String(form.get('audienceCustomerIds') ?? '').split(',').map((id) => id.trim()).filter(Boolean);
   if (!signalId || !recommendationId) failTo(back, 'Нужны открытый сигнал и рекомендация.');
   if (!audienceCustomerIds.length) failTo(back, 'В выбранном сегменте нет клиентов с действующим согласием.');
@@ -75,6 +76,20 @@ export async function compileCampaignDraft(form: FormData) {
   const durationDays = Math.max(1, intValue(form, 'durationDays', 7));
   const periodStart = new Date();
   const periodEnd = new Date(periodStart.getTime() + durationDays * 86400000);
+
+  const aovMinor = Math.max(1, intValue(form, 'aovMinor', 3450));
+  const unitCostMinor = Math.max(0, intValue(form, 'unitCostMinor', 1400));
+  const channelCostMinor = Math.max(0, intValue(form, 'channelCostMinor', 20));
+  // The score used to be nine constants identical for every business. It is
+  // derived from this tenant's own signal, consent and history instead.
+  const gos = await loadGosInputs(ctx.supabase, ctx.businessId, {
+    signalId,
+    segmentSize: audienceCustomerIds.length,
+    consentEligible: audienceCustomerIds.length,
+    contributionMargin: (aovMinor - unitCostMinor) / aovMinor,
+    budgetMinor: Math.max(0, intValue(form, 'budgetCapMinor', 7000)),
+    expectedCostMinor: audienceCustomerIds.length * channelCostMinor,
+  });
 
   try {
     const compiled = await new GrowthContractService(ctx.supabase, ctx.userId).compile({
@@ -90,9 +105,9 @@ export async function compileCampaignDraft(form: FormData) {
           base: Math.max(0, intValue(form, 'upliftBaseBps', 900) / 10000),
           optimistic: Math.max(0, intValue(form, 'upliftHighBps', 1500) / 10000),
         },
-        averageOrderValueMinor: Math.max(1, intValue(form, 'aovMinor', 3450)),
-        unitCostMinor: Math.max(0, intValue(form, 'unitCostMinor', 1400)),
-        channelCostPerContactMinor: Math.max(0, intValue(form, 'channelCostMinor', 20)),
+        averageOrderValueMinor: aovMinor,
+        unitCostMinor,
+        channelCostPerContactMinor: channelCostMinor,
         fixedCostMinor: Math.max(0, intValue(form, 'fixedCostMinor', 0)),
         durationDays,
         frequencyCap: Math.max(1, intValue(form, 'frequencyCap', 1)),
@@ -101,7 +116,7 @@ export async function compileCampaignDraft(form: FormData) {
         period: { start: periodStart.toISOString(), end: periodEnd.toISOString() },
         source: 'campaign_studio',
       },
-      gos: { P: 0.5, S: 0.7, R: 0.6, V: 0.6, G: 0.7, C: 0.8, D: 0.7, A: 0.6, L: 0.8 },
+      gos,
       contentBrief: {
         ru: textValue(form, 'briefRu') || 'Персональное предложение для выбранного сегмента.',
         kk: textValue(form, 'briefKk') || 'Таңдалған сегментке арналған жеке ұсыныс.',
@@ -145,7 +160,7 @@ export async function launchCampaign(form: FormData) {
   const { data, error } = await ctx.supabase.rpc('launch_growth_contract', {
     p_contract_id: contractId,
     p_name: textValue(form, 'name') || 'Кампания QADAM',
-    p_channel: textValue(form, 'channel') || 'whatsapp',
+    p_channel: textValue(form, 'channel') || 'telegram',
     p_expected_version: intValue(form, 'expectedVersion', 1),
     p_idempotency_key: `launch:${contractId}:${randomUUID()}`,
   });
@@ -159,7 +174,7 @@ export async function launchCampaign(form: FormData) {
   if (audienceIds.length) {
     const { data: eligible } = await ctx.supabase.rpc('effective_consent_customers', {
       p_business_id: ctx.businessId,
-      p_scope: `marketing.${textValue(form, 'channel') || 'whatsapp'}`,
+      p_scope: `marketing.${textValue(form, 'channel') || 'telegram'}`,
       p_customer_ids: audienceIds,
     });
     const eligibleSet = new Set(((eligible ?? []) as string[]));

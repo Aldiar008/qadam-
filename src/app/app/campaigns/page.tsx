@@ -51,13 +51,13 @@ export default async function CampaignsPage() {
             href="/app/campaigns/new"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold"
           >
-            Быстрая форма
+            Быстрая кампания
           </Link>
           <Link
             href="/app/campaigns/studio"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground"
           >
-            <Plus className="size-4" aria-hidden="true" /> Campaign Studio
+            <Plus className="size-4" aria-hidden="true" /> Студия кампаний
           </Link>
         </div>
       </header>

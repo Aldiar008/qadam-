@@ -22,6 +22,7 @@ import {
   parseCampaignProposal,
   type AiFailureKind,
   type AiProvider,
+  type AiRequest,
   type CampaignGenerationInput,
   type CampaignProposal,
 } from './contract.ts';
@@ -59,6 +60,38 @@ export interface GenerationResult {
   telemetry: GenerationTelemetry;
 }
 
+/**
+ * The same orchestration for any structured answer.
+ *
+ * Campaign proposals were the first use, and for a while the only one — which
+ * is why every guard in this file was written for them. A second caller must
+ * not mean a second, looser path to a model: recommendations, content and
+ * customer briefs all arrive here, and all of them get the cost guard, the
+ * timeout, the retry policy, the strict parse, the content-safety check and the
+ * deterministic fallback.
+ */
+export interface StructuredGenerationRequest<T> {
+  request: AiRequest;
+  /** What gets hashed. Redacted already — never raw owner text. */
+  redactedPayload: string;
+  injectionFlags: readonly string[];
+  redactionHits: Readonly<Record<string, number>>;
+  promptVersion: string;
+  schemaVersion: string;
+  /** Untrusted input in, validated value out, or throw. */
+  parse: (raw: unknown) => T;
+  /** Everything a person will read, joined — checked before it can be shown. */
+  safetyTextOf: (value: T) => string;
+  /** Always available: the owner gets a usable answer even with no provider. */
+  fallback: () => T;
+}
+
+export interface StructuredGenerationResult<T> {
+  value: T;
+  source: GenerationSource;
+  telemetry: GenerationTelemetry;
+}
+
 export interface GeneratorOptions {
   provider: AiProvider | null;
   timeoutMs: number;
@@ -86,33 +119,32 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 3);
 }
 
-export async function generateCampaignProposal(
-  input: CampaignGenerationInput,
+export async function generateStructured<T>(
+  spec: StructuredGenerationRequest<T>,
   options: GeneratorOptions,
-): Promise<GenerationResult> {
+): Promise<StructuredGenerationResult<T>> {
   const now = options.now ?? (() => Date.now());
   const sleep = options.sleep ?? defaultSleep;
   const hash = options.hash ?? defaultHash;
   const inputRate = options.inputCostPerKTokenMicros ?? 3_000;
   const outputRate = options.outputCostPerKTokenMicros ?? 15_000;
 
-  const built = buildCampaignPrompt(input);
-  const inputHash = await hash(built.redactedPayload);
+  const inputHash = await hash(spec.redactedPayload);
   const startedAt = now();
 
   const baseTelemetry = {
-    promptVersion: CAMPAIGN_PROMPT_VERSION,
-    schemaVersion: CAMPAIGN_SCHEMA_VERSION,
+    promptVersion: spec.promptVersion,
+    schemaVersion: spec.schemaVersion,
     inputHash,
     safety: {
-      injectionFlags: built.injectionFlags,
-      redactionHits: built.redactionHits,
+      injectionFlags: spec.injectionFlags,
+      redactionHits: spec.redactionHits,
       contentViolations: Object.freeze([]) as readonly string[],
     },
   };
 
-  const fallback = (reason: string, failureKind: AiFailureKind | null, attempts: number, extra: Partial<GenerationTelemetry> = {}): GenerationResult => ({
-    proposal: generateDeterministicProposal(input),
+  const fallback = (reason: string, failureKind: AiFailureKind | null, attempts: number, extra: Partial<GenerationTelemetry> = {}): StructuredGenerationResult<T> => ({
+    value: spec.fallback(),
     source: 'deterministic_fallback',
     telemetry: {
       ...baseTelemetry,
@@ -135,8 +167,8 @@ export async function generateCampaignProposal(
   }
 
   // Cost guard runs before the first byte is sent.
-  const estimatedInputTokens = estimateTokens(built.request.system) + estimateTokens(built.request.user);
-  const estimatedMicros = Math.ceil((estimatedInputTokens / 1000) * inputRate) + Math.ceil((built.request.maxOutputTokens / 1000) * outputRate);
+  const estimatedInputTokens = estimateTokens(spec.request.system) + estimateTokens(spec.request.user);
+  const estimatedMicros = Math.ceil((estimatedInputTokens / 1000) * inputRate) + Math.ceil((spec.request.maxOutputTokens / 1000) * outputRate);
   if (estimatedMicros > options.costCeilingMicros) {
     return fallback(
       `Estimated cost ${estimatedMicros} exceeds the per-generation ceiling ${options.costCeilingMicros}.`,
@@ -150,16 +182,13 @@ export async function generateCampaignProposal(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs);
     try {
-      const response = await options.provider.complete(built.request, controller.signal);
+      const response = await options.provider.complete(spec.request, controller.signal);
       clearTimeout(timer);
 
-      const proposal = parseCampaignProposal(extractJson(response.text), { goal: input.goal, locales: input.locales });
+      const value = spec.parse(extractJson(response.text));
 
       // Generated copy is still copy this product publishes on the owner's behalf.
-      const combined = proposal.mechanics
-        .flatMap((mechanic) => Object.values(mechanic.copy).flatMap((copy) => [copy.title, copy.body, copy.cta]))
-        .join('\n');
-      const safety = checkContentSafety(combined);
+      const safety = checkContentSafety(spec.safetyTextOf(value));
       if (!safety.safe) {
         return fallback(
           `Generated copy failed content safety: ${safety.violations.join(', ')}.`,
@@ -171,7 +200,7 @@ export async function generateCampaignProposal(
 
       const costMicros = Math.ceil((response.inputTokens / 1000) * inputRate) + Math.ceil((response.outputTokens / 1000) * outputRate);
       return {
-        proposal,
+        value,
         source: 'provider',
         telemetry: {
           ...baseTelemetry,
@@ -207,4 +236,25 @@ export async function generateCampaignProposal(
     lastError?.kind ?? 'server_error',
     options.maxAttempts,
   );
+}
+
+export async function generateCampaignProposal(
+  input: CampaignGenerationInput,
+  options: GeneratorOptions,
+): Promise<GenerationResult> {
+  const built = buildCampaignPrompt(input);
+  const result = await generateStructured<CampaignProposal>({
+    request: built.request,
+    redactedPayload: built.redactedPayload,
+    injectionFlags: built.injectionFlags,
+    redactionHits: built.redactionHits,
+    promptVersion: CAMPAIGN_PROMPT_VERSION,
+    schemaVersion: CAMPAIGN_SCHEMA_VERSION,
+    parse: (raw) => parseCampaignProposal(raw, { goal: input.goal, locales: input.locales }),
+    safetyTextOf: (proposal) => proposal.mechanics
+      .flatMap((mechanic) => Object.values(mechanic.copy).flatMap((copy) => [copy.title, copy.body, copy.cta]))
+      .join('\n'),
+    fallback: () => generateDeterministicProposal(input),
+  }, options);
+  return { proposal: result.value, source: result.source, telemetry: result.telemetry };
 }

@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 import { canManage, getSettingsData } from '@/server/qadam/repository';
-import { saveBusinessSettings } from '../actions';
+import { saveBusinessLimits, saveBusinessSettings } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
-const money = (minor: number | string | null | undefined) => `${Number(minor ?? 0).toLocaleString('ru-RU')} ₸`;
 
 export default async function SettingsPage({
   searchParams,
@@ -70,13 +69,19 @@ export default async function SettingsPage({
             <input name="addressText" defaultValue={location?.address_text ?? ''} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
           </label>
 
+          {/* Empty, not prefilled. These two numbers drive Margin Shield, and a
+              form that suggests 3450 ₸ and 42% writes them into the profile the
+              moment the owner saves anything — after which the product treats
+              somebody else's economics as their decision. */}
           <label className="grid gap-2 text-sm font-bold">
             Средний чек, ₸
-            <input name="averageCheckMinor" type="number" min="1" defaultValue={data.profile?.average_check_minor ?? 3450} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+            <input name="averageCheckMinor" type="number" min="1" placeholder="например, 3450" defaultValue={data.profile?.average_check_minor ?? ''} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+            <span className="text-xs font-normal text-muted-foreground">Ваш собственный, из кассы. От него считается вклад-маржа.</span>
           </label>
           <label className="grid gap-2 text-sm font-bold">
             Порог маржи, bps (4200 = 42%)
-            <input name="marginFloorBps" type="number" min="0" max="10000" defaultValue={data.profile?.margin_floor_bps ?? 4200} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+            <input name="marginFloorBps" type="number" min="0" max="10000" placeholder="например, 4200" defaultValue={data.profile?.margin_floor_bps ?? ''} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+            <span className="text-xs font-normal text-muted-foreground">Ниже этого порога Margin Shield запретит запуск.</span>
           </label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">
             Маркетинговый бюджет в месяц, ₸
@@ -91,22 +96,37 @@ export default async function SettingsPage({
         )}
       </form>
 
-      <section className="rounded-3xl border border-border bg-surface p-6">
+      {/* «меняются владельцем отдельно» was true of the sentence and false of
+          the product: there was no screen anywhere that edited these. */}
+      <form action={saveBusinessLimits} className="rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Лимиты запуска</h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-surface-muted p-4">
-            <dt className="text-xs text-muted-foreground">Месячный бюджет (жёсткий лимит)</dt>
-            <dd className="mt-1 font-mono text-xl font-bold">{money(data.limits?.monthly_budget_minor)}</dd>
-          </div>
-          <div className="rounded-2xl bg-surface-muted p-4">
-            <dt className="text-xs text-muted-foreground">Порог обязательного подтверждения</dt>
-            <dd className="mt-1 font-mono text-xl font-bold">{money(data.limits?.approval_threshold_minor)}</dd>
-          </div>
-        </dl>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Лимиты проверяются в базе при запуске кампании и меняются владельцем отдельно от профиля.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Проверяются в базе при каждом запуске кампании. Превысить их из интерфейса нельзя.
         </p>
-      </section>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold">
+            Месячный бюджет, ₸
+            <input name="monthlyBudgetMinor" type="number" min="0" defaultValue={data.limits?.monthly_budget_minor ?? ''} placeholder="не задан" disabled={!canEdit} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+          </label>
+          <label className="grid gap-2 text-sm font-bold">
+            Порог обязательного подтверждения, ₸
+            <input name="approvalThresholdMinor" type="number" min="0" defaultValue={data.limits?.approval_threshold_minor ?? ''} placeholder="не задан" disabled={!canEdit} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+          </label>
+          <label className="grid gap-2 text-sm font-bold">
+            Кампаний в месяц
+            <input name="maxCampaignsPerMonth" type="number" min="0" defaultValue={data.limits?.max_campaigns_per_month ?? ''} placeholder="не задано" disabled={!canEdit} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+          </label>
+          <label className="grid gap-2 text-sm font-bold">
+            Контактов в месяц
+            <input name="maxContactsPerMonth" type="number" min="0" defaultValue={data.limits?.max_contacts_per_month ?? ''} placeholder="не задано" disabled={!canEdit} className="min-h-11 rounded-xl border border-border bg-background px-4 font-normal outline-none focus:ring-2 focus:ring-primary" />
+          </label>
+        </div>
+        {canEdit && (
+          <button className="mt-6 min-h-12 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground">
+            Сохранить лимиты
+          </button>
+        )}
+      </form>
 
       <section className="rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Каналы и доступ</h2>

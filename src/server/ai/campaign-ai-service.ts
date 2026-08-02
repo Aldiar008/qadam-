@@ -19,7 +19,8 @@ import {
 } from '@/ai/contract.ts';
 import { generateCampaignProposal, type GenerationResult } from '@/ai/generator.ts';
 import { createProvider, readProviderConfig } from '@/ai/providers.ts';
-import type { Json } from '@/types/database.generated';
+import { readVoiceRules } from './brand-voice.ts';
+import { recordGenerationRun } from './run-recorder.ts';
 
 /**
  * Bridges the AI layer to the tenant database and to the deterministic domain.
@@ -29,9 +30,6 @@ import type { Json } from '@/types/database.generated';
  * from RLS-protected business data, so a suggestion with negative margin is
  * scored and blocked exactly like one the owner typed by hand.
  */
-
-const DAILY_GENERATION_LIMIT = Number(process.env.QADAM_AI_DAILY_GENERATIONS ?? 40);
-const DAILY_COST_CEILING_MICROS = Number(process.env.QADAM_AI_DAILY_COST_MICROS ?? 2_000_000);
 
 export interface EvaluatedMechanic {
   proposal: ProposedMechanic;
@@ -84,9 +82,24 @@ export interface BusinessContextForAi {
   previousCampaign: string;
 }
 
+/**
+ * The trough this business actually has, not the one TAMYR had.
+ *
+ * `'15:00–18:00'` was written into the prompt as a constant, so every tenant
+ * was told its quiet hours were the demo's. The detector already names the band
+ * it found in `signals.metric_key` (`weekday_revenue_afternoon_15_18`); that is
+ * the only honest source, and when there is no signal the prompt says so.
+ */
+export function quietWindowFromMetricKey(metricKey: string | null | undefined): string {
+  const match = /_(\d{1,2})_(\d{1,2})$/.exec(metricKey ?? '');
+  if (!match) return 'не определено';
+  const pad = (value: string) => value.padStart(2, '0') + ':00';
+  return `${pad(match[1])}–${pad(match[2])}`;
+}
+
 /** Reads only what the generator is allowed to know: aggregates and catalogue economics. */
 export async function loadAiBusinessContext(db: SupabaseClient, businessId: string): Promise<BusinessContextForAi> {
-  const [{ data: business }, { data: profile }, { data: limits }, { data: location }, { data: brand }, { data: catalog }, { data: lastCampaign }, { data: type }] = await Promise.all([
+  const [{ data: business }, { data: profile }, { data: limits }, { data: location }, { data: brand }, { data: catalog }, { data: lastCampaign }, { data: type }, { data: signal }] = await Promise.all([
     db.from('businesses').select('name,currency,business_type_id').eq('id', businessId).maybeSingle(),
     db.from('business_profiles').select('average_check_minor,margin_floor_bps').eq('business_id', businessId).maybeSingle(),
     db.from('business_limits').select('monthly_budget_minor').eq('business_id', businessId).maybeSingle(),
@@ -95,9 +108,9 @@ export async function loadAiBusinessContext(db: SupabaseClient, businessId: stri
     db.from('catalog_items').select('name_ru,price_minor,cost_minor').eq('business_id', businessId).eq('is_active', true).order('price_minor').limit(12),
     db.from('campaigns').select('name,status').eq('business_id', businessId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     db.from('business_types').select('name_ru').limit(1).maybeSingle(),
+    db.from('signals').select('metric_key').eq('business_id', businessId).eq('status', 'open').order('growth_opportunity_score', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
-  const voice = brand?.voice_rules as { tone?: string; summary?: string } | null;
   const aov = profile?.average_check_minor ?? 3450;
   const items = (catalog ?? []).map((item) => ({
     name: item.name_ru,
@@ -110,14 +123,14 @@ export async function loadAiBusinessContext(db: SupabaseClient, businessId: stri
     businessType: type?.name_ru ?? 'Локальный бизнес',
     city: location?.city ?? '',
     district: location?.district ?? '',
-    brandVoice: voice?.summary ?? voice?.tone ?? 'Дружелюбный тон, обращение на «вы», без канцелярита.',
+    brandVoice: readVoiceRules(brand?.voice_rules),
     averageOrderValueMinor: aov,
     // Falls back to the catalogue's blended cost ratio when no explicit unit cost exists.
     unitCostMinor: items.length ? Math.round(items.reduce((sum, item) => sum + item.costMinor, 0) / items.length) : Math.round(aov * 0.4),
     marginFloorBps: profile?.margin_floor_bps ?? 4200,
     budgetMinor: Number(limits?.monthly_budget_minor ?? 0),
     currency: business?.currency ?? 'KZT',
-    quietWindow: '15:00–18:00',
+    quietWindow: quietWindowFromMetricKey(signal?.metric_key),
     catalog: items,
     previousCampaign: lastCampaign ? `${lastCampaign.name} (${lastCampaign.status})` : 'Предыдущих кампаний не было',
   };
@@ -235,34 +248,15 @@ export class CampaignAiService {
 
   /** Provenance is written whether or not a provider was reached. */
   private async recordRun(command: GenerateIdeasCommand, result: GenerationResult): Promise<string | null> {
-    const { data, error } = await this.db.rpc('record_ai_generation_run', {
-      p_business_id: command.businessId,
-      p_purpose: 'campaign_generation',
-      p_provider: result.telemetry.provider,
-      p_model: result.telemetry.model,
-      p_source: result.source,
-      p_prompt_version: result.telemetry.promptVersion,
-      p_schema_version: result.telemetry.schemaVersion,
-      p_input_hash: result.telemetry.inputHash,
-      p_output: result.proposal as unknown as Json,
-      p_status: result.telemetry.status,
-      p_latency_ms: result.telemetry.latencyMs,
-      p_attempts: result.telemetry.attempts,
-      p_cost_micros: result.telemetry.costMicros,
-      p_failure_kind: result.telemetry.failureKind,
-      p_fallback_reason: result.telemetry.fallbackReason,
-      p_safety_evidence: result.telemetry.safety as unknown as Json,
-      p_token_usage: { input: result.telemetry.inputTokens, output: result.telemetry.outputTokens } as unknown as Json,
-      p_growth_contract_id: null as unknown as string,
-      p_idempotency_key: command.idempotencyKey ?? `ai:campaign:${randomUUID()}`,
-      p_max_generations_per_day: DAILY_GENERATION_LIMIT,
-      p_max_cost_micros_per_day: DAILY_COST_CEILING_MICROS,
+    return recordGenerationRun(this.db, {
+      businessId: command.businessId,
+      purpose: 'campaign_generation',
+      output: result.proposal,
+      source: result.source,
+      telemetry: result.telemetry,
+      idempotencyKey: command.idempotencyKey ?? `ai:campaign:${randomUUID()}`,
     });
-    // A quota refusal must not destroy the ideas the owner already has in hand;
-    // it is surfaced through the run record instead.
-    if (error) return null;
-    return (data as { run_id?: string } | null)?.run_id ?? null;
   }
 }
 
-export { DAILY_GENERATION_LIMIT, DAILY_COST_CEILING_MICROS };
+export { DAILY_GENERATION_LIMIT, DAILY_COST_CEILING_MICROS } from './run-recorder.ts';

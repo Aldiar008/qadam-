@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
-import { getCampaignStudioData } from '@/server/qadam/repository';
+import { getCampaignStudioData, segmentForCustomer } from '@/server/qadam/repository';
 import { compileCampaignDraft, launchCampaign, transitionContract } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -20,11 +20,16 @@ interface ScenarioShape {
 export default async function CampaignStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string; recommendation?: string; channel?: string; contract?: string; error?: string; compiled?: string; transitioned?: string }>;
+  searchParams: Promise<{ segment?: string; customer?: string; recommendation?: string; channel?: string; contract?: string; error?: string; compiled?: string; transitioned?: string }>;
 }) {
   const params = await searchParams;
+  // «Создать оффер» on a guest's card passed `customer=…`, and this page read
+  // every parameter except that one — the button navigated and changed nothing.
+  // A campaign is addressed to a segment, not to a person, so the guest's own
+  // segment is preselected and the page says so out loud.
+  const fromCustomer = params.customer ? await segmentForCustomer(params.customer) : null;
   const data = await getCampaignStudioData({
-    segment: params.segment,
+    segment: params.segment ?? fromCustomer?.code,
     recommendation: params.recommendation,
     channel: params.channel,
     contract: params.contract,
@@ -49,12 +54,20 @@ export default async function CampaignStudioPage({
       </Link>
 
       <header>
-        <h1 className="text-3xl font-extrabold tracking-tight">Campaign Studio</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Быстрая кампания</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
           Задайте цель, аудиторию и механику — сервер пересчитает экономику, проверит Margin Shield и
           соберёт Growth Contract. Запуск возможен только после вашего подтверждения.
         </p>
       </header>
+
+      {fromCustomer && (
+        <p className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6">
+          Вы пришли с карточки гостя <strong>{fromCustomer.customerName}</strong>. Кампания адресуется
+          сегменту, а не одному человеку, поэтому выбран его сегмент — <strong>{fromCustomer.name}</strong>.
+          Сузить аудиторию можно на шаге ниже.
+        </p>
+      )}
 
       {params.error && (
         <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm font-semibold text-rose-800">
@@ -112,10 +125,15 @@ export default async function CampaignStudioPage({
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Канал
+                {/* Only channels a message can actually leave through. WhatsApp
+                    and the rest are listed as unavailable rather than offered
+                    and then silently producing an empty audience. */}
                 <select name="channel" defaultValue={data.channel} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
-                  {['whatsapp', 'telegram', 'sms', 'email', 'push', 'in_app'].map((channel) => (
-                    <option key={channel} value={channel}>{channel}</option>
-                  ))}
+                  <option value="telegram">Telegram</option>
+                  <option value="in_app">В приложении</option>
+                  <option value="webhook">Webhook</option>
+                  <option value="email" disabled>Email — нет ключа провайдера</option>
+                  <option value="whatsapp" disabled>WhatsApp — нет доступов Meta</option>
                 </select>
               </label>
             </div>

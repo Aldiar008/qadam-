@@ -13,6 +13,9 @@
 export const CAMPAIGN_SCHEMA_VERSION = 'campaign-generator.v1';
 export const CAMPAIGN_PROMPT_VERSION = 'campaign-generator-prompt.v1';
 
+export const BRIEF_SCHEMA_VERSION = 'customer-brief.v1';
+export const BRIEF_PROMPT_VERSION = 'customer-brief-prompt.v1';
+
 export type MechanicKind =
   | '2_plus_1'
   | 'happy_hours'
@@ -84,8 +87,43 @@ export interface CampaignGenerationInput {
   locales: readonly Locale[];
 }
 
+/**
+ * What the owner should know about one guest, in words.
+ *
+ * The model reads aggregates that are already on the screen and says what they
+ * add up to. It is not allowed to introduce a number of its own: every figure
+ * the owner acts on comes from the tables, and the brief is checked for that
+ * before it is stored.
+ */
+export interface CustomerBrief {
+  schemaVersion: string;
+  summary: string;
+  observations: readonly string[];
+  nextStep: string;
+  cautions: readonly string[];
+}
+
+/** Aggregates about one guest. Contains no contact detail — there is no column for one. */
+export interface CustomerBriefInput {
+  businessType: string;
+  brandVoice: string;
+  displayName: string;
+  lifecycleStage: string;
+  visits: number;
+  averageCheckMinor: number;
+  totalSpentMinor: number;
+  daysSinceLastVisit: number | null;
+  daysKnown: number | null;
+  frequencyPerMonth: number | null;
+  loyalty: { stamps: number; points: number } | null;
+  consents: readonly { scope: string; status: string }[];
+  campaignsIncluded: number;
+  favouriteItems: readonly string[];
+  currency: string;
+}
+
 export interface AiRequest {
-  purpose: 'campaign_generation' | 'content_generation';
+  purpose: 'campaign_generation' | 'content_generation' | 'customer_brief';
   schemaVersion: string;
   promptVersion: string;
   system: string;
@@ -241,6 +279,50 @@ export function parseCampaignProposal(raw: unknown, expected: { goal: OwnerGoal;
     mechanics: Object.freeze(mechanics),
     notes: Array.isArray(body.notes) ? asTextList(body.notes, 'proposal.notes', 0, 5) : Object.freeze([]),
   });
+}
+
+/**
+ * Numbers the owner acts on come from the tables, never from a sentence a model
+ * wrote. A brief that invents a figure is rejected rather than shown with a
+ * disclaimer: a disclaimer next to a wrong number is still a wrong number.
+ */
+const ALLOWED_BRIEF_NUMBERS = (input: CustomerBriefInput): Set<string> => new Set([
+  input.visits, input.averageCheckMinor, input.totalSpentMinor,
+  input.daysSinceLastVisit, input.daysKnown, input.campaignsIncluded,
+  input.loyalty?.stamps, input.loyalty?.points,
+].filter((value): value is number => typeof value === 'number').map((value) => String(Math.trunc(value))));
+
+function assertNoInventedNumbers(text: string, allowed: Set<string>, path: string, name: string): void {
+  // A guest's own name is not a claim about their spending, and plenty of names
+  // carry digits — this product's demo base is literally «Demo Guest 001».
+  // Scanning the name would reject almost every honest brief.
+  text = name.trim().length > 1 ? text.split(name.trim()).join(' ') : text;
+  for (const match of text.matchAll(/\d[\d\s ]*/g)) {
+    const digits = match[0].replace(/[\s ]/g, '');
+    if (!digits) continue;
+    // Ordinals and small counts read naturally and cannot mislead about money.
+    if (digits.length <= 1) continue;
+    if (!allowed.has(digits)) fail(`${path} cites ${digits}, which is not one of this guest's own figures`);
+  }
+}
+
+export function parseCustomerBrief(raw: unknown, input: CustomerBriefInput): CustomerBrief {
+  const body = asObject(raw, 'brief');
+  const schemaVersion = asText(body.schemaVersion, 'brief.schemaVersion', 60);
+  if (schemaVersion !== BRIEF_SCHEMA_VERSION) fail(`brief.schemaVersion must be ${BRIEF_SCHEMA_VERSION}`);
+
+  const summary = asText(body.summary, 'brief.summary');
+  const observations = asTextList(body.observations, 'brief.observations', 2, 4);
+  const nextStep = asText(body.nextStep, 'brief.nextStep');
+  const cautions = Array.isArray(body.cautions) ? asTextList(body.cautions, 'brief.cautions', 0, 3) : Object.freeze([]);
+
+  const allowed = ALLOWED_BRIEF_NUMBERS(input);
+  const name = input.displayName ?? '';
+  assertNoInventedNumbers(summary, allowed, 'brief.summary', name);
+  observations.forEach((line, index) => assertNoInventedNumbers(line, allowed, `brief.observations[${index}]`, name));
+  assertNoInventedNumbers(nextStep, allowed, 'brief.nextStep', name);
+
+  return Object.freeze({ schemaVersion, summary, observations, nextStep, cautions });
 }
 
 /**

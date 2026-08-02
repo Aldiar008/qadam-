@@ -20,6 +20,8 @@ import {
   FolderTree,
   TrendingUp,
   Store,
+  QrCode,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
@@ -54,6 +56,8 @@ export function AppSidebar({ isAdmin = false, businessName = 'QADAM Business', l
     FileText,
     FolderTree,
     TrendingUp,
+    QrCode,
+    CreditCard,
   };
 
   const navItems = isAdmin ? siteConfig.adminNav : siteConfig.appNav;

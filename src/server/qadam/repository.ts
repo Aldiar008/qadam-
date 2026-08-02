@@ -53,15 +53,22 @@ export function canMarket(role: BusinessRole) { return role === 'owner' || role 
 export async function getTodayData() {
   const ctx = await requireBusinessContext();
   const { supabase, businessId } = ctx;
-  const [{ data: transactions }, { count: customers }, { count: activeCampaigns }, { data: signal }, { data: recommendation }, { data: tools }, { data: campaigns }, { data: notifications }] = await Promise.all([
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [{ data: transactions }, { count: customers }, { count: activeCampaigns }, { data: signal }, { data: recommendation }, { data: activations }, { data: campaigns }, { data: notifications }, { data: contribution }] = await Promise.all([
     supabase.from('transactions').select('customer_id,net_minor,occurred_at').eq('business_id', businessId).order('occurred_at', { ascending: false }).limit(3000),
     supabase.from('customers').select('id', { count: 'exact', head: true }).eq('business_id', businessId).neq('lifecycle_stage', 'anonymized'),
     supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('business_id', businessId).in('status', ['approved','scheduled','running','paused']),
     supabase.from('signals').select('id,signal_type,metric_key,change_bps,growth_opportunity_score,confidence,evidence,period_start,period_end,comparison_start,comparison_end,detected_at').eq('business_id', businessId).eq('status', 'open').order('growth_opportunity_score', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('recommendations').select('id,title_ru,title_kk,explanation,confidence,status,optimistic_version,signal_id').eq('business_id', businessId).in('status', ['open','snoozed']).order('confidence', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('business_tools').select('id,status,tool_id').eq('business_id', businessId).eq('status', 'active').limit(5),
+    // Activated tools were fetched and then dropped by the screen, so «Активные
+    // инструменты» listed campaigns only and activation had no visible effect
+    // anywhere in the product. The name is joined here so it can be shown.
+    supabase.from('business_tools').select('id,status,tool_id,tools(code,name_ru,route)').eq('business_id', businessId).eq('status', 'active').limit(6),
     supabase.from('campaigns').select('id,name,status,channel,created_at').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
     supabase.from('notifications').select('id,title,body,read_at,action_url,created_at').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
+    // The KPI used to be the literal constant 0. It is a measurement or it is
+    // «—»; a zero that means "we never looked" reads as "you earned nothing".
+    supabase.from('impact_measurements').select('value_minor,kind').eq('business_id', businessId).eq('metric_key', 'incremental_contribution').gte('period_start', since).limit(200),
   ]);
   const rows = transactions ?? [];
   const revenue = rows.reduce((sum, row) => sum + Number(row.net_minor), 0);
@@ -69,7 +76,28 @@ export async function getTodayData() {
   rows.forEach((row) => { if (row.customer_id) visits.set(row.customer_id, (visits.get(row.customer_id) ?? 0) + 1); });
   const repeatCustomers = [...visits.values()].filter((value) => value > 1).length;
   const repeatRate = visits.size ? Math.round((repeatCustomers / visits.size) * 100) : 0;
-  return { ...ctx, kpis: { customers: customers ?? 0, salesMinor: revenue, repeatRate, activeCampaigns: activeCampaigns ?? 0, estimatedContributionMinor: 0 }, signal, recommendation, tools: tools ?? [], campaigns: campaigns ?? [], notifications: notifications ?? [] };
+  const contributionRows = contribution ?? [];
+  const tools = (activations ?? []).map((row) => {
+    const tool = (Array.isArray(row.tools) ? row.tools[0] : row.tools) as { code?: string; name_ru?: string; route?: string } | null;
+    return { id: row.id, toolId: row.tool_id, code: tool?.code ?? '', name: tool?.name_ru ?? 'Инструмент', route: tool?.route ?? '/app/tools' };
+  });
+  return {
+    ...ctx,
+    kpis: {
+      customers: customers ?? 0,
+      salesMinor: revenue,
+      repeatRate,
+      activeCampaigns: activeCampaigns ?? 0,
+      // null, not 0, when nothing has been measured yet.
+      estimatedContributionMinor: contributionRows.length ? contributionRows.reduce((sum, row) => sum + Number(row.value_minor), 0) : null,
+      contributionIsEstimate: contributionRows.some((row) => row.kind !== 'verified_fact'),
+    },
+    signal,
+    recommendation,
+    tools,
+    campaigns: campaigns ?? [],
+    notifications: notifications ?? [],
+  };
 }
 
 export async function getToolsData(filters: { q?: string; category?: string; favorites?: boolean }) {
@@ -102,6 +130,28 @@ export async function countSegmentAudience(rule: SegmentRule): Promise<{ matched
   if (error) throw error;
   const result = (data ?? {}) as { matched?: number; eligible?: number; scope?: string };
   return { matched: Number(result.matched ?? 0), eligible: Number(result.eligible ?? 0), scope: String(result.scope ?? '') };
+}
+
+/**
+ * The segment a guest already belongs to, for «Создать оффер» on their card.
+ *
+ * Returns null rather than inventing an audience when they are in none — a
+ * campaign built for nobody is worse than a page that says why it cannot start.
+ */
+export async function segmentForCustomer(customerId: string): Promise<{ code: string; name: string; customerName: string } | null> {
+  const ctx = await requireBusinessContext();
+  const [{ data: customer }, { data: membership }] = await Promise.all([
+    ctx.supabase.from('customers').select('display_name').eq('business_id', ctx.businessId).eq('id', customerId).maybeSingle(),
+    ctx.supabase.from('segment_memberships').select('segment_id,customer_segments(code,name_ru,status)').eq('business_id', ctx.businessId).eq('customer_id', customerId).limit(5),
+  ]);
+  if (!customer) return null;
+  for (const row of membership ?? []) {
+    const segment = (Array.isArray(row.customer_segments) ? row.customer_segments[0] : row.customer_segments) as { code?: string; name_ru?: string; status?: string } | null;
+    if (segment?.code && segment.status === 'active') {
+      return { code: segment.code, name: segment.name_ru ?? segment.code, customerName: customer.display_name || 'гость' };
+    }
+  }
+  return null;
 }
 
 /** Lifecycle stages, as opposed to segment codes — both arrive in the same query parameter. */
@@ -170,8 +220,33 @@ export async function getCustomerDetail(customerId: string) {
     ctx.supabase.from('campaign_audiences').select('campaign_id,inclusion_status,exclusion_reason,consent_scope,consent_status,evaluated_at').eq('business_id', ctx.businessId).eq('customer_id', customerId).order('evaluated_at', { ascending: false }),
   ]);
   if (!customer) throw new Error('CUSTOMER_NOT_FOUND');
-  const totalMinor = (transactions ?? []).reduce((sum, item) => sum + Number(item.net_minor), 0);
-  return { ...ctx, customer, transactions: transactions ?? [], identities: identities ?? [], consents: consents ?? [], accounts: accounts ?? [], notes: notes ?? [], activities: activities ?? [], audiences: audiences ?? [], metrics: { visits: transactions?.length ?? 0, totalMinor, aovMinor: transactions?.length ? Math.round(totalMinor / transactions.length) : 0, frequencyPerMonth: transactions?.length ? Math.round((transactions.length / 4) * 10) / 10 : 0 } };
+  const purchases = transactions ?? [];
+  const totalMinor = purchases.reduce((sum, item) => sum + Number(item.net_minor), 0);
+  // Frequency used to be `visits / 4` — a fixed four weeks for everybody,
+  // whether the person had been coming for a fortnight or a year. It is the
+  // span between their own first and last purchase or it is not shown.
+  const stamps = purchases.map((item) => new Date(item.occurred_at).getTime()).filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  const spanMonths = stamps.length > 1 ? (stamps[stamps.length - 1] - stamps[0]) / (30 * 86_400_000) : 0;
+  const frequencyPerMonth = spanMonths >= 0.5 ? Math.round((purchases.length / spanMonths) * 10) / 10 : null;
+  return {
+    ...ctx,
+    customer,
+    transactions: purchases,
+    identities: identities ?? [],
+    consents: consents ?? [],
+    accounts: accounts ?? [],
+    notes: notes ?? [],
+    activities: activities ?? [],
+    audiences: audiences ?? [],
+    metrics: {
+      visits: purchases.length,
+      totalMinor,
+      aovMinor: purchases.length ? Math.round(totalMinor / purchases.length) : 0,
+      frequencyPerMonth,
+      firstSeenAt: stamps.length ? new Date(stamps[0]).toISOString() : null,
+      lastSeenAt: stamps.length ? new Date(stamps[stamps.length - 1]).toISOString() : null,
+    },
+  };
 }
 
 export async function getSegmentsData() {
@@ -230,7 +305,10 @@ export async function getCampaignDetail(campaignId: string) {
 
 export async function getCampaignStudioData(filters: { segment?: string; recommendation?: string; channel?: string; contract?: string }) {
   const ctx = await requireBusinessContext();
-  const channel = filters.channel || 'whatsapp';
+  // WhatsApp needs Meta credentials nobody has, so a campaign that defaulted to
+  // it resolved to zero consenting recipients and Margin Shield blocked on an
+  // empty audience — which reads as a broken product, not a missing vendor.
+  const channel = filters.channel || 'telegram';
   const [{ data: signals }, { data: recommendations }, { data: segments }, { data: profile }, { data: limits }, { data: contract }] = await Promise.all([
     ctx.supabase.from('signals').select('id,signal_type,metric_key,change_bps,growth_opportunity_score,confidence,evidence,period_start,period_end,detected_at').eq('business_id', ctx.businessId).eq('status', 'open').order('growth_opportunity_score', { ascending: false }).limit(10),
     ctx.supabase.from('recommendations').select('id,signal_id,title_ru,title_kk,explanation,confidence,status').eq('business_id', ctx.businessId).in('status', ['open', 'accepted']).order('confidence', { ascending: false }).limit(10),
@@ -345,7 +423,7 @@ export async function getSettingsData() {
   const ctx = await requireBusinessContext();
   const [{ data: locations }, { data: limits }, { data: channels }, { data: members }] = await Promise.all([
     ctx.supabase.from('business_locations').select('id,name,city,district,address_text,capacity,is_active').eq('business_id', ctx.businessId).order('created_at'),
-    ctx.supabase.from('business_limits').select('monthly_budget_minor,approval_threshold_minor').eq('business_id', ctx.businessId).maybeSingle(),
+    ctx.supabase.from('business_limits').select('monthly_budget_minor,approval_threshold_minor,max_campaigns_per_month,max_contacts_per_month').eq('business_id', ctx.businessId).maybeSingle(),
     ctx.supabase.from('business_channels').select('id,channel_type,status').eq('business_id', ctx.businessId).order('channel_type'),
     ctx.supabase.from('business_members').select('id,user_id,role,status').eq('business_id', ctx.businessId).order('created_at'),
   ]);

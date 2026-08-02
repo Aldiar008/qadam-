@@ -10,9 +10,12 @@
  */
 
 import {
+  BRIEF_SCHEMA_VERSION,
   CAMPAIGN_SCHEMA_VERSION,
   type CampaignGenerationInput,
   type CampaignProposal,
+  type CustomerBrief,
+  type CustomerBriefInput,
   type Locale,
   type MechanicKind,
   type OwnerGoal,
@@ -194,4 +197,53 @@ export function generateDeterministicProposal(input: CampaignGenerationInput): C
 /** Exposed so tests and the studio can offer every required mechanic for comparison. */
 export function generateMechanicByKind(kind: MechanicKind, input: CampaignGenerationInput): ProposedMechanic {
   return buildMechanic(kind, input);
+}
+
+/**
+ * The guaranteed customer brief.
+ *
+ * Same discipline as the campaign template: no provider is a supported state,
+ * not an error. It says only what the aggregates already say, which is also why
+ * it survives the "no invented numbers" check without special-casing.
+ */
+export function composeDeterministicBrief(input: CustomerBriefInput): CustomerBrief {
+  const money = (minor: number) => `${minor} ${input.currency}`;
+  const observations: string[] = [];
+
+  observations.push(input.visits > 0
+    ? `Визитов: ${input.visits}, средний чек ${money(input.averageCheckMinor)}.`
+    : 'Покупок за этим гостем ещё не записано.');
+
+  if (input.daysSinceLastVisit === null) {
+    observations.push('Дата последнего визита неизвестна — источник продаж не подключён или гость ещё не покупал.');
+  } else if (input.daysSinceLastVisit >= 30) {
+    observations.push(`Последний визит был ${input.daysSinceLastVisit} дней назад — это уже спящий гость.`);
+  } else {
+    observations.push(`Последний визит был ${input.daysSinceLastVisit} дней назад.`);
+  }
+
+  const marketing = input.consents.find((item) => item.scope.startsWith('marketing'));
+  observations.push(marketing?.status === 'granted'
+    ? 'Согласие на рассылку действует — писать можно.'
+    : 'Действующего согласия на рассылку нет: в кампанию этот гость не попадёт.');
+
+  if (input.loyalty) {
+    observations.push(`На карте лояльности ${input.loyalty.stamps} штампов и ${input.loyalty.points} баллов.`);
+  }
+
+  const nextStep = marketing?.status === 'granted'
+    ? (input.daysSinceLastVisit !== null && input.daysSinceLastVisit >= 30
+        ? 'Добавить в кампанию возврата — согласие есть, и гость давно не заходил.'
+        : 'Держать в сегменте постоянных: специального повода писать сейчас нет.')
+    : 'Получить согласие на рассылку при следующем визите — без него любая кампания его исключит.';
+
+  return Object.freeze({
+    schemaVersion: BRIEF_SCHEMA_VERSION,
+    summary: input.visits > 0
+      ? `${input.displayName}: стадия «${input.lifecycleStage}», ${input.visits} визитов, средний чек ${money(input.averageCheckMinor)}.`
+      : `${input.displayName}: стадия «${input.lifecycleStage}», покупок пока не записано.`,
+    observations: Object.freeze(observations.slice(0, 4)),
+    nextStep,
+    cautions: Object.freeze(['Это разбор по имеющимся данным, а не вывод о причинах поведения гостя.']),
+  });
 }

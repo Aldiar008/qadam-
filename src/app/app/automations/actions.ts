@@ -172,7 +172,7 @@ export async function checkConnectorHealth(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) back('?error=forbidden');
 
-  const channel = text(form, 'channel') || 'whatsapp';
+  const channel = text(form, 'channel') || 'telegram';
   const adapterName = text(form, 'adapter') || 'mock';
   const endpoint = text(form, 'endpoint');
   const secret = process.env[`QADAM_WEBHOOK_SECRET_${channel.toUpperCase()}`] ?? process.env.QADAM_WEBHOOK_SECRET;

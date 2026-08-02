@@ -3,7 +3,6 @@ import { ArrowRight, Download, FileSpreadsheet, Search } from 'lucide-react';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { canMarket, countSegmentAudience, getCustomersData } from '@/server/qadam/repository';
 import { STAGE_OPTIONS } from '@/lib/segment-rules';
-import { auditCustomerExport } from '@/app/app/actions';
 
 export const dynamic = 'force-dynamic';
 const stages = STAGE_OPTIONS;
@@ -46,15 +45,14 @@ export default async function CustomersPage({
             </Link>
           )}
 
+          {/* This used to be a form that logged an export and produced no file. */}
           {isMarketable && (
-            <form action={auditCustomerExport}>
-              <button
-                type="submit"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold transition-all hover:bg-surface-muted"
-              >
-                <Download className="size-4" /> Экспорт CSV
-              </button>
-            </form>
+            <a
+              href="/api/customers/export"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold transition-all hover:bg-surface-muted"
+            >
+              <Download className="size-4" /> Экспорт CSV
+            </a>
           )}
 
           <Link

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { canManage, canMarket, countSegmentAudience, requireBusinessContext } from '@/server/qadam/repository';
 import { describeDbError } from '@/server/qadam/errors';
 import { buildContentPack, checkPackCompleteness } from '@/ai/content-pack.ts';
+import { generateCustomerBrief } from '@/server/ai/customer-brief-service';
 import type { SegmentRule } from '@/lib/segment-rules';
 import type { Json } from '@/types/database.generated';
 
@@ -87,6 +88,39 @@ export async function revokeCustomerConsent(form: FormData) {
   revalidatePath(`/app/customers/${customerId}`);
 }
 
+/**
+ * «Собрать досье» на карточке гостя.
+ *
+ * The owner had every figure and no sentence joining them up. The brief is
+ * saved as an ordinary note, authored by whoever pressed the button and marked
+ * as machine-written, so it lives in the same history as anything a person
+ * typed and can be argued with the same way.
+ */
+export async function generateCustomerBriefNote(form: FormData) {
+  const ctx = await requireBusinessContext();
+  if (!canManage(ctx.role)) throw new Error('FORBIDDEN');
+  const customerId = textValue(form, 'customerId');
+  if (!customerId) return;
+
+  const result = await generateCustomerBrief(ctx.supabase, { businessId: ctx.businessId, customerId });
+  const body = [
+    `AI-досье · ${result.providerLabel}`,
+    '',
+    result.brief.summary,
+    '',
+    ...result.brief.observations.map((line) => `• ${line}`),
+    '',
+    `Что сделать: ${result.brief.nextStep}`,
+    ...(result.brief.cautions.length ? ['', ...result.brief.cautions.map((line) => `Осторожно: ${line}`)] : []),
+  ].join('\n').slice(0, 5000);
+
+  const { error } = await ctx.supabase.from('customer_notes').insert({
+    business_id: ctx.businessId, customer_id: customerId, author_id: ctx.userId, note: body, is_mock: ctx.business.mode === 'demo',
+  });
+  if (error) throw error;
+  revalidatePath(`/app/customers/${customerId}`);
+}
+
 export async function addCustomerNote(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) throw new Error('FORBIDDEN');
@@ -153,20 +187,9 @@ export async function revokeQrCode(form: FormData) {
   redirect('/app/loyalty?revoked=1');
 }
 
-export async function auditCustomerExport() {
-  const ctx = await requireBusinessContext();
-  if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
-
-  await ctx.supabase.from('activity_logs').insert({
-    business_id: ctx.businessId,
-    actor_id: ctx.userId,
-    action: 'customers.exported',
-    resource_type: 'customer',
-    resource_id: ctx.businessId,
-    metadata: { format: 'csv', exported_at: new Date().toISOString() },
-    is_mock: ctx.business.mode === 'demo',
-  });
-}
+// The export now lives at `/api/customers/export`, because a download needs a
+// response body and a server action cannot give one. The audit entry is written
+// there, next to the rows that actually leave.
 
 /**
  * Content Studio: derives channel-ready drafts from the campaign's own Growth
@@ -397,6 +420,58 @@ function segmentRuleFromForm(form: FormData): SegmentRule {
  */
 export async function previewSegmentAudience(rule: SegmentRule): Promise<{ matched: number; eligible: number; scope: string }> {
   return countSegmentAudience(rule);
+}
+
+/**
+ * Launch limits, edited by the person they constrain.
+ *
+ * The settings screen displayed them read-only under a line saying they «меняются
+ * владельцем отдельно» — separately from where, exactly, was never built. The
+ * database still enforces them; this only lets the owner set them.
+ */
+export async function saveBusinessLimits(form: FormData) {
+  const ctx = await requireBusinessContext();
+  if (!canManage(ctx.role)) throw new Error('FORBIDDEN');
+
+  const positive = (key: string): number | null => {
+    const raw = textValue(form, key);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
+  };
+
+  // A blank field means "leave it as it is", not "set it to nothing": a limit
+  // silently cleared is a limit that stops protecting anyone.
+  const changes: {
+    monthly_budget_minor?: number;
+    approval_threshold_minor?: number;
+    max_campaigns_per_month?: number;
+    max_contacts_per_month?: number;
+  } = {};
+  const monthlyBudget = positive('monthlyBudgetMinor');
+  if (monthlyBudget !== null) changes.monthly_budget_minor = monthlyBudget;
+  const approval = positive('approvalThresholdMinor');
+  if (approval !== null) changes.approval_threshold_minor = approval;
+  const campaigns = positive('maxCampaignsPerMonth');
+  if (campaigns !== null) changes.max_campaigns_per_month = campaigns;
+  const contacts = positive('maxContactsPerMonth');
+  if (contacts !== null) changes.max_contacts_per_month = contacts;
+  if (!Object.keys(changes).length) redirect('/app/settings?error=' + encodeURIComponent('Ни одно поле лимитов не заполнено.'));
+
+  const { data: existing } = await ctx.supabase.from('business_limits').select('id').eq('business_id', ctx.businessId).maybeSingle();
+  const result = existing
+    ? await ctx.supabase.from('business_limits').update(changes).eq('id', existing.id)
+    : await ctx.supabase.from('business_limits').insert({ business_id: ctx.businessId, currency: 'KZT', is_mock: ctx.business.mode === 'demo', ...changes });
+  if (result.error) redirect('/app/settings?error=' + encodeURIComponent(describeDbError(result.error)));
+
+  await ctx.supabase.from('activity_logs').insert({
+    business_id: ctx.businessId, actor_id: ctx.userId, action: 'business.limits_updated',
+    resource_type: 'business', resource_id: ctx.businessId, metadata: { fields: Object.keys(changes) },
+    is_mock: ctx.business.mode === 'demo',
+  });
+
+  revalidatePath('/app/settings');
+  redirect('/app/settings?saved=1');
 }
 
 export async function saveCustomSegment(form: FormData) {

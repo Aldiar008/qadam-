@@ -258,11 +258,30 @@ select private.deterministic_uuid('tool-category-'||g),(array['marketing','sales
  (array['Маркетинг','Сату','Ұстап қалу','Аналитика','Автоматтандыру'])[g],'published',g,true
 from generate_series(1,5) g on conflict(code) do update set status='published',is_mock=true;
 
+-- Twelve real instruments instead of «QADAM Tool 1..12 · Synthetic demo tool N»,
+-- and every `route` leads to the screen that does the thing. Before this, all
+-- twelve pointed at `/app/tools`, so «Использовать» reloaded the catalogue.
 insert into public.tools(id,category_id,code,name_ru,name_kk,description_ru,description_kk,route,status,version,is_public,is_mock)
-select private.deterministic_uuid('tool-'||g),private.deterministic_uuid('tool-category-'||(((g-1)%5)+1)),'tool_'||lpad(g::text,2,'0'),
- 'QADAM Tool '||g,'QADAM құралы '||g,'Synthetic demo tool '||g,'Синтетикалық demo құрал '||g,
- '/app/tools','published',1,true,true from generate_series(1,12) g
-on conflict(code) do update set status='published',is_public=true,is_mock=true;
+select private.deterministic_uuid('tool-'||g),private.deterministic_uuid('tool-category-'||t.category),t.code,
+ t.name_ru,t.name_kk,t.description_ru,t.description_kk,t.route,'published',1,true,true
+from generate_series(1,12) g
+join (values
+ (1,1,'signal_today','Сигнал дня','Күн сигналы','Одна проблема или возможность на сегодня, с источником и периодом сравнения.','Бүгінге бір мәселе немесе мүмкіндік — дереккөзімен және салыстыру кезеңімен.','/app/today'),
+ (2,1,'campaign_studio','Студия кампаний','Кампания студиясы','Семь шагов от цели до Growth Contract: аудитория, механика, симулятор, тексты.','Мақсаттан Growth Contract-қа дейін жеті қадам.','/app/campaigns/studio'),
+ (3,1,'content_studio','Контент-студия','Контент студиясы','Посты, сторис, сценарий видео и сообщение — на русском и казахском.','Пост, сторис, бейне сценарийі және хабарлама — орысша және қазақша.','/app/content'),
+ (4,2,'margin_shield','Margin Shield','Margin Shield','Запрещает акцию, которая опускает вклад-маржу ниже вашего порога.','Үлес маржасын шегіңізден төмендететін акцияны тыйым салады.','/app/campaigns/studio?step=5'),
+ (5,2,'simulator','Симулятор сценариев','Сценарий симуляторы','Осторожный, базовый и оптимистичный прогноз до запуска, а не после.','Іске қосқанға дейінгі үш болжам.','/app/campaigns/studio?step=5'),
+ (6,3,'qr_loyalty','QR-лояльность','QR адалдық','Карта гостя по QR-коду: штампы, награды, раздельные согласия.','QR арқылы қонақ картасы: мөрлер, сыйлықтар, бөлек келісімдер.','/app/loyalty'),
+ (7,3,'segments','Сегменты клиентов','Клиент сегменттері','Правило вместо списка: кто попадёт в рассылку и скольким можно писать.','Тізім емес, ереже: кімге жазуға болады.','/app/segments'),
+ (8,3,'winback','Возврат спящих','Ұйқыдағыларды қайтару','Кто не приходил дольше 30 дней и у кого есть действующее согласие.','30 күннен астам келмегендер және келісімі барлар.','/app/customers?segment=inactive'),
+ (9,4,'impact_ledger','Impact Ledger','Impact Ledger','Прогноз, влияние и прирост — тремя разными строками, а не одной цифрой.','Болжам, ықпал және өсім — үш бөлек жол.','/app/analytics'),
+ (10,4,'customer_brief','AI-досье гостя','Қонақтың AI-досьесі','Что нужно знать об этом госте и что с ним делать дальше.','Осы қонақ туралы не білу керек және әрі қарай не істеу керек.','/app/customers'),
+ (11,5,'automations','Автоматизации','Автоматтандыру','Правила, которые работают сами, с аварийной остановкой и подтверждением владельца.','Өздігінен жұмыс істейтін ережелер.','/app/automations'),
+ (12,5,'telegram_bot','Telegram-бот','Telegram бот','Сводка дня владельцу, вступление гостя по QR и подтверждение запуска кнопкой.','Иесіне күндік қорытынды, қонақтың QR арқылы қосылуы.','/app/automations')
+) as t(ord,category,code,name_ru,name_kk,description_ru,description_kk,route) on t.ord = g
+on conflict(code) do update set category_id=excluded.category_id,name_ru=excluded.name_ru,name_kk=excluded.name_kk,
+ description_ru=excluded.description_ru,description_kk=excluded.description_kk,route=excluded.route,
+ status='published',is_public=true,is_mock=true;
 
 insert into public.templates(id,code,name,status,current_version,is_mock)
 select private.deterministic_uuid('template-'||g),'template_'||g,(array['Win-back threshold gift','Quiet hours','First to second visit'])[g],

@@ -10,6 +10,7 @@ import { GrowthContractService } from '@/server/domain/growth-contract-service';
 import { CampaignAiService, toPromotionMechanic } from '@/server/ai/campaign-ai-service';
 import { describeDbError } from '@/server/qadam/errors';
 import { canMarket, requireBusinessContext } from '@/server/qadam/repository';
+import { loadGosInputs } from '@/server/qadam/gos-facts';
 import { coerceDraft, loadStudioSession, validateStep, type StudioDraft } from '@/server/qadam/campaign-studio';
 import { resolveStudioAudience } from '@/server/qadam/campaign-studio-data';
 import type { Json } from '@/types/database.generated';
@@ -222,6 +223,14 @@ export async function compileStudioContract() {
   const aov = profile?.average_check_minor ?? 3450;
   const start = new Date();
   const end = new Date(start.getTime() + draft.durationDays * 86_400_000);
+  const gos = await loadGosInputs(session.ctx.supabase, session.ctx.businessId, {
+    signalId: signal!.id,
+    segmentSize: audience.segmentSize || audience.eligibleIds.length,
+    consentEligible: audience.eligibleIds.length,
+    contributionMargin: (aov - draft.unitCostMinor) / aov,
+    budgetMinor: 7000,
+    expectedCostMinor: audience.eligibleIds.length * draft.channelCostMinor,
+  });
 
   try {
     const compiled = await new GrowthContractService(session.ctx.supabase, session.ctx.userId).compile({
@@ -248,7 +257,7 @@ export async function compileStudioContract() {
         period: { start: start.toISOString(), end: end.toISOString() },
         source: 'campaign_studio',
       },
-      gos: { P: 0.5, S: 0.7, R: 0.6, V: 0.6, G: 0.7, C: 0.8, D: 0.7, A: 0.6, L: 0.8 },
+      gos,
       contentBrief: { ru: draft.briefRu, kk: draft.briefKk },
       channel: draft.channel,
       attributionPlan: { method: 'promo_code_and_qr', holdoutBps: 1000, windowDays: draft.durationDays },
