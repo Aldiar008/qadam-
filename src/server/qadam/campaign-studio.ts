@@ -53,7 +53,12 @@ export interface StudioDraft {
 export const DEFAULT_DRAFT: StudioDraft = {
   goal: 'reactivate',
   segmentCode: 'inactive_30',
-  channel: 'whatsapp',
+  // Каналом по умолчанию должен быть тот, который в этой сборке действительно
+  // может доставить сообщение. Пока умолчанием оставался whatsapp, черновик
+  // рождался с каналом, согласий на который ни у кого нет, — аудитория
+  // получалась пустой, и Margin Shield справедливо блокировал кампанию на ноль
+  // получателей. Выглядело как отказ по экономике, а было отказом по каналу.
+  channel: 'telegram',
   weekdayOnly: true,
   frequencyCap: 1,
   locales: ['ru', 'kk'],

@@ -61,7 +61,7 @@ try {
   await gotoReady(page, '/app/today');
   const freshToday = await page.textContent('main');
   r.check('a brand-new tenant gets its own Today, not the demo tenant', freshToday, (v) =>
-    !v.includes('weekday_revenue_15_18'));
+    !v.includes('weekday_revenue_afternoon_15_18'));
   r.check('the new tenant sees no other tenant customers', db(`select count(*) from public.customers where business_id = '${newBiz}'`), (v) => Number(v) >= 0);
   await shot(page, 'owner-02-onboarding-today');
 
@@ -104,10 +104,12 @@ try {
   process.stdout.write('\nOWNER-4  Today signal: -27%, 64 inactive, 18 eligible\n');
   await gotoReady(page, '/app/today');
   const today = await page.textContent('main');
-  r.check('the top signal is rendered', today, 'weekday_revenue_15_18');
-  r.check('signal magnitude comes from the database', db(`select round(change_bps/100.0)::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_15_18' limit 1`), (v) => v.includes('27') || v.includes('-27'));
+  // Экран печатает человеческий заголовок сигнала, а ключ метрики остаётся в
+  // evidence: проверять надо, что сигнал показан, а не как он назван внутри.
+  r.check('the top signal is rendered', today, (v) => /Тихие часы|weekday_revenue/.test(v));
+  r.check('signal magnitude comes from the database', db(`select round(change_bps/100.0)::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_afternoon_15_18' limit 1`), (v) => v.includes('27') || v.includes('-27'));
   r.check('64 inactive customers in the segment', db(`select count(*) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'`), '64');
-  r.check('18 of them consent to WhatsApp marketing', db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.whatsapp', (select array_agg(id) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'))`), '18');
+  r.check('18 of them consent to Telegram marketing', db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'))`), '18');
   await shot(page, 'owner-04-today-signal');
 
   // ---------------------------------------------------------------- 5
@@ -231,18 +233,18 @@ try {
   // The gate has several reasons to refuse — quiet hours and the daily cap among
   // them — so the assertion is about *which* reason, not about a bare boolean.
   // Asserting `allowed = true` would pass or fail depending on the wall clock.
-  r.check('the emergency stop is not what is holding sending back yet', db(`select coalesce(public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.whatsapp', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'whatsapp', now())->>'reason','none')`), (v) => v !== 'emergency_stop');
+  r.check('the emergency stop is not what is holding sending back yet', db(`select coalesce(public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'telegram', now())->>'reason','none')`), (v) => v !== 'emergency_stop');
   await submit(page, 'button:text-is("Остановить всё")');
   r.check('emergency stop is recorded', db(`select (emergency_stopped_at is not null)::text from public.business_execution_state where business_id='${BIZ}'`), 'true');
   r.check('the stop names who pressed it, when, and why', db(`select case when emergency_stopped_by is not null and emergency_stopped_at is not null and emergency_stop_reason is not null then 'actor+time+reason' else 'incomplete' end from public.business_execution_state where business_id='${BIZ}'`), 'actor+time+reason');
-  const gate = db(`select public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.whatsapp', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'whatsapp', now())::text`);
+  const gate = db(`select public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'telegram', now())::text`);
   r.check('nothing can be sent while stopped', gate, '"allowed": false');
   r.check('and the reason given is the stop itself', gate, 'emergency_stop');
   r.check('the reason given is the one shown back to the owner', await page.textContent('main'), (v) => v.includes('станов'));
   // Resuming is part of the loop, and it also leaves the tenant in a sane state
   // for the suites that follow.
   await submit(page, 'button:text-is("Возобновить работу")');
-  r.check('resuming clears the stop as the reason', db(`select coalesce(public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.whatsapp', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'whatsapp', now())->>'reason','allowed')`), (v) => v !== 'emergency_stop');
+  r.check('resuming clears the stop as the reason', db(`select coalesce(public.send_gate('${BIZ}', (select c from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}')) c limit 1), 'telegram', now())->>'reason','allowed')`), (v) => v !== 'emergency_stop');
   r.check('and the execution state no longer records a stop', db(`select (emergency_stopped_at is null)::text from public.business_execution_state where business_id='${BIZ}'`), 'true');
   await shot(page, 'owner-12-emergency-stop');
 

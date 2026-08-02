@@ -142,13 +142,13 @@ try {
   // record can never claim a permission that has no moment attached to it.
   db(`insert into public.customer_consents(business_id, customer_id, scope, status, source, granted_at, is_mock)
       values ('${BIZ}', '${customerId}', 'marketing', 'granted', 'customer_request', now(), true)`);
-  const eligibleBefore = db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.whatsapp', array['${customerId}']::uuid[])`);
+  const eligibleBefore = db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', array['${customerId}']::uuid[])`);
   r.check('the guest is in the marketing audience while consenting', eligibleBefore, '1');
   db(`insert into public.customer_consents(business_id, customer_id, scope, status, source, is_mock)
       values ('${BIZ}', '${customerId}', 'marketing', 'revoked', 'customer_request', true)`);
-  const eligibleAfter = db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.whatsapp', array['${customerId}']::uuid[])`);
+  const eligibleAfter = db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', array['${customerId}']::uuid[])`);
   r.check('revoking removes them from the audience', `${eligibleBefore} -> ${eligibleAfter}`, '1 -> 0');
-  r.check('the send gate refuses them at dispatch too', db(`select public.send_gate('${BIZ}','${customerId}','whatsapp', now())->>'allowed'`), 'false');
+  r.check('the send gate refuses them at dispatch too', db(`select public.send_gate('${BIZ}','${customerId}','telegram', now())->>'allowed'`), 'false');
   r.check('the revocation is kept as evidence, not deleted', db(`select count(*) from public.customer_consents where customer_id='${customerId}' and status='revoked'`), (v) => Number(v) > 0);
   r.check('loyalty participation is unaffected by a marketing revoke', db(`select count(*) from public.loyalty_accounts where customer_id='${customerId}'`), (v) => Number(v) > 0);
 

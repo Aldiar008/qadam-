@@ -112,7 +112,7 @@ export async function launchStudioCampaign(form: FormData) {
   if (!canMarket(ctx.role)) backTo(7, '&error=forbidden');
 
   const contractId = text(form, 'contractId');
-  const channel = text(form, 'channel') || 'whatsapp';
+  const channel = text(form, 'channel') || 'telegram';
   const name = text(form, 'campaignName') || 'Кампания QADAM';
 
   const { data: contract } = await ctx.supabase.from('growth_contracts')
