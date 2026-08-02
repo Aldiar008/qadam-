@@ -349,7 +349,7 @@ export async function getCampaignStudioData(filters: { segment?: string; recomme
 
 export async function getContentData(filters: { campaign?: string }) {
   const ctx = await requireBusinessContext();
-  let query = ctx.supabase.from('content_items').select('id,campaign_id,content_kind,channel,locale,body,alt_text,cta,status,version,created_at').eq('business_id', ctx.businessId).order('created_at', { ascending: false }).limit(60);
+  let query = ctx.supabase.from('content_items').select('id,campaign_id,content_kind,channel,locale,ordinal,body,alt_text,cta,status,version,source,created_at').eq('business_id', ctx.businessId).order('content_kind').order('locale').order('ordinal').limit(60);
   if (filters.campaign) query = query.eq('campaign_id', filters.campaign);
   const [{ data: content }, { data: campaigns }, { data: runs }, { data: codes }] = await Promise.all([
     query,

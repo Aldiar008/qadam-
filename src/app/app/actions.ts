@@ -5,8 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { canManage, canMarket, countSegmentAudience, requireBusinessContext } from '@/server/qadam/repository';
 import { describeDbError } from '@/server/qadam/errors';
-import { buildContentPack, checkPackCompleteness } from '@/ai/content-pack.ts';
+import { checkPackCompleteness } from '@/ai/content-pack.ts';
 import { generateCustomerBrief } from '@/server/ai/customer-brief-service';
+import { generateContentPack } from '@/server/ai/content-service';
+import { quietWindowFromMetricKey } from '@/server/ai/campaign-ai-service';
 import type { SegmentRule } from '@/lib/segment-rules';
 import type { Json } from '@/types/database.generated';
 
@@ -251,22 +253,42 @@ export async function generateCampaignContent(form: FormData) {
     trackingCode = createdCode.public_code;
   }
 
-  const assets = buildContentPack({
-    businessName: ctx.business.name,
-    offerRu,
-    offerKk,
-    briefRu: snapshot.contentBrief?.ru ?? campaign.name,
-    briefKk: snapshot.contentBrief?.kk ?? campaign.name,
-    channel: campaign.channel,
-    trackingCode,
-    quietWindow: '15:00–18:00',
-    durationDays,
+  const { data: signal } = await ctx.supabase.from('signals').select('metric_key')
+    .eq('business_id', ctx.businessId).eq('status', 'open')
+    .order('growth_opportunity_score', { ascending: false }).limit(1).maybeSingle();
+  const { data: businessType } = await ctx.supabase.from('business_types').select('name_ru').limit(1).maybeSingle();
+
+  const generated = await generateContentPack(ctx.supabase, {
+    businessId: ctx.businessId,
+    businessType: businessType?.name_ru ?? 'Локальный бизнес',
+    campaignId,
+    pack: {
+      businessName: ctx.business.name,
+      offerRu,
+      offerKk,
+      briefRu: snapshot.contentBrief?.ru ?? campaign.name,
+      briefKk: snapshot.contentBrief?.kk ?? campaign.name,
+      channel: campaign.channel,
+      trackingCode,
+      // Was the constant '15:00–18:00' — the demo's trough printed into every
+      // tenant's video script.
+      quietWindow: quietWindowFromMetricKey(signal?.metric_key),
+      durationDays,
+    },
   });
+  const assets = generated.assets;
 
   const completeness = checkPackCompleteness(assets, ['ru', 'kk']);
   if (!completeness.complete) {
     redirect(`/app/content?error=${encodeURIComponent(`Пакет неполный: ${completeness.missing.slice(0, 3).join('; ')}`)}`);
   }
+
+  // Regenerating replaces the drafts it supersedes. Every press used to add
+  // fourteen more rows, so a library that was «очень мало» after one press was
+  // unusable after five — and the owner had no way to tell the copies apart.
+  const { error: clearError } = await ctx.supabase.from('content_items')
+    .delete().eq('business_id', ctx.businessId).eq('campaign_id', campaignId).eq('status', 'draft');
+  if (clearError) redirect(`/app/content?error=${encodeURIComponent(describeDbError(clearError))}`);
 
   const { error } = await ctx.supabase.from('content_items').insert(assets.map((asset) => ({
     business_id: ctx.businessId,
@@ -274,10 +296,13 @@ export async function generateCampaignContent(form: FormData) {
     content_kind: asset.kind,
     channel: asset.channel,
     locale: asset.locale,
+    ordinal: asset.ordinal,
     body: asset.body,
     alt_text: asset.altText,
     cta: asset.cta,
     status: 'draft',
+    source: generated.source === 'provider' ? 'provider' : 'template',
+    generation_run_id: generated.runId,
     is_mock: ctx.business.mode === 'demo',
   })));
   if (error) redirect(`/app/content?error=${encodeURIComponent(describeDbError(error))}`);
@@ -287,7 +312,9 @@ export async function generateCampaignContent(form: FormData) {
     resource_type: 'campaign', resource_id: campaignId,
     metadata: {
       items: assets.length,
-      generator: 'qadam_content_pack_v1',
+      generator: generated.providerLabel,
+      source: generated.source,
+      run_id: generated.runId,
       tracking_code_id: trackingCodeId,
       native_review_required: completeness.nativeReviewRequired,
     },
@@ -296,7 +323,7 @@ export async function generateCampaignContent(form: FormData) {
 
   revalidatePath('/app/content');
   revalidatePath(`/app/campaigns/${campaignId}`);
-  redirect(`/app/content?campaign=${campaignId}&generated=${assets.length}`);
+  redirect(`/app/content?campaign=${campaignId}&generated=${assets.length}&source=${generated.source}`);
 }
 
 export async function updateContentItem(form: FormData) {

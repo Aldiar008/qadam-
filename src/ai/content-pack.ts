@@ -128,6 +128,88 @@ export function buildContentPack(input: ContentPackInput): ContentAsset[] {
   return assets;
 }
 
+export const CONTENT_SCHEMA_VERSION = 'content-pack.v1';
+export const CONTENT_PROMPT_VERSION = 'content-pack-prompt.v1';
+
+/** What every pack must contain, in both languages. */
+export const EXPECTED_ASSETS: readonly [ContentKind, number][] = [
+  ['post', 1], ['short_post', 1], ['story', 3], ['video_script', 1], ['direct_message', 1],
+];
+
+const KINDS: readonly ContentKind[] = ['post', 'short_post', 'story', 'video_script', 'direct_message'];
+
+class ContentSchemaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContentSchemaError';
+  }
+}
+
+/**
+ * Turns an untrusted model answer into a pack, or refuses it.
+ *
+ * The same structure the deterministic template guarantees is required here:
+ * every kind, both languages, non-empty CTA and alt text, within the channel
+ * limit, and Kazakh that is not the Russian pasted twice. Anything short of
+ * that falls back to the template rather than reaching the owner half-built.
+ */
+export function parseGeneratedPack(raw: unknown, input: ContentPackInput): ContentAsset[] {
+  const body = (raw ?? {}) as Record<string, unknown>;
+  if (String(body.schemaVersion ?? '') !== CONTENT_SCHEMA_VERSION) {
+    throw new ContentSchemaError(`pack.schemaVersion must be ${CONTENT_SCHEMA_VERSION}`);
+  }
+  if (!Array.isArray(body.assets)) throw new ContentSchemaError('pack.assets must be an array');
+
+  const assets: ContentAsset[] = body.assets.map((entry, index) => {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const path = `pack.assets[${index}]`;
+    const kind = String(item.kind ?? '') as ContentKind;
+    if (!KINDS.includes(kind)) throw new ContentSchemaError(`${path}.kind must be one of ${KINDS.join(', ')}`);
+    const locale = String(item.locale ?? '') as ContentLocale;
+    if (locale !== 'ru' && locale !== 'kk') throw new ContentSchemaError(`${path}.locale must be ru or kk`);
+
+    const text = (value: unknown, field: string, max: number): string => {
+      const trimmed = String(value ?? '').replace(/\s+/g, ' ').trim();
+      if (!trimmed) throw new ContentSchemaError(`${path}.${field} must not be empty`);
+      if (trimmed.length > max) throw new ContentSchemaError(`${path}.${field} exceeds ${max} characters`);
+      return trimmed;
+    };
+
+    return {
+      kind,
+      locale,
+      ordinal: Math.max(1, Math.trunc(Number(item.ordinal ?? 1)) || 1),
+      // Newlines survive in scripts: a storyboard without line breaks is unusable.
+      body: (() => {
+        const value = String(item.body ?? '').trim();
+        if (!value) throw new ContentSchemaError(`${path}.body must not be empty`);
+        if (value.length > CHANNEL_LIMITS[kind]) throw new ContentSchemaError(`${path}.body exceeds the ${kind} limit`);
+        return value;
+      })(),
+      cta: text(item.cta, 'cta', 60),
+      altText: text(item.altText, 'altText', 200),
+      channel: input.channel,
+      reviewStatus: locale === 'kk' ? 'native_review_required' : 'auto_checked',
+      charLimit: CHANNEL_LIMITS[kind],
+    };
+  });
+
+  const completeness = checkPackCompleteness(assets, ['ru', 'kk']);
+  if (!completeness.complete) throw new ContentSchemaError(`pack is incomplete: ${completeness.missing.slice(0, 3).join('; ')}`);
+
+  // A Kazakh asset identical to its Russian pair is the model being lazy, and
+  // shipping it would make the bilingual claim false.
+  for (const [kind, count] of EXPECTED_ASSETS) {
+    for (let ordinal = 1; ordinal <= count; ordinal += 1) {
+      const ru = assets.find((asset) => asset.kind === kind && asset.locale === 'ru' && asset.ordinal === ordinal);
+      const kk = assets.find((asset) => asset.kind === kind && asset.locale === 'kk' && asset.ordinal === ordinal);
+      if (ru && kk && ru.body === kk.body) throw new ContentSchemaError(`pack.${kind}#${ordinal} repeats the Russian text as Kazakh`);
+    }
+  }
+
+  return assets;
+}
+
 export interface PackCompleteness {
   complete: boolean;
   missing: string[];

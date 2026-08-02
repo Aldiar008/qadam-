@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CHANNEL_LIMITS, buildContentPack, checkPackCompleteness, type ContentPackInput } from '../../ai/content-pack.ts';
+import { CHANNEL_LIMITS, CONTENT_SCHEMA_VERSION, buildContentPack, checkPackCompleteness, parseGeneratedPack, type ContentPackInput } from '../../ai/content-pack.ts';
 import { checkContentSafety } from '../../ai/redaction.ts';
 
 const INPUT: ContentPackInput = {
@@ -90,4 +90,76 @@ test('the message a guest receives carries an opt-out', () => {
 
 test('the pack is stable for a given brief', () => {
   assert.deepEqual(buildContentPack(INPUT), buildContentPack(INPUT));
+});
+
+// ---------------------------------------------------------------------------
+// A model answer is untrusted input and is held to the template's own standard
+// ---------------------------------------------------------------------------
+
+const PACK_INPUT = {
+  businessName: 'TAMYR Coffee',
+  offerRu: 'круассан в подарок при заказе от 3 500 ₸',
+  offerKk: '3 500 ₸-ден бастап тапсырысқа круассан сыйлыққа',
+  briefRu: 'Мы соскучились.',
+  briefKk: 'Сізді сағындық.',
+  channel: 'telegram',
+  trackingCode: 'QDM-TEST01',
+  quietWindow: '15:00–18:00',
+  durationDays: 7,
+};
+
+const generatedPack = (mutate: (assets: Record<string, unknown>[]) => void = () => {}) => {
+  const assets = buildContentPack(PACK_INPUT).map((asset) => ({
+    kind: asset.kind, locale: asset.locale, ordinal: asset.ordinal,
+    body: asset.body, cta: asset.cta, altText: asset.altText,
+  })) as Record<string, unknown>[];
+  mutate(assets);
+  return { schemaVersion: CONTENT_SCHEMA_VERSION, assets };
+};
+
+test('a well-formed model pack is accepted and keeps story order', () => {
+  const parsed = parseGeneratedPack(generatedPack(), PACK_INPUT);
+  const storiesRu = parsed.filter((asset) => asset.kind === 'story' && asset.locale === 'ru');
+  assert.equal(storiesRu.length, 3);
+  assert.deepEqual(storiesRu.map((asset) => asset.ordinal).sort(), [1, 2, 3]);
+});
+
+test('a pack missing an asset is refused rather than half-published', () => {
+  assert.throws(
+    () => parseGeneratedPack(generatedPack((assets) => { assets.splice(0, 1); }), PACK_INPUT),
+    /incomplete/,
+  );
+});
+
+test('Kazakh copied from Russian is refused', () => {
+  assert.throws(
+    () => parseGeneratedPack(generatedPack((assets) => {
+      const ru = assets.find((asset) => asset.kind === 'post' && asset.locale === 'ru');
+      const kk = assets.find((asset) => asset.kind === 'post' && asset.locale === 'kk');
+      if (ru && kk) kk.body = ru.body;
+    }), PACK_INPUT),
+    /repeats the Russian text/,
+  );
+});
+
+test('copy that overruns its channel limit is refused', () => {
+  assert.throws(
+    () => parseGeneratedPack(generatedPack((assets) => {
+      const short = assets.find((asset) => asset.kind === 'short_post' && asset.locale === 'ru');
+      if (short) short.body = 'x'.repeat(400);
+    }), PACK_INPUT),
+    /exceeds the short_post limit/,
+  );
+});
+
+test('a foreign schema version is refused', () => {
+  assert.throws(
+    () => parseGeneratedPack({ ...generatedPack(), schemaVersion: 'someone-elses.v9' }, PACK_INPUT),
+    /schemaVersion must be/,
+  );
+});
+
+test('the template output validates against the same schema as a model answer', () => {
+  const parsed = parseGeneratedPack(generatedPack(), PACK_INPUT);
+  assert.equal(parsed.length, buildContentPack(PACK_INPUT).length);
 });

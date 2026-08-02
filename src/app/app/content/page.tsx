@@ -21,7 +21,7 @@ const errorLabels: Record<string, string> = {
 export default async function ContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign?: string; error?: string; generated?: string }>;
+  searchParams: Promise<{ campaign?: string; error?: string; generated?: string; source?: string }>;
 }) {
   const params = await searchParams;
   const data = await getContentData({ campaign: params.campaign });
@@ -63,7 +63,9 @@ export default async function ContentPage({
       )}
       {params.generated && (
         <div role="status" className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm font-semibold text-emerald-800">
-          Создано материалов: {params.generated}. Все черновики сохранены в базе и требуют вашего утверждения.
+          Создано материалов: {params.generated}
+          {params.source === 'provider' ? ' — написаны моделью' : ' — собраны встроенным шаблоном'}.
+          Прежние черновики этой кампании заменены. Утверждение остаётся за вами.
         </div>
       )}
 
@@ -102,8 +104,13 @@ export default async function ContentPage({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-bold">
                       {kindLabels[item.content_kind] ?? item.content_kind}
+                      {item.content_kind === 'story' && ` ${item.ordinal}`}
                     </span>
                     <div className="flex items-center gap-2 text-xs font-bold">
+                      {/* Whether a model or the template wrote this is never a guess. */}
+                      <span className={`rounded-full px-3 py-1 ${item.source === 'provider' ? 'bg-emerald-500/10 text-emerald-800' : 'bg-surface-muted text-muted-foreground'}`}>
+                        {item.source === 'provider' ? 'AI' : 'шаблон'}
+                      </span>
                       <span className="rounded-full bg-primary/10 px-3 py-1 uppercase text-primary">{item.locale}</span>
                       <span className="rounded-full bg-surface-muted px-3 py-1">{item.status}</span>
                     </div>

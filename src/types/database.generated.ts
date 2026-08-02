@@ -1449,9 +1449,12 @@ export type Database = {
           content_kind: string
           created_at: string
           cta: string | null
+          generation_run_id: string | null
           id: string
           is_mock: boolean
           locale: string
+          ordinal: number
+          source: string
           status: string
           updated_at: string
           version: number
@@ -1465,9 +1468,12 @@ export type Database = {
           content_kind: string
           created_at?: string
           cta?: string | null
+          generation_run_id?: string | null
           id?: string
           is_mock?: boolean
           locale: string
+          ordinal?: number
+          source?: string
           status?: string
           updated_at?: string
           version?: number
@@ -1481,9 +1487,12 @@ export type Database = {
           content_kind?: string
           created_at?: string
           cta?: string | null
+          generation_run_id?: string | null
           id?: string
           is_mock?: boolean
           locale?: string
+          ordinal?: number
+          source?: string
           status?: string
           updated_at?: string
           version?: number
@@ -1501,6 +1510,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_items_generation_run_id_fkey"
+            columns: ["generation_run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_generation_runs"
             referencedColumns: ["id"]
           },
         ]
