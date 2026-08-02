@@ -27,6 +27,7 @@
     "test:release": "node tests/release/run-all.mjs",
     "test:modes": "node tests/release/mode-separation.mjs",
     "seed:remote": "node scripts/make-remote-demo-seed.mjs",
+    "demo:restore": "node scripts/restore-demo.mjs",
     "dev:all": "node scripts/dev-all.mjs",
     "dev:stop": "supabase stop"
   },

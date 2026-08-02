@@ -11,6 +11,27 @@ import { demoLogin } from '@/app/auth/actions';
 import { useSearchParams } from 'next/navigation';
 import { useAppMode } from '@/context/AppModeContext';
 
+/**
+ * Turns an error code into a sentence a person can act on.
+ *
+ * `demo_login_failed` is the one that matters: the demo account exists only
+ * while the demonstration data is loaded, and during a restore there is a short
+ * window with no accounts at all. Showing the raw code there reads as "the
+ * button is broken" when the honest answer is "wait a moment and try again".
+ */
+function loginErrorText(code: string) {
+  if (code === 'demo_login_failed') {
+    return 'Демонстрационные данные сейчас обновляются, поэтому демо-вход недоступен. Попробуйте через минуту.';
+  }
+  if (code === 'demo_disabled') {
+    return 'Демонстрационный вход на этой установке отключён. Зарегистрируйте своё заведение.';
+  }
+  if (/invalid login credentials/i.test(code)) {
+    return 'Неверная почта или пароль.';
+  }
+  return `Не удалось войти: ${code}`;
+}
+
 function LoginContent() {
   const { language } = useLanguage();
   const { demoEnabled } = useAppMode();
@@ -31,7 +52,7 @@ function LoginContent() {
             means a screen reader announces it rather than leaving it unread. */}
         {searchParams.get('error') && (
           <p role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm font-semibold text-rose-800">
-            Не удалось войти: {searchParams.get('error')}
+            {loginErrorText(searchParams.get('error') as string)}
           </p>
         )}
         {searchParams.get('message') === 'check_email' && (
