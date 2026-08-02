@@ -127,6 +127,21 @@ function countsAs(roleSetup, tables = tenantTables, where = `where business_id =
   return Object.fromEntries(line.split(',').map((pair) => pair.split('=')));
 }
 
+/**
+ * Tables that are meant to be readable by everyone, and the predicate that says
+ * which rows.
+ *
+ * «Скидки рядом» is a district showcase: a published offer is public on purpose,
+ * which is the whole module. Sweeping it with everything else asserted the
+ * opposite and passed only while the table was empty — the moment the demo got
+ * offers, a working feature read as a leak. The exception is written down here
+ * with its predicate rather than hidden, and the boundary it implies is
+ * asserted separately: an unpublished offer must stay invisible.
+ */
+const PUBLIC_SHOWCASE = { nearby_offers: "status = ''published''" };
+const showcaseTables = Object.keys(PUBLIC_SHOWCASE).filter((t) => tenantTables.includes(t));
+const isolatedTables = tenantTables.filter((t) => !showcaseTables.includes(t));
+
 const asOwnerA = `set local role authenticated; select set_config('request.jwt.claim.sub', '${OWNER_A}', true);`;
 const asOwnerB = `set local role authenticated; select set_config('request.jwt.claim.sub', '${OWNER_B}', true);`;
 const asAnon = 'set local role anon;';
@@ -135,15 +150,26 @@ const b = countsAs(asOwnerB);
 const anonCounts = countsAs(asAnon);
 
 const positive = (map, t) => map[t] !== 'denied' && Number(map[t]) > 0;
-const leakedToB = tenantTables.filter((t) => positive(b, t));
-const leakedToAnon = tenantTables.filter((t) => positive(anonCounts, t));
+const leakedToB = isolatedTables.filter((t) => positive(b, t));
+const leakedToAnon = isolatedTables.filter((t) => positive(anonCounts, t));
 const visibleToA = tenantTables.filter((t) => positive(a, t));
 const deniedToAnon = tenantTables.filter((t) => anonCounts[t] === 'denied');
 
-check('rls', `tenant B reads none of tenant A's rows in any of ${tenantTables.length} tables`, leakedToB.length ? leakedToB.join(', ') : 'no leak', 'no leak');
-check('rls', `anonymous reads none of tenant A's rows in any of ${tenantTables.length} tables`, leakedToAnon.length ? leakedToAnon.join(', ') : 'no leak', 'no leak');
+check('rls', `tenant B reads none of tenant A's rows in any of ${isolatedTables.length} isolated tables`, leakedToB.length ? leakedToB.join(', ') : 'no leak', 'no leak');
+check('rls', `anonymous reads none of tenant A's rows in any of ${isolatedTables.length} isolated tables`, leakedToAnon.length ? leakedToAnon.join(', ') : 'no leak', 'no leak');
 check('rls', 'the test is meaningful: tenant A does see its own data', `${visibleToA.length} of ${tenantTables.length} tables populated`, (v) => Number(v.split(' ')[0]) >= 20);
 check('rls', 'tables closed to anonymous outright are recorded', String(deniedToAnon.length), (v) => Number(v) >= 0);
+
+// A public showcase is only as safe as the line between published and not.
+for (const showcase of showcaseTables) {
+  const predicate = PUBLIC_SHOWCASE[showcase];
+  const visible = countsAs(asAnon, [showcase], `where ${predicate}`);
+  const hidden = countsAs(asAnon, [showcase], `where not (${predicate})`);
+  check('rls', `anonymous sees published rows of ${showcase}, because that is the point`,
+    visible[showcase], (v) => v !== 'denied' && Number(v) > 0);
+  check('rls', `anonymous sees no unpublished row of ${showcase}`,
+    hidden[showcase], (v) => v === 'denied' || Number(v) === 0);
+}
 
 // --------------------------------------------- writing another business_id
 process.stdout.write('\nSEC-RLS-3  A tenant cannot claim rows by writing another business_id\n');
