@@ -4,6 +4,10 @@ import { join } from 'node:path';
 const migrationDir = join(process.cwd(), 'supabase', 'migrations');
 const migrationFiles = readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
 const migrations = migrationFiles.map((name) => readFileSync(join(migrationDir, name), 'utf8')).join('\n');
+// The type rules below match on substrings, so prose has to come out first: a
+// comment explaining what happens "for a real tenant" is not a `real` column,
+// and failing on it only teaches people to phrase comments around the linter.
+const migrationSql = migrations.replace(/--[^\n]*/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ');
 const seed = readFileSync(join(process.cwd(), 'supabase', 'seed.sql'), 'utf8');
 const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'));
 const requiredTables = [
@@ -18,7 +22,7 @@ const requiredTables = [
 ];
 const failures = [];
 for (const table of requiredTables) if (!new RegExp(`create table (?:public|private)\\.${table}\\s*\\(`, 'i').test(migrations)) failures.push(`missing table ${table}`);
-for (const bad of [' double precision ', ' real ', ' float ']) if (migrations.toLowerCase().includes(bad)) failures.push(`forbidden approximate numeric type: ${bad.trim()}`);
+for (const bad of [' double precision ', ' real ', ' float ']) if (migrationSql.toLowerCase().includes(bad)) failures.push(`forbidden approximate numeric type: ${bad.trim()}`);
 for (const kind of ['forecast','influenced','incremental_estimate','mock_actual','verified_fact']) if (!migrations.includes(`'${kind}'`)) failures.push(`missing metric kind ${kind}`);
 for (const pattern of ['enable row level security','private.has_business_role','business_id is immutable','append-only','security invoker','business-assets','business-exports']) if (!migrations.toLowerCase().includes(pattern.toLowerCase())) failures.push(`missing safeguard: ${pattern}`);
 for (const [series, count] of [['customers',180],['transactions',1129],['recommendations',3],['campaigns',3],['content',3],['automations',3],['tools',12],['templates',3],['daily',120],['activity',20]]) {

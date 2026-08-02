@@ -10,6 +10,7 @@ import type { ChannelKind, ConnectorState } from '@/connectors/contract.ts';
 import { describeDbError } from '@/server/qadam/errors';
 import { canManage, canMarket, requireBusinessContext } from '@/server/qadam/repository';
 import { runDueAutomations, runOutboxBatch } from '@/server/execution/worker';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Json } from '@/types/database.generated';
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
@@ -104,9 +105,17 @@ export async function runDemoCycle() {
     back('?error=' + encodeURIComponent('Демонстрационный цикл доступен только для demo-бизнеса.'));
   }
 
+  // The queue functions are granted to service_role only, by design: claiming
+  // and settling an outbox event is machine work, not something a signed-in
+  // member may do. Passing the member's client here made every claim fail with
+  // "permission denied", and the worker reported an empty queue — so this
+  // button appeared to work and did nothing at all. The authorisation decision
+  // is made above, against the member's own role, before the admin client is
+  // ever reached.
+  const runner = createAdminClient();
   const cycleKey = `demo-cycle-${randomUUID()}`;
-  const automations = await runDueAutomations(ctx.supabase, ctx.businessId, cycleKey, 'demo_cycle');
-  const outbox = await runOutboxBatch(ctx.supabase, ctx.businessId, `demo:${cycleKey}`, 25);
+  const automations = await runDueAutomations(runner, ctx.businessId, cycleKey, 'demo_cycle');
+  const outbox = await runOutboxBatch(runner, ctx.businessId, `demo:${cycleKey}`, 25);
 
   await ctx.supabase.from('activity_logs').insert({
     business_id: ctx.businessId, actor_id: ctx.userId,

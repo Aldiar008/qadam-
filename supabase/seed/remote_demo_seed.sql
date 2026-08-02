@@ -173,7 +173,7 @@ from generate_series(1,3) g on conflict(id) do nothing;
 
 insert into public.content_items(id,business_id,campaign_id,content_kind,channel,locale,body,alt_text,cta,status,version,is_mock)
 select private.deterministic_uuid('content-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('campaign-1'),
- (array['message','post','story'])[g],(array['whatsapp','instagram','instagram'])[g],case when g=3 then 'kk' else 'ru' end,
+ (array['direct_message','post','story'])[g],(array['whatsapp','instagram','instagram'])[g],case when g=3 then 'kk' else 'ru' end,
  (array['Круассан в подарок при чеке от 3 500 ₸','Тихие часы в TAMYR Coffee','3 500 ₸ чектен круассан сыйлық'])[g],
  'Synthetic TAMYR Coffee promotion','Открыть предложение','approved',1,true from generate_series(1,3) g on conflict(id) do nothing;
 

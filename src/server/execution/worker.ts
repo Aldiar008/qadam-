@@ -20,6 +20,8 @@ import type { Json } from '@/types/database.generated';
 
 export interface WorkerResult {
   claimed: number;
+  /** Deliveries created by expanding a confirmed campaign into its audience. */
+  expanded: number;
   sent: number;
   simulated: number;
   skipped: number;
@@ -67,20 +69,54 @@ async function resolveChannel(db: SupabaseClient, businessId: string, channel: s
 }
 
 export async function runOutboxBatch(db: SupabaseClient, businessId: string, workerId: string, limit = 20): Promise<WorkerResult> {
-  const result: WorkerResult = { claimed: 0, sent: 0, simulated: 0, skipped: 0, failed: 0, deadLettered: 0, details: [] };
+  const result: WorkerResult = { claimed: 0, expanded: 0, sent: 0, simulated: 0, skipped: 0, failed: 0, deadLettered: 0, details: [] };
 
   const { data: claimed, error } = await db.rpc('claim_outbox_batch', {
     p_business_id: businessId,
     p_worker: workerId,
     p_limit: limit,
   });
-  // An emergency stop makes the claim return nothing at all; that is success, not failure.
-  if (error) return result;
+  // An emergency stop makes the claim return nothing at all; that is success,
+  // not failure. A refused claim is a different thing entirely, and swallowing
+  // it here is how the "Прогнать demo-цикл" button came to do nothing at all:
+  // it passed a caller that is not allowed to claim, and the zero it got back
+  // was indistinguishable from an empty queue.
+  if (error) {
+    if (/emergency/i.test(error.message)) return result;
+    throw new Error(`could not claim the outbox for ${businessId}: ${error.message}`);
+  }
 
   const rows = (claimed ?? []) as unknown as OutboxRow[];
   result.claimed = rows.length;
 
   for (const row of rows) {
+    // A confirmed campaign arrives here as one event and has to become one
+    // delivery per approved recipient. This step used to be missing entirely:
+    // the event was published as "ignored" and the campaign never reached
+    // anyone, which is the failure this whole module exists to prevent.
+    if (row.event_type === 'campaign.launch_requested') {
+      const campaignId = String((row.payload ?? {}).campaign_id ?? row.aggregate_id);
+      const { data: expansion, error: expandError } = await db.rpc('expand_campaign_audience', {
+        p_campaign_id: campaignId,
+        p_idempotency_key: `expand:${row.id}`,
+      });
+      if (expandError) {
+        await db.rpc('settle_outbox_event', { p_event_id: row.id, p_success: false, p_error: expandError.message });
+        result.failed += 1;
+        result.details.push({ eventId: row.id, outcome: 'expand_failed', reason: expandError.message });
+        continue;
+      }
+      const report = (expansion ?? {}) as { expanded?: boolean; queued?: number; suppressed?: number; reason?: string };
+      await db.rpc('settle_outbox_event', { p_event_id: row.id, p_success: true, p_error: null as unknown as string });
+      result.expanded += Number(report.queued ?? 0);
+      result.details.push({
+        eventId: row.id,
+        outcome: report.expanded ? 'audience_expanded' : 'expansion_refused',
+        reason: report.reason ?? `queued=${report.queued ?? 0} suppressed=${report.suppressed ?? 0}`,
+      });
+      continue;
+    }
+
     if (row.event_type !== 'delivery.requested') {
       // Nothing else is dispatchable yet; publish so the queue drains cleanly.
       await db.rpc('settle_outbox_event', { p_event_id: row.id, p_success: true, p_error: null as unknown as string });
@@ -120,11 +156,15 @@ export async function runOutboxBatch(db: SupabaseClient, businessId: string, wor
     }
 
     // Re-check consent, suppression, quiet hours and caps at dispatch time.
+    // The delivery under consideration is named so the frequency cap does not
+    // count it against itself — by now it exists and is `queued`, and without
+    // this every campaign suppressed its own recipients.
     const { data: gate } = await db.rpc('send_gate', {
       p_business_id: businessId,
       p_customer_id: customerId || delivery.customer_id,
       p_channel: channel,
       p_at: new Date().toISOString(),
+      p_exclude_delivery_id: deliveryId,
     });
     const verdict = (gate ?? {}) as { allowed?: boolean; reason?: string };
     if (!verdict.allowed) {
