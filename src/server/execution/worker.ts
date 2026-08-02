@@ -43,9 +43,17 @@ const SEND_TIMEOUT_MS = Number(process.env.QADAM_CONNECTOR_TIMEOUT_MS ?? 10_000)
 
 /** Resolves the adapter configured for this business channel. */
 async function resolveChannel(db: SupabaseClient, businessId: string, channel: string) {
-  const { data } = await db.from('business_channels')
+  const { data, error } = await db.from('business_channels')
     .select('channel_type,adapter,connector_state,settings,status')
     .eq('business_id', businessId).eq('channel_type', channel).maybeSingle();
+
+  // Falling through to the defaults below on a failed read would resolve the
+  // channel to the `mock` adapter — a simulated send standing in for a real one
+  // because a query failed. That is the one substitution this product must
+  // never make quietly.
+  if (error) {
+    throw new Error(`could not read the ${channel} channel for ${businessId}: ${error.message}`);
+  }
 
   const settings = (data?.settings ?? {}) as { endpoint?: string };
   return {
@@ -86,9 +94,16 @@ export async function runOutboxBatch(db: SupabaseClient, businessId: string, wor
     const channel = String(payload.channel ?? 'whatsapp');
     const customerId = String(payload.customer_id ?? '');
 
-    const { data: delivery } = await db.from('campaign_deliveries')
+    const { data: delivery, error: deliveryError } = await db.from('campaign_deliveries')
       .select('id,status,customer_id,content_item_id,idempotency_key,provider_message_ref')
       .eq('id', deliveryId).eq('business_id', businessId).maybeSingle();
+
+    // A failed read is not evidence that the delivery is gone. Treating it as
+    // absent settles the event as a success, which records a send that never
+    // happened — the outcome this whole module exists to prevent.
+    if (deliveryError) {
+      throw new Error(`could not read delivery ${deliveryId} for ${businessId}: ${deliveryError.message}`);
+    }
 
     if (!delivery) {
       await db.rpc('settle_outbox_event', { p_event_id: row.id, p_success: true, p_error: null as unknown as string });
@@ -203,11 +218,19 @@ export async function runOutboxBatch(db: SupabaseClient, businessId: string, wor
 
 /** Runs due automations for one business. Each run is keyed so a repeat is a no-op. */
 export async function runDueAutomations(db: SupabaseClient, businessId: string, cycleKey: string, source: 'scheduler' | 'manual' | 'demo_cycle'): Promise<{ ran: number; results: unknown[] }> {
-  const { data: due } = await db.from('automations')
+  const { data: due, error: dueError } = await db.from('automations')
     .select('id,name,next_run_at,status')
     .eq('business_id', businessId).eq('status', 'active')
     .or(`next_run_at.is.null,next_run_at.lte.${new Date().toISOString()}`)
     .limit(20);
+
+  // "Could not ask" and "nothing to do" are different answers, and discarding
+  // this error made them identical. A missing grant on `automations` reported
+  // an empty queue for as long as it existed: the endpoint answered 200, the
+  // report said zero automations, and a rule that was active and due never ran.
+  if (dueError) {
+    throw new Error(`could not read due automations for ${businessId}: ${dueError.message}`);
+  }
 
   const results: unknown[] = [];
   for (const automation of due ?? []) {
