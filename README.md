@@ -90,7 +90,7 @@ npm run dev
 ```bash
 npx supabase db reset --local          # проиграть все миграции с нуля и наложить seed
 npx supabase migration new <название>  # создать новую миграцию
-npm run db:types > src/types/database.generated.ts   # перегенерировать типы после изменения схемы
+npm run db:types:write                 # перегенерировать типы после изменения схемы
 npm run check:types-drift              # упадёт, если типы отстали от схемы
 ```
 

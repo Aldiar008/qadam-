@@ -14,6 +14,7 @@
     "db:reset:local": "supabase db reset --local",
     "db:test": "supabase db reset --local && supabase test db --local supabase/tests/database",
     "db:types": "supabase gen types --local --schema public",
+    "db:types:write": "node -e \"const{execFileSync}=require('node:child_process');require('node:fs').writeFileSync('src/types/database.generated.ts',execFileSync('npx',['supabase','gen','types','--local','--schema','public'],{encoding:'utf8',shell:true,maxBuffer:33554432}))\"",
     "check:secrets": "node scripts/check-client-secrets.mjs",
     "check:data-layer": "node scripts/check-data-layer.mjs",
     "check:markup": "node scripts/check-nested-forms.mjs",

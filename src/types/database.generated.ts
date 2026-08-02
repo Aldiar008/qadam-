@@ -4771,6 +4771,10 @@ export type Database = {
         }
         Returns: Json
       }
+      expand_campaign_audience: {
+        Args: { p_campaign_id: string; p_idempotency_key: string }
+        Returns: Json
+      }
       import_customers: {
         Args: {
           p_business_id: string
@@ -4930,6 +4934,7 @@ export type Database = {
           p_business_id: string
           p_channel: string
           p_customer_id: string
+          p_exclude_delivery_id?: string
         }
         Returns: Json
       }

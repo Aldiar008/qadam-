@@ -20,7 +20,10 @@ if (normalise(generated) === normalise(committed)) {
   process.exit(0);
 }
 
-process.stderr.write(`${COMMITTED} is stale.\nRegenerate it with:\n  npm run db:types > ${COMMITTED}\n`);
+// Not `npm run db:types > file`: npm prints its own banner to stdout, and
+// redirecting it writes those lines into the generated file. Following that
+// instruction produced a file that fails this very check, two lines offset.
+process.stderr.write(`${COMMITTED} is stale.\nRegenerate it with:\n  npm run db:types:write\n`);
 const a = normalise(generated).split('\n');
 const b = normalise(committed).split('\n');
 let shown = 0;
