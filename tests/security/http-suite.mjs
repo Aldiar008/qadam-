@@ -59,6 +59,28 @@ const nonceA = (await request('/login')).headers.get('content-security-policy');
 const nonceB = (await request('/login')).headers.get('content-security-policy');
 check('headers', 'the nonce is fresh on every request', nonceA === nonceB ? 'REUSED' : 'fresh per request', 'fresh per request');
 
+// The Mini App is the one page that must be framable, and only by Telegram.
+// The exception is narrow on purpose, so it is asserted from both sides.
+const miniAppHeaders = (await request('/tg')).headers;
+const miniAppCsp = miniAppHeaders.get('content-security-policy') ?? 'absent';
+check('headers', 'the Mini App may be framed by Telegram', miniAppCsp, (v) => v.includes('frame-ancestors https://web.telegram.org'));
+check('headers', 'the Mini App carries no X-Frame-Options that would undo it', miniAppHeaders.get('x-frame-options') ?? 'absent', 'absent');
+check('headers', 'the Mini App does not loosen script-src', miniAppCsp, (v) => v.includes("script-src 'self' 'nonce-") && !v.includes('unsafe-inline;'));
+check('headers', 'no other origin may frame the Mini App', miniAppCsp, (v) => !v.includes('frame-ancestors *') && !v.includes("frame-ancestors 'self'"));
+check('headers', 'the framing exception does not leak to the cabinet', `${appHeaders.get('x-frame-options')}`, 'DENY');
+
+// Everything the Mini App can do rests on this signature check.
+const forgedInitData = await request('/api/tg/session', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ initData: `user=${encodeURIComponent('{"id":1}')}&auth_date=${Math.floor(Date.now() / 1000)}&hash=${'a'.repeat(64)}` }),
+});
+check('auth', 'a forged Telegram signature opens nothing', `${forgedInitData.status} ${forgedInitData.body.slice(0, 40)}`, (v) => v.startsWith('401'));
+const emptyInitData = await request('/api/tg/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+check('auth', 'an empty Telegram payload opens nothing', String(emptyInitData.status), '401');
+const cardWithoutSession = await request('/tg/card');
+check('auth', 'the guest card is not reachable without a verified chat', String(cardWithoutSession.status), (v) => v === '307' || v === '302');
+
 // ---------------------------------------------------------- authentication
 process.stdout.write('\nSEC-HTTP-2  Authentication and session\n');
 check('auth', 'a protected page is refused without a session', String((await request('/app/today')).status), (v) => v === '307' || v === '302');

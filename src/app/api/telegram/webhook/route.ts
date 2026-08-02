@@ -43,12 +43,25 @@ interface TelegramUpdate {
 
 const api = (method: string) => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN ?? ''}/${method}`;
 
-async function reply(chatId: string, text: string): Promise<void> {
+/** Where the Mini App lives. Telegram requires https, so a local run gets no button. */
+function miniAppUrl(path = '/tg'): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  if (!base.startsWith('https://')) return null;
+  return `${base.replace(/\/$/, '')}${path}`;
+}
+
+/** A button that opens the card inside Telegram rather than in a browser tab. */
+function openCardKeyboard(label = 'Открыть мою карту') {
+  const url = miniAppUrl();
+  return url ? { inline_keyboard: [[{ text: label, web_app: { url } }]] } : undefined;
+}
+
+async function reply(chatId: string, text: string, replyMarkup?: unknown): Promise<void> {
   if (!process.env.TELEGRAM_BOT_TOKEN) return;
   await fetch(api('sendMessage'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
   }).catch(() => {
     // A reply that fails to send is not a reason to make Telegram retry the
     // whole update: the state change it carried has already been recorded.
@@ -108,9 +121,9 @@ export async function POST(request: Request) {
   await reply(chat, [
     'Это бот QADAM.',
     '',
-    'Гостю: отсканируйте QR-код заведения — он откроет этот чат с нужной ссылкой, и карта лояльности заведётся сама.',
+    'Гостю: отсканируйте QR-код заведения — он откроет этот чат с нужной ссылкой, и карта лояльности заведётся сама. Потом карту можно открыть кнопкой ниже.',
     'Владельцу: в кабинете, в разделе «Автоматизации», есть код привязки — откройте ссылку оттуда.',
-  ].join('\n'));
+  ].join('\n'), openCardKeyboard());
   return NextResponse.json({ ok: true, handled: 'help' });
 }
 
@@ -213,7 +226,8 @@ async function ownerLink(db: ReturnType<typeof createAdminClient>, chat: string,
     `Готово. Этот чат привязан к заведению «${result.business_name ?? 'ваше заведение'}».`,
     '',
     'Каждое утро я буду присылать сюда один сигнал и одно предложенное действие. Запуск кампании всегда требует вашего подтверждения — я ничего не отправляю сам.',
-  ].join('\n'));
+    'Кнопка ниже открывает «Сегодня» прямо в Telegram.',
+  ].join('\n'), openCardKeyboard('Открыть «Сегодня»'));
   return NextResponse.json({ ok: true, handled: 'owner_linked' });
 }
 
@@ -258,7 +272,8 @@ async function guestJoin(db: ReturnType<typeof createAdminClient>, chat: string,
     'Карта заведена. Штампы будут копиться с каждым визитом.',
     `Сейчас на карте: ${result.stamps_balance ?? 1}.`,
     '',
+    'Откройте карту кнопкой ниже — там видно, сколько осталось до награды, ваши визиты и меню.',
     'Если хотите получать персональные предложения — напишите «да». Без этого я присылать ничего не буду.',
-  ].join('\n'));
+  ].join('\n'), openCardKeyboard());
   return NextResponse.json({ ok: true, handled: 'guest_joined' });
 }

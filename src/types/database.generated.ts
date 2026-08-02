@@ -4748,6 +4748,14 @@ export type Database = {
         Returns: Json
       }
       current_platform_role: { Args: never; Returns: string }
+      customer_channels_for_address: {
+        Args: { p_address: string; p_channel: string }
+        Returns: {
+          business_id: string
+          business_name: string
+          customer_id: string
+        }[]
+      }
       customer_for_channel_address: {
         Args: { p_address: string; p_channel: string }
         Returns: {
@@ -4856,7 +4864,18 @@ export type Database = {
         }
         Returns: Json
       }
+      loyalty_card: {
+        Args: { p_business_id: string; p_customer_id: string }
+        Returns: Json
+      }
       mark_admin_reauth: { Args: never; Returns: Json }
+      owner_businesses_for_chat: {
+        Args: { p_chat_id: string }
+        Returns: {
+          business_id: string
+          business_name: string
+        }[]
+      }
       owner_chats: {
         Args: { p_business_id: string }
         Returns: {
@@ -4984,6 +5003,15 @@ export type Database = {
           p_period_end: string
           p_period_start: string
           p_signal_type: string
+        }
+        Returns: Json
+      }
+      redeem_reward_for_customer: {
+        Args: {
+          p_business_id: string
+          p_customer_id: string
+          p_idempotency_key: string
+          p_reward_id: string
         }
         Returns: Json
       }

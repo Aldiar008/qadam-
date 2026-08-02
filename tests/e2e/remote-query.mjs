@@ -44,7 +44,7 @@ const fail = (message) => {
   process.exitCode = 1;
 };
 
-const ATTEMPTS = 6;
+const ATTEMPTS = 8;
 const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -78,7 +78,7 @@ for (let attempt = 1; ; attempt += 1) {
   }
   // Honour the server's own pacing when it offers one.
   const after = Number(response.headers.get('retry-after'));
-  await wait(Number.isFinite(after) && after > 0 ? after * 1000 : 1000 * attempt * attempt);
+  await wait(Number.isFinite(after) && after > 0 ? after * 1000 : Math.min(8_000, 1000 * attempt * attempt));
 }
 
 if (raw !== null) {

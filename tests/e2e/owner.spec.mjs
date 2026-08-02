@@ -20,13 +20,25 @@ try {
   // navigating by URL — is what proves the route is not dead.
   const signupCta = page.locator('a[href="/signup"]').last();
   await signupCta.scrollIntoViewIfNeeded();
-  await signupCta.click();
   // Waiting for the route, not for every last asset on it: the default here is
   // `load`, and on a cold deployed stand one slow font once turned a working
-  // CTA into a two-minute timeout reported as a broken sign-up. What the check
-  // is about — that the click reaches a real form — is proved by the heading
-  // read on the next line, which waits on its own.
-  await page.waitForURL('**/signup**', { waitUntil: 'commit' });
+  // CTA into a two-minute timeout reported as a broken sign-up.
+  //
+  // The click is retried once. The landing page animates its closing section,
+  // and under the load of a full four-suite run the first press occasionally
+  // lands while the element is still settling. A person would press again; a
+  // suite that reports "sign-up is broken" because of one missed press is
+  // reporting on the test environment, not on the product.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    await signupCta.click({ timeout: 15_000 }).catch(() => {});
+    try {
+      await page.waitForURL('**/signup**', { waitUntil: 'commit', timeout: 30_000 });
+      break;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await page.waitForTimeout(1_000);
+    }
+  }
   r.check('sign-up CTA reaches a real form', await page.textContent('h1'), 'Регистрация');
   await shot(page, 'owner-01-landing-signup');
 

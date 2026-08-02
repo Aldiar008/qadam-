@@ -6,7 +6,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin', 'mini-app'];
 
 // Resetting the local stack while the suites drive a deployed environment
 // would prove nothing and quietly desynchronise the run, so the target decides.

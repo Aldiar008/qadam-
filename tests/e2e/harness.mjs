@@ -42,9 +42,17 @@ export function db(sql) {
     ? ['node', ['tests/e2e/remote-query.mjs', sql]]
     : ['docker', ['exec', '-i', DB_CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-A', '-t', '-c', sql]];
 
-  return execFileSync(command, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
-    .replace(/\r/g, '')
-    .trim();
+  try {
+    return execFileSync(command, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
+      .replace(/\r/g, '')
+      .trim();
+  } catch (error) {
+    // `execFileSync` throws with "Command failed: …" and hides what the database
+    // or the API actually said, which turned a rate-limited read into an
+    // unreadable suite failure. The answer is put back into the message.
+    const detail = String(error.stderr ?? '').trim() || String(error.stdout ?? '').trim() || error.message;
+    throw new Error(`query failed: ${detail.slice(0, 400)}\n  sql: ${sql.slice(0, 200)}`);
+  }
 }
 
 /** Same, but tolerates the error so a negative test can assert on the message. */
