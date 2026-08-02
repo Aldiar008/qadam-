@@ -8,6 +8,12 @@ import { chromium } from 'playwright';
 
 import { BASE, PASSWORD, db, dbTry } from '../e2e/harness.mjs';
 
+// Mirrors src/lib/app-mode.ts: an explicit flag wins, otherwise the legacy
+// variable is honoured, otherwise demo tenants are assumed to be on locally.
+const demoTenantsExpected = process.env.QADAM_DEMO_TENANTS_ENABLED != null
+  ? ['1', 'true', 'yes', 'on', 'enabled'].includes(process.env.QADAM_DEMO_TENANTS_ENABLED.trim().toLowerCase())
+  : (process.env.QADAM_APP_MODE ?? 'DEMO_MODE') === 'DEMO_MODE';
+
 const rows = [];
 let failures = 0;
 function check(area, name, actual, expected) {
@@ -208,7 +214,19 @@ check('injection', 'and no customer was created from it', db(`select count(*) fr
 
 // --------------------------------------------------------- production mocks
 process.stdout.write('\nSEC-HTTP-8  Demo surfaces and mode boundary\n');
-check('mode', 'the demo login button exists only because this build is DEMO_MODE', process.env.QADAM_APP_MODE ?? 'DEMO_MODE (default)', (v) => v.startsWith('DEMO_MODE'));
+// The demo affordance is a property of the installation; what a tenant may do
+// is a property of its row. Asserting the served page rather than the variable
+// that produced it means this still tests something after the variable changes.
+const loginHtml = await (await fetch(`${BASE}/login`)).text();
+const demoControlShown = /DEMO_MODE|Войти в демо|demo_login/i.test(loginHtml);
+check('mode', 'the demo entry is offered exactly when this installation enables demo tenants', String(demoControlShown), String(demoTenantsExpected));
+
+// This is the invariant that lets demo and real tenants share one database at
+// all. If it ever fails, the honesty guarantee is gone, not merely degraded.
+check('mode', 'no production business holds a single mock row', db(`
+  select count(*) from public.customers c
+  join public.businesses b on b.id = c.business_id
+  where b.mode = 'production' and c.is_mock`), '0');
 check('mode', 'a mock row can never claim to be a verified fact', db(`select count(*) from public.impact_measurements where is_mock and kind = 'verified_fact'`), '0');
 check('mode', 'no channel is connected without health evidence', db(`select count(*) from public.business_channels where connector_state='connected' and last_health_check_at is null`), '0');
 check('mode', 'demo businesses are all flagged as mock', db(`select count(*) from public.businesses where mode='demo' and not is_mock`), '0');

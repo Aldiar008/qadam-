@@ -123,15 +123,15 @@ test('createAdapter falls back to a refusing boundary for an unknown adapter nam
 test('a channel cannot be labelled connected without a real adapter, credentials, health and production mode', () => {
   const base = { adapter: 'webhook', hasCredentials: true, healthOk: true, healthDeclaredState: 'connected' as const };
 
-  assert.equal(resolveConnectorState({ ...base, appMode: 'PRODUCTION_MODE' }), 'connected');
-  assert.equal(resolveConnectorState({ ...base, appMode: 'DEMO_MODE' }), 'sandbox', 'demo mode can never be connected');
-  assert.equal(resolveConnectorState({ ...base, appMode: 'PRODUCTION_MODE', hasCredentials: false }), 'not_configured');
-  assert.equal(resolveConnectorState({ ...base, appMode: 'PRODUCTION_MODE', healthOk: false }), 'error');
-  assert.equal(resolveConnectorState({ ...base, appMode: 'PRODUCTION_MODE', healthDeclaredState: 'sandbox' }), 'sandbox',
+  assert.equal(resolveConnectorState({ ...base, businessMode: 'production' }), 'connected');
+  assert.equal(resolveConnectorState({ ...base, businessMode: 'demo' }), 'sandbox', 'a demo business can never be connected');
+  assert.equal(resolveConnectorState({ ...base, businessMode: 'production', hasCredentials: false }), 'not_configured');
+  assert.equal(resolveConnectorState({ ...base, businessMode: 'production', healthOk: false }), 'error');
+  assert.equal(resolveConnectorState({ ...base, businessMode: 'production', healthDeclaredState: 'sandbox' }), 'sandbox',
     'a provider that declares a sandbox environment stays sandbox');
-  assert.equal(resolveConnectorState({ appMode: 'DEMO_MODE', adapter: 'mock', hasCredentials: true, healthOk: true, healthDeclaredState: 'simulated' }), 'simulated');
-  assert.equal(resolveConnectorState({ appMode: 'PRODUCTION_MODE', adapter: 'mock', hasCredentials: true, healthOk: true, healthDeclaredState: 'simulated' }), 'not_configured',
-    'a mock adapter in production counts as nothing configured');
+  assert.equal(resolveConnectorState({ businessMode: 'demo', adapter: 'mock', hasCredentials: true, healthOk: true, healthDeclaredState: 'simulated' }), 'simulated');
+  assert.equal(resolveConnectorState({ businessMode: 'production', adapter: 'mock', hasCredentials: true, healthOk: true, healthDeclaredState: 'simulated' }), 'not_configured',
+    'a mock adapter in a production business counts as nothing configured');
 });
 
 test('every connector state has an owner-facing label and hint', () => {

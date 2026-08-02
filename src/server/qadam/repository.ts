@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@/lib/supabase/server';
+import { asBusinessMode } from '@/lib/app-mode';
 
 export type BusinessRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer';
 
@@ -38,7 +39,10 @@ export async function requireBusinessContext() {
   ]);
   if (businessError) throw new DataUnavailableError('business', businessError);
   if (!business) throw new Error('BUSINESS_REQUIRED');
-  return { supabase, userId, businessId: member.business_id, role: member.role as BusinessRole, business, location, profile, person };
+  // Narrowed once, here: every caller downstream decides behaviour from the
+  // tenant's mode, and none of them should have to re-check what it can be.
+  const scopedBusiness = { ...business, mode: asBusinessMode(business.mode) };
+  return { supabase, userId, businessId: member.business_id, role: member.role as BusinessRole, business: scopedBusiness, location, profile, person };
 }
 
 export function canManage(role: BusinessRole) { return role === 'owner' || role === 'manager'; }

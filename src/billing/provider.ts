@@ -5,10 +5,12 @@
  * refusing default so the rest of the product can be written against a stable
  * shape, and so the absence is visible rather than implicit.
  *
- * The rule that matters: in PRODUCTION_MODE an unconfigured provider must refuse
- * checkout outright. Simulating a successful payment would be indistinguishable
+ * The rule that matters: for a production business, an unconfigured provider
+ * must refuse checkout outright. Simulating a successful payment would be indistinguishable
  * from taking money and delivering nothing.
  */
+
+import type { BusinessMode } from '@/lib/app-mode';
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
 
@@ -57,18 +59,18 @@ export class BillingNotConfiguredError extends Error {
 /**
  * The default provider. It refuses everything, loudly.
  *
- * In DEMO_MODE the owner still sees plans and limits — those are real and
- * enforced — but cannot start a checkout, because there is nothing to pay.
+ * In demo businesses the owner still sees plans and limits — those are real
+ * and enforced — but cannot start a checkout, because there is nothing to pay.
  */
-export function createUnconfiguredBillingProvider(appMode: string): BillingProvider {
+export function createUnconfiguredBillingProvider(businessMode: BusinessMode): BillingProvider {
   return {
     name: 'none',
     configured: false,
     async createCheckout(): Promise<CheckoutSession> {
       throw new BillingNotConfiguredError(
-        appMode === 'PRODUCTION_MODE'
+        businessMode === 'production'
           ? 'Платёжный провайдер не подключён: оплата недоступна. Мы не показываем фиктивную оплату.'
-          : 'DEMO_MODE: оплата не производится. Тарифы и лимиты работают реально, но платёж не подключён.',
+          : 'Demo-заведение: оплата не производится. Тарифы и лимиты работают реально, но платёж не подключён.',
       );
     },
     async cancelSubscription(): Promise<{ cancelled: boolean; effectiveAt: string | null }> {
@@ -102,10 +104,13 @@ export function readBillingConfig(env: Readonly<Record<string, string | undefine
   return { provider, apiKey, webhookSecret };
 }
 
-export function createBillingProvider(env: Readonly<Record<string, string | undefined>> = process.env): BillingProvider {
+// The mode is required rather than defaulted from the environment: whether
+// checkout may be attempted is a fact about one tenant, and a default read from
+// the deployment would quietly reintroduce the coupling this removed.
+export function createBillingProvider(env: Readonly<Record<string, string | undefined>> = process.env, businessMode: BusinessMode): BillingProvider {
   const config = readBillingConfig(env);
   // No adapter is implemented yet: a configured provider still resolves to the
   // refusing default, so nothing can accidentally claim to have charged anyone.
-  if (!config) return createUnconfiguredBillingProvider(env.QADAM_APP_MODE ?? 'DEMO_MODE');
-  return createUnconfiguredBillingProvider(env.QADAM_APP_MODE ?? 'DEMO_MODE');
+  if (!config) return createUnconfiguredBillingProvider(businessMode);
+  return createUnconfiguredBillingProvider(businessMode);
 }

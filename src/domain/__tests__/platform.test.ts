@@ -10,6 +10,7 @@ import {
   formatMoney, formatNumber, formatPercent, isSupportedLocale, longestRendering, translate,
 } from '../../i18n/registry.ts';
 import { BillingNotConfiguredError, createBillingProvider, createUnconfiguredBillingProvider, readBillingConfig } from '../../billing/provider.ts';
+import { asBusinessMode, demoTenantsEnabled } from '../../lib/app-mode.ts';
 
 // ---------------------------------------------------------------------------
 // Role matrix
@@ -184,7 +185,7 @@ test('the glossary pins product terms and forbids the dangerous synonyms', () =>
 // ---------------------------------------------------------------------------
 
 test('no billing provider is configured, and the default refuses rather than simulating', async () => {
-  const provider = createUnconfiguredBillingProvider('PRODUCTION_MODE');
+  const provider = createUnconfiguredBillingProvider('production');
   assert.equal(provider.configured, false);
   assert.equal(provider.name, 'none');
 
@@ -195,15 +196,15 @@ test('no billing provider is configured, and the default refuses rather than sim
 });
 
 test('demo mode also refuses checkout, with an honest explanation', async () => {
-  const provider = createUnconfiguredBillingProvider('DEMO_MODE');
+  const provider = createUnconfiguredBillingProvider('demo');
   await assert.rejects(
     () => provider.createCheckout({ businessId: 'b', planCode: 'growth', returnUrl: '/', idempotencyKey: 'k' }),
-    /DEMO_MODE/,
+    /Demo-заведение/,
   );
 });
 
 test('a webhook can never be valid while no provider exists', async () => {
-  const provider = createUnconfiguredBillingProvider('PRODUCTION_MODE');
+  const provider = createUnconfiguredBillingProvider('production');
   const result = await provider.verifyWebhook('{}', 'sig', '123');
   assert.equal(result.valid, false);
   assert.equal(result.reason, 'no_billing_provider_configured');
@@ -224,8 +225,36 @@ test('even a fully configured provider resolves to the refusing default until an
     QADAM_BILLING_PROVIDER: 'stripe',
     QADAM_BILLING_API_KEY: 'k',
     QADAM_BILLING_WEBHOOK_SECRET: 's',
-    QADAM_APP_MODE: 'PRODUCTION_MODE',
-  });
+  }, 'production');
   assert.equal(provider.configured, false, 'no adapter is implemented, so nothing may claim to charge');
   await assert.rejects(() => provider.createCheckout({ businessId: 'b', planCode: 'pro', returnUrl: '/', idempotencyKey: 'k' }));
+});
+
+// ---------------------------------------------------------------------------
+// Mode resolution
+// ---------------------------------------------------------------------------
+
+test('demo tenants are a property of the installation, and the explicit flag wins', () => {
+  assert.equal(demoTenantsEnabled({ QADAM_DEMO_TENANTS_ENABLED: 'true' }), true);
+  assert.equal(demoTenantsEnabled({ QADAM_DEMO_TENANTS_ENABLED: 'false' }), false);
+  assert.equal(
+    demoTenantsEnabled({ QADAM_DEMO_TENANTS_ENABLED: 'false', QADAM_APP_MODE: 'DEMO_MODE' }),
+    false,
+    'the explicit flag overrides the variable it replaces',
+  );
+  // The old variable still decides where nobody has set the new one, so an
+  // installation that has not been touched keeps behaving as it did.
+  assert.equal(demoTenantsEnabled({ QADAM_APP_MODE: 'DEMO_MODE' }), true);
+  assert.equal(demoTenantsEnabled({ QADAM_APP_MODE: 'PRODUCTION_MODE' }), false);
+  assert.equal(demoTenantsEnabled({}), false, 'nothing configured grants nothing');
+});
+
+test('an unrecognised tenant mode resolves to production, never to demo', () => {
+  assert.equal(asBusinessMode('demo'), 'demo');
+  assert.equal(asBusinessMode('production'), 'production');
+  // Guessing `demo` would hand a real tenant simulations and time travel; the
+  // safe reading of an unknown value is the one that grants nothing.
+  assert.equal(asBusinessMode('something-else'), 'production');
+  assert.equal(asBusinessMode(null), 'production');
+  assert.equal(asBusinessMode(undefined), 'production');
 });

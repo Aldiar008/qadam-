@@ -153,7 +153,9 @@ const managed = {
  */
 const localSecret = (name) => `dev-${createHash('sha256').update(`${name}:${process.cwd()}`).digest('hex').slice(0, 32)}`;
 const defaults = {
-  QADAM_APP_MODE: 'DEMO_MODE',
+  // Whether this installation exposes seeded demo tenants at all. What a given
+  // tenant may do is decided by public.businesses.mode, not by this.
+  QADAM_DEMO_TENANTS_ENABLED: 'true',
   NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
   QADAM_AI_PROVIDER: 'none',
   QADAM_JOB_SECRET: localSecret('job'),

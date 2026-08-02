@@ -13,15 +13,15 @@ const back = (extra = ''): never => redirect(`/app/analytics${extra}`);
 /**
  * TAMYR demo time jump.
  *
- * DEMO_MODE only, and the database enforces that independently of this check.
+ * Demo tenant only, and the database enforces that independently of this check.
  * The RPC is idempotent, so pressing the button twice produces no extra events
  * and no extra measurements.
  */
 export async function runDemoTimeJump(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) back('?error=forbidden');
-  if (ctx.business.mode !== 'demo' || process.env.QADAM_APP_MODE !== 'DEMO_MODE') {
-    back('?error=' + encodeURIComponent('Демонстрационный скачок во времени доступен только в DEMO_MODE.'));
+  if (ctx.business.mode !== 'demo') {
+    back('?error=' + encodeURIComponent('Демонстрационный скачок во времени доступен только для demo-заведения.'));
   }
 
   const campaignId = text(form, 'campaignId');

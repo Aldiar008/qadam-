@@ -28,7 +28,7 @@ export default async function AnalyticsPage({
   const params = await searchParams;
   const days = Math.min(365, Math.max(7, Number(params.days ?? 30) || 30));
   const data = await getImpactDashboard({ days, cursor: params.cursor });
-  const isDemo = data.ctx.business.mode === 'demo' && process.env.QADAM_APP_MODE === 'DEMO_MODE';
+  const isDemo = data.ctx.business.mode === 'demo';
   const canAct = canMarket(data.ctx.role);
   const isManager = canManage(data.ctx.role);
 

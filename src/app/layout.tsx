@@ -7,6 +7,7 @@ import { siteConfig } from '@/config/site';
 import { AppModeProvider } from '@/context/AppModeContext';
 import { resolveLocale } from '@/lib/i18n/locale';
 import { getDictionary } from '@/lib/dictionary';
+import { demoTenantsEnabled } from '@/lib/app-mode';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -52,7 +53,7 @@ export default async function RootLayout({
     <html lang={locale}>
       <body className="bg-background text-foreground antialiased min-h-screen">
         <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-xl bg-foreground px-4 py-3 text-sm font-bold text-background focus:translate-y-0">{t.skipToContent}</a>
-        <AppModeProvider demoEnabled={process.env.QADAM_APP_MODE === 'DEMO_MODE'}>
+        <AppModeProvider demoEnabled={demoTenantsEnabled()}>
           <LanguageProvider initialLanguage={locale}>
             <LenisProvider>
               <ScrollRevealProvider>{children}</ScrollRevealProvider>

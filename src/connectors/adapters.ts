@@ -2,7 +2,7 @@
  * Adapter implementations.
  *
  * Two adapters can actually run today:
- *   - `mock`    — DEMO_MODE. Records a deterministic receipt, sends nothing.
+ *   - `mock`    — demo businesses. Records a deterministic receipt, sends nothing.
  *   - `webhook` — a real HTTP POST to a URL the owner controls, signed. This is
  *                 the only adapter in this build that can leave the machine, and
  *                 it only reaches `connected` after a passing health check.
@@ -255,20 +255,20 @@ export function createAdapter(adapterName: string, config: AdapterConfig): Conne
 }
 
 /**
- * The state a channel is permitted to claim, given the mode and the adapter.
+ * The state a channel is permitted to claim, given the business mode and adapter.
  * A caller cannot talk its way past this: `connected` requires a real adapter,
- * production mode and health-check evidence.
+ * a production business and health-check evidence.
  */
 export function resolveConnectorState(input: {
-  appMode: string;
+  businessMode: 'demo' | 'production';
   adapter: string;
   hasCredentials: boolean;
   healthOk: boolean;
   healthDeclaredState: ConnectorState | null;
 }): ConnectorState {
-  if (input.adapter === 'mock') return input.appMode === 'DEMO_MODE' ? 'simulated' : 'not_configured';
+  if (input.adapter === 'mock') return input.businessMode === 'demo' ? 'simulated' : 'not_configured';
   if (!input.hasCredentials) return 'not_configured';
   if (!input.healthOk) return 'error';
-  if (input.healthDeclaredState === 'connected' && input.appMode === 'PRODUCTION_MODE') return 'connected';
+  if (input.healthDeclaredState === 'connected' && input.businessMode === 'production') return 'connected';
   return 'sandbox';
 }

@@ -64,13 +64,25 @@ insert into public.business_locations(id,business_id,name,city,district,timezone
  ('22000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','Tenant B Location','Алматы','Медеуский','Asia/Almaty',20,true,true)
 on conflict(id) do update set capacity=excluded.capacity,is_mock=true;
 
+update public.businesses set mode='production', is_mock=false where id='20000000-0000-4000-8000-000000000001';
+update public.business_members set is_mock=false where business_id='20000000-0000-4000-8000-000000000001';
+update public.business_locations set is_mock=false where business_id='20000000-0000-4000-8000-000000000001';
+
 insert into public.business_profiles(id,business_id,average_check_minor,currency,margin_floor_bps,monthly_marketing_budget_minor,profile_confidence,source_evidence,is_mock)
 values('13000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',3450,'KZT',4200,120000,95,'{"source":"qadam_demo_seed","version":1}',true)
 on conflict(business_id) do update set average_check_minor=3450,margin_floor_bps=4200,is_mock=true;
 
+insert into public.business_profiles(id,business_id,average_check_minor,currency,margin_floor_bps,monthly_marketing_budget_minor,profile_confidence,source_evidence,is_mock)
+values('23000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',3000,'KZT',4000,60000,80,'{"source":"production_fixture_for_mode_separation"}',false)
+on conflict(business_id) do update set average_check_minor=3000,margin_floor_bps=4000,is_mock=false;
+
 insert into public.business_limits(id,business_id,monthly_budget_minor,currency,max_campaigns_per_month,max_contacts_per_month,approval_threshold_minor,is_mock)
 values('14000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',120000,'KZT',20,1000,25000,true)
 on conflict(business_id) do update set monthly_budget_minor=120000,is_mock=true;
+
+insert into public.business_limits(id,business_id,monthly_budget_minor,currency,max_campaigns_per_month,max_contacts_per_month,approval_threshold_minor,is_mock)
+values('24000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',60000,'KZT',5,250,15000,false)
+on conflict(business_id) do update set monthly_budget_minor=60000,is_mock=false;
 
 insert into public.customer_segments(id,business_id,code,name_ru,name_kk,definition,is_dynamic,status,is_mock)
 select private.deterministic_uuid('segment-'||g),'10000000-0000-4000-8000-000000000001',

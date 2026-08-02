@@ -45,7 +45,11 @@ begin
  end if;
 end $$;`;
 
-const sql = readFileSync(source, 'utf8');
+// Git hands this file CRLF on a Windows checkout, and the guard is matched as
+// an exact string. Normalising first means the generator does not depend on how
+// the repository happened to be cloned; the output is written LF either way, so
+// Postgres and the guard checks see the same bytes everywhere.
+const sql = readFileSync(source, 'utf8').replace(/\r\n/g, '\n');
 if (!sql.includes(LOCAL_GUARD)) {
   console.error('FAIL: the local-only guard in supabase/seed.sql no longer matches.');
   console.error('Refusing to generate a remote seed without a guard. Update this script deliberately.');

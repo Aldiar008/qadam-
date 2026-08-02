@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ensureBusinessForUser } from '@/lib/supabase/onboarding';
+import { demoTenantsEnabled } from '@/lib/app-mode';
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
 const errorRedirect = (path: string, message: string) => redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -67,7 +68,7 @@ export async function signUp(form: FormData) {
 }
 
 export async function demoLogin() {
-  if (process.env.QADAM_APP_MODE !== 'DEMO_MODE') redirect('/signup?error=demo_disabled');
+  if (!demoTenantsEnabled()) redirect('/signup?error=demo_disabled');
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: 'owner@qadam.local', password: 'QadamLocal!2026' });
   if (error) errorRedirect('/login', 'demo_login_failed');

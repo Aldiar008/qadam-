@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isSupabaseConfigured, getPublicSupabaseEnv } from './env';
 import { newNonce, securityHeaders } from '@/lib/security/headers';
+import { demoTenantsEnabled } from '@/lib/app-mode';
 import type { Database } from '@/types/database.generated';
 
 const protectedPath = (pathname: string) => pathname.startsWith('/app') || pathname.startsWith('/admin') || pathname.startsWith('/onboarding');
@@ -28,7 +29,7 @@ export async function updateSession(request: NextRequest) {
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', headerSet['Content-Security-Policy']);
   const forward = { request: { headers: requestHeaders } };
-  if (request.nextUrl.pathname.startsWith('/demo') && process.env.QADAM_APP_MODE !== 'DEMO_MODE') {
+  if (request.nextUrl.pathname.startsWith('/demo') && !demoTenantsEnabled()) {
     const url = request.nextUrl.clone();
     url.pathname = '/signup';
     url.searchParams.set('message', 'demo_disabled');

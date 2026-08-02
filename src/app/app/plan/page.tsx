@@ -12,7 +12,7 @@ const money = (minor: number, currency: string) =>
 export default async function PlanPage() {
   const ctx = await requireBusinessContext();
   const role = ctx.role as TenantRole;
-  const billing = createBillingProvider();
+  const billing = createBillingProvider(process.env, ctx.business.mode);
 
   const [{ data: plans }, { data: subscription }, { data: entitlements }, { data: usage }] = await Promise.all([
     ctx.supabase.from('plans').select('id,code,name,price_minor,currency,billing_period,tier_order,description_ru,is_public,status')

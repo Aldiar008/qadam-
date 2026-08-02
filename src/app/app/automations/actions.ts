@@ -96,7 +96,7 @@ export async function runAutomationNow(form: FormData) {
   back('?ran=1');
 }
 
-/** DEMO_MODE convenience: run one full cycle (due automations + outbox drain). */
+/** Demo-tenant convenience: run one full cycle (due automations + outbox drain). */
 export async function runDemoCycle() {
   const ctx = await requireBusinessContext();
   if (!canManage(ctx.role)) back('?error=forbidden');
@@ -158,7 +158,7 @@ export async function checkConnectorHealth(form: FormData) {
   clearTimeout(timer);
 
   const state = resolveConnectorState({
-    appMode: process.env.QADAM_APP_MODE ?? 'DEMO_MODE',
+    businessMode: ctx.business.mode,
     adapter: adapterName,
     hasCredentials: adapterName === 'mock' ? true : Boolean(endpoint && secret),
     healthOk: health.ok,

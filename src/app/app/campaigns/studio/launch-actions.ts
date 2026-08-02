@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { describeDbError } from '@/server/qadam/errors';
 import { canMarket, requireBusinessContext } from '@/server/qadam/repository';
 import { loadStudioSession } from '@/server/qadam/campaign-studio';
+import { modeTelemetryLabel } from '@/lib/app-mode';
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
 const int = (form: FormData, key: string, fallback: number) => {
@@ -103,8 +104,8 @@ export async function approveStudioContract(form: FormData) {
  * The server re-reads and re-checks the contract rather than trusting the page:
  * status must still be `approved` at the expected version, Margin Shield must
  * not have blocked it, and consent is resolved again at insert time by the
- * audience trigger. In PRODUCTION_MODE a missing channel connector refuses the
- * launch instead of reporting a success that never happened.
+ * audience trigger. For a production business, a missing channel connector
+ * refuses the launch instead of reporting a success that never happened.
  */
 export async function launchStudioCampaign(form: FormData) {
   const ctx = await requireBusinessContext();
@@ -132,7 +133,7 @@ export async function launchStudioCampaign(form: FormData) {
   const { data: connector } = await ctx.supabase.from('business_channels')
     .select('channel_type,status').eq('business_id', ctx.businessId).eq('channel_type', channel).maybeSingle();
   const connected = connector?.status === 'connected';
-  if (!connected && !isDemo && process.env.QADAM_APP_MODE === 'PRODUCTION_MODE') {
+  if (!connected && !isDemo) {
     backTo(7, '&error=' + encodeURIComponent(`Канал ${channel} не подключён. Подключите провайдера в настройках — QADAM не показывает фальшивую отправку.`));
   }
 
@@ -178,7 +179,7 @@ export async function launchStudioCampaign(form: FormData) {
     action: isDemo ? 'campaign.simulated' : 'campaign.launch_requested',
     resource_type: 'campaign',
     resource_id: result.campaign_id as string,
-    metadata: { connector: connected ? 'connected' : 'not_connected', mode: isDemo ? 'DEMO_MODE' : 'PRODUCTION_MODE', duplicate: Boolean(result.duplicate) },
+    metadata: { connector: connected ? 'connected' : 'not_connected', mode: modeTelemetryLabel(ctx.business.mode), duplicate: Boolean(result.duplicate) },
     is_mock: isDemo,
   });
 
