@@ -198,7 +198,12 @@ try {
   await login(p3, 'nomember@qadam.local');
   const landed = await p3.goto(`${BASE}/app/today`, { waitUntil: 'domcontentloaded' });
   check('errors', 'a user without a membership is routed, not shown a 500', `${landed.status()} ${p3.url()}`, (v) => Number(v.split(' ')[0]) < 400);
-  check('errors', 'and lands somewhere that explains what to do', p3.url(), (v) => v.includes('/onboarding') || v.includes('/login'));
+  // The destination used to be /onboarding, which bounced straight back to
+  // /login and looped. What matters is not which path it is but that the page
+  // says why the person is there, so this asserts the page, not the URL.
+  const strandedText = (await p3.textContent('body')) ?? '';
+  check('errors', 'and lands somewhere that explains what to do', `${p3.url()} :: ${strandedText.replace(/\s+/g, ' ').slice(0, 120)}`,
+    (v) => /не привязан ни к одному заведению|Регистрация заведения|Вход в личный кабинет/.test(v));
 
   // An unknown route must be a 404 page, not a crash.
   const missing = await p3.goto(`${BASE}/app/this-route-does-not-exist`, { waitUntil: 'domcontentloaded' });
@@ -210,7 +215,9 @@ try {
   check('errors', 'an offline navigation fails cleanly rather than hanging', offline.failed ?? String(offline.status?.()), (v) => v.length > 0);
   await p3.context().setOffline(false);
   await gotoReady(p3, '/app/today');
-  check('errors', 'the app recovers once the network returns', p3.url(), (v) => v.includes('/app/') || v.includes('/onboarding'));
+  // This session belongs to a user with no business, so a healthy recovery is
+  // the same routed destination as before the outage — not the cabinet.
+  check('errors', 'the app recovers once the network returns', p3.url(), (v) => v.includes('/app/') || v.includes('/onboarding') || v.includes('/signup'));
 } finally {
   await b3.close();
 }
