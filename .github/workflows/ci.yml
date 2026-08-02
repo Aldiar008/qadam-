@@ -125,6 +125,11 @@ jobs:
   e2e:
     name: Browser acceptance, security and accessibility
     runs-on: ubuntu-latest
+    # A hosted runner is slower than the workstation these waits were tuned on,
+    # and a navigation that merely arrives late reads as a product failure.
+    # Same dial the harness uses for a deployed target.
+    env:
+      QADAM_E2E_PATIENCE: '3'
     needs: [static, database]
     steps:
       - uses: actions/checkout@v4
