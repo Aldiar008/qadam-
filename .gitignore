@@ -48,3 +48,7 @@ SERPIN_QADAM_Winning_Blueprint.pdf
 
 .vercel
 .env*
+
+# Ключи для передачи следующему агенту. НИКОГДА не коммитить: репозиторий публичный.
+CREDENTIALS.local.md
+*.local.md

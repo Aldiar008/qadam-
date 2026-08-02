@@ -169,7 +169,8 @@ npm start
 | [TEST_PLAN](docs/qadam/TEST_PLAN.md) | что и чем проверяется |
 | [RUNBOOK](docs/qadam/RUNBOOK.md) | эксплуатация, инциденты, откат, бэкапы |
 | [RELEASE_REPORT](docs/qadam/RELEASE_REPORT.md) | результат последней полной проверки |
-| [HANDOFF](docs/qadam/HANDOFF.md) | передача проекта: что развёрнуто, где ловушки, что делать дальше |
+| [HANDOFF](docs/qadam/HANDOFF.md) | передача проекта: что развёрнуто, где ловушки, устройство режимов |
+| [NEXT_TASKS](docs/qadam/NEXT_TASKS.md) | задачи по приоритетам, с проверкой «сделано» для каждой |
 | [PROJECT_STATE](docs/qadam/PROJECT_STATE.md) | что сделано и что осталось |
 | [DECISIONS](docs/qadam/DECISIONS.md) | принятые решения и их причины |
 
