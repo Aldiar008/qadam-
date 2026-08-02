@@ -128,8 +128,11 @@ try {
   // the figure in the database. Pinning it to «27» asserted the opposite — that
   // the number is a constant — and went red the moment the detector re-measured
   // the demo's own sales and honestly got −22%.
+  // The screen prints `change_bps / 100` as-is, so the assertion compares
+  // against exactly that. Rounding it here was my second attempt at the same
+  // mistake: inventing a number and then checking the product against it.
   const measuredBps = db(`select change_bps::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_afternoon_15_18' limit 1`);
-  r.check('signal magnitude comes from the database', today, (v) => v.includes(String(Math.round(Number(measuredBps) / 100))));
+  r.check('signal magnitude comes from the database', today, (v) => v.includes(String(Number(measuredBps) / 100)));
   r.check('and it is a real drop, not a rounding artefact', measuredBps, (v) => Number(v) <= -1500);
   r.check('64 inactive customers in the segment', db(`select count(*) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'`), '64');
   r.check('18 of them consent to Telegram marketing', db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'))`), '18');

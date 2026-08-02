@@ -130,6 +130,14 @@ try {
     }, [BIZ, otherCustomer]);
     r.check('naming somebody else in the request changes nothing', String(stolen), '401');
 
+    // Put the tenant back as it was found. Flipping this guest's consent and
+    // walking away left the demo with 17 contactable sleepers instead of 18,
+    // and the owner suite — which asserts 18 — went red for a reason that had
+    // nothing to do with the owner.
+    if (consentBefore !== 'none' && consentBefore !== consentAfter) {
+      dbTry(`select private.record_channel_consent('${BIZ}','${customerId}','marketing.telegram',${consentBefore === 'granted'},'e2e_restore','{}'::jsonb)`);
+      r.check('the suite leaves consent as it found it', db(`select status from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram' order by created_at desc limit 1`), consentBefore);
+    }
     dbTry(`delete from private.channel_addresses where address='${CHAT}'`);
   }
 
