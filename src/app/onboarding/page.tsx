@@ -19,8 +19,15 @@ type OnboardingDraft = Record<string, unknown> & {
 };
 
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ step?: string; saved?: string }> }) {
-  const ctx = await requireBusinessContext().catch(() => null);
-  if (!ctx) redirect('/login?next=/onboarding');
+  // "Not signed in" and "signed in with no business" are different states, and
+  // sending both to /login turned the second one into a loop: the sign-in
+  // succeeds, routing sends the person back to /onboarding, and it bounces
+  // again. Someone with an account but no business needs the form that creates
+  // one, not the form they just used.
+  const ctx = await requireBusinessContext().catch((error: unknown) => error as Error);
+  if (ctx instanceof Error) {
+    redirect(ctx.message === 'MEMBERSHIP_REQUIRED' ? '/signup?message=no_business' : '/login?next=/onboarding');
+  }
   if (ctx.role !== 'owner') redirect('/app/today');
   let { data: session } = await ctx.supabase.from('onboarding_sessions').select('id,current_step,draft,status,optimistic_version').eq('business_id', ctx.businessId).eq('user_id', ctx.userId).maybeSingle();
   if (!session) {

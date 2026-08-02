@@ -141,3 +141,38 @@
   product.
 - Consequence: the deploy path is visibly incomplete until real infrastructure exists, which
   is the accurate state.
+
+## ADR-017 — Режим — свойство заведения, а не развёртывания
+
+- Date: 2026-08-02
+- Status: accepted
+- Decision: `public.businesses.mode` решает, что позволено арендатору;
+  `QADAM_DEMO_TENANTS_ENABLED` управляет только тем, предлагает ли установка
+  демонстрационный вход. Демо- и боевые заведения живут в одной базе.
+- Reason: владельцу нужна одна ссылка, на которой можно попробовать и то и
+  другое. Разделение при этом не ослабло: его и раньше держали констрейнт
+  `(mode='demo' and is_mock) or (mode='production' and not is_mock)` и триггер
+  «mock rows are forbidden in production businesses», а переменная окружения
+  была лишь вторым, более грубым слоем поверх.
+- Consequence: гарантия честности переехала с уровня развёртывания на уровень
+  строки. `mode-separation` больше не собирает приложение дважды — он
+  регистрирует настоящее заведение на том же сервере и сравнивает двух
+  арендаторов на одной сборке, а оба отказа базы проверяет попыткой.
+  DEPLOY_RUNBOOK части D и E переписаны: «DEMO_MODE на общем окружении» больше
+  не инцидент, потому что такого переключателя больше нет.
+
+## ADR-018 — Две таблицы намеренно закрыты, и это записано
+
+- Date: 2026-08-02
+- Status: accepted
+- Decision: `private.platform_admin_assignments` и `public.platform_events`
+  имеют включённый RLS и ни одной политики. Это deny-all по замыслу: обе
+  читаются только через security-definer функции.
+- Reason: советник Supabase помечает их как INFO «RLS enabled, no policy», и
+  без записанного решения следующий человек не отличит намерение от упущения —
+  а «добавить политику на всякий случай» здесь означало бы открыть таблицу,
+  которая должна быть закрыта.
+- Consequence: предупреждение остаётся и должно оставаться. Приёмочные наборы
+  это подтверждают: «the platform role lives in a private table», «that table
+  is not readable by an application role», «a table with no grant is closed on
+  purpose, not by omission».

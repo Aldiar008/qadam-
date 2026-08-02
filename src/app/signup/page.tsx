@@ -31,6 +31,16 @@ function SignupContent() {
           </p>
         )}
 
+        {/* Someone signed in whose account is not attached to any business is
+            sent here. Without saying why, the sign-up form appearing after a
+            successful sign-in reads as the sign-in having failed. */}
+        {searchParams.get('message') === 'no_business' && (
+          <p role="status" className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm font-semibold text-amber-900">
+            Вы вошли, но ваш аккаунт не привязан ни к одному заведению. Создайте его здесь —
+            или попросите владельца пригласить вас в команду.
+          </p>
+        )}
+
         <form className="space-y-4" action={signUp}>
           <div className="space-y-1">
             <label className="text-xs font-mono text-muted-foreground">Название заведения</label>

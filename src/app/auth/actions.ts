@@ -22,7 +22,11 @@ async function postAuthPath(supabase: Awaited<ReturnType<typeof createClient>>, 
     // the same security-definer function the console itself trusts, never from
     // user metadata.
     const { data: isPlatformAdmin } = await supabase.rpc('is_current_platform_admin');
-    return isPlatformAdmin ? '/admin' : '/onboarding';
+    if (isPlatformAdmin) return '/admin';
+    // No membership means there is nothing to onboard: onboarding continues a
+    // business that sign-up created. Sending them there bounced them back to
+    // sign-in, which sent them here again.
+    return '/signup?message=no_business';
   }
   const [{ data: profile }, { data: session }] = await Promise.all([
     supabase.from('business_profiles').select('business_id').eq('business_id', member.business_id).maybeSingle(),
