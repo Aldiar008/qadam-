@@ -64,7 +64,13 @@ export default async function RecommendationsPage({ searchParams }: { searchPara
                 <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
                   <div>
                     <div className="flex flex-wrap gap-2 text-xs font-bold text-primary">
-                      <span>GOS {String(explanation.gos ?? '—')}</span>
+                      {/* GOS scores an opportunity found in the numbers. A
+                          recommendation raised by a rule has no signal behind
+                          it, and saying «GOS —» would look like a missing value
+                          rather than an inapplicable one. */}
+                      {explanation.gos !== undefined && explanation.gos !== null
+                        ? <span>GOS {String(explanation.gos)}</span>
+                        : <span>Из автоматизации</span>}
                       <span>Уверенность {item.confidence}%</span>
                       <span>{item.status === 'snoozed' ? 'Отложена' : 'Открыта'}</span>
                       {eligible !== null && <span>Можно написать: {eligible}</span>}

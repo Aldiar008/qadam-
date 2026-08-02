@@ -99,6 +99,48 @@ try {
     await settle(page);
     await shoot(page, name, note);
   }
+
+  // Telegram Mini App. Opened on a phone-sized viewport in its own context,
+  // because that is the only shape a guest will ever see it in — and without a
+  // signed session it must show the refusal, which is itself worth a frame.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ru-RU', timezoneId: 'Asia/Almaty' });
+  const phonePage = await phone.newPage();
+  phonePage.setDefaultTimeout(90_000);
+  try {
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      const { createHmac } = await import('node:crypto');
+      const chat = process.env.QADAM_DEMO_TG_CHAT ?? '900000777';
+      const fields = {
+        auth_date: String(Math.floor(Date.now() / 1000)),
+        user: JSON.stringify({ id: Number(chat), first_name: 'Айбек' }),
+      };
+      const secret = createHmac('sha256', 'WebAppData').update(process.env.TELEGRAM_BOT_TOKEN).digest();
+      const pairs = Object.entries(fields).map(([key, value]) => `${key}=${value}`).sort();
+      const params = new URLSearchParams(fields);
+      params.set('hash', createHmac('sha256', secret).update(pairs.join('\n')).digest('hex'));
+
+      await phonePage.goto(`${BASE}/tg`, { waitUntil: 'domcontentloaded' });
+      const opened = await phonePage.evaluate(async (initData) => {
+        const response = await fetch('/api/tg/session', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ initData }),
+        });
+        return response.status;
+      }, params.toString());
+      if (opened === 200) {
+        await phonePage.goto(`${BASE}/tg/card`, { waitUntil: 'domcontentloaded' });
+        await settle(phonePage);
+        await shoot(phonePage, 'telegram-card', 'Telegram Mini App: карта гостя, прогресс до награды и меню');
+      } else {
+        process.stdout.write(`  Mini App: чат ${chat} не связан (${opened}) — кадр карты пропущен\n`);
+      }
+    }
+    await phonePage.goto(`${BASE}/tg`, { waitUntil: 'domcontentloaded' });
+    await phonePage.waitForTimeout(2500);
+    await shoot(phonePage, 'telegram-entry', 'Mini App вне Telegram: отказ с объяснением, а не пустой экран');
+  } finally {
+    await phone.close();
+  }
 } finally {
   await browser.close();
 }

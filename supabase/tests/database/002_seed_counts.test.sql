@@ -1,13 +1,20 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 select is((select count(*)::bigint from public.customers where business_id='10000000-0000-4000-8000-000000000001'),180::bigint,'180 TAMYR customers');
 select is((select count(*)::bigint from public.transactions where business_id='10000000-0000-4000-8000-000000000001'),1129::bigint,'1129 TAMYR transactions');
 select is((select count(*)::bigint from public.customer_segments where business_id='10000000-0000-4000-8000-000000000001'),5::bigint,'5 segments');
 select is((select count(*)::bigint from public.campaigns where business_id='10000000-0000-4000-8000-000000000001'),3::bigint,'3 campaigns');
 select is((select count(*)::bigint from public.content_items where business_id='10000000-0000-4000-8000-000000000001'),3::bigint,'3 content items');
 select is((select count(*)::bigint from public.recommendations where business_id='10000000-0000-4000-8000-000000000001'),3::bigint,'3 recommendations');
-select is((select count(*)::bigint from public.automations where business_id='10000000-0000-4000-8000-000000000001'),3::bigint,'3 automations');
+select is((select count(*)::bigint from public.automations where business_id='10000000-0000-4000-8000-000000000001'),6::bigint,'6 automations');
+
+-- Their rules were `{"seed_trigger": 1}`, so `execute_automation` read nothing
+-- out of them and silently used defaults for everything.
+select is(
+ (select count(*)::bigint from public.automations
+  where business_id='10000000-0000-4000-8000-000000000001' and trigger_rules ? 'seed_trigger'),
+ 0::bigint,'no automation ships a placeholder rule');
 select is((select count(*)::bigint from public.tools),12::bigint,'12 tools');
 select is((select count(*)::bigint from public.templates),3::bigint,'3 templates');
 select is((select count(*)::bigint from public.daily_analytics where business_id='10000000-0000-4000-8000-000000000001'),120::bigint,'120 daily analytics rows');

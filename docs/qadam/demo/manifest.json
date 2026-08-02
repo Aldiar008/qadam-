@@ -1,6 +1,6 @@
 {
   "base": "https://qadam-growth-os.vercel.app",
-  "capturedFrames": 15,
+  "capturedFrames": 17,
   "steps": [
     {
       "frame": 1,
@@ -35,77 +35,91 @@
       "file": "docs/qadam/demo/05-today.png",
       "url": "https://qadam-growth-os.vercel.app/app/today",
       "note": "Сегодня: один сигнал, объяснение и одно действие",
-      "textLength": 10083
+      "textLength": 10379
     },
     {
       "frame": 6,
       "file": "docs/qadam/demo/06-customers.png",
       "url": "https://qadam-growth-os.vercel.app/app/customers",
       "note": "Клиентская база: сегменты и согласия",
-      "textLength": 58212
+      "textLength": 58105
     },
     {
       "frame": 7,
       "file": "docs/qadam/demo/07-segments.png",
       "url": "https://qadam-growth-os.vercel.app/app/segments",
       "note": "Сегменты: кто именно попадёт в кампанию",
-      "textLength": 28772
+      "textLength": 28787
     },
     {
       "frame": 8,
       "file": "docs/qadam/demo/08-studio-offer.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=3",
       "note": "Студия: выбор механики",
-      "textLength": 25935
+      "textLength": 25950
     },
     {
       "frame": 9,
       "file": "docs/qadam/demo/09-simulator.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=5",
       "note": "Симулятор и Margin Shield: три сценария и решение",
-      "textLength": 50856
+      "textLength": 50871
     },
     {
       "frame": 10,
       "file": "docs/qadam/demo/10-growth-contract.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=6",
       "note": "Growth Contract: что именно будет сделано и для кого",
-      "textLength": 20837
+      "textLength": 20852
     },
     {
       "frame": 11,
       "file": "docs/qadam/demo/11-content.png",
       "url": "https://qadam-growth-os.vercel.app/app/content",
       "note": "Контент-студия: материалы на двух языках",
-      "textLength": 26832
+      "textLength": 27289
     },
     {
       "frame": 12,
       "file": "docs/qadam/demo/12-impact.png",
       "url": "https://qadam-growth-os.vercel.app/app/analytics",
       "note": "Impact Ledger: прогноз отдельно от факта",
-      "textLength": 42865
+      "textLength": 42880
     },
     {
       "frame": 13,
       "file": "docs/qadam/demo/13-automations.png",
       "url": "https://qadam-growth-os.vercel.app/app/automations",
       "note": "Автоматизации, аварийная остановка и ассистент в Telegram",
-      "textLength": 62427
+      "textLength": 79510
     },
     {
       "frame": 14,
       "file": "docs/qadam/demo/14-loyalty.png",
       "url": "https://qadam-growth-os.vercel.app/app/loyalty",
       "note": "Лояльность: программа, награды и погашения",
-      "textLength": 34813
+      "textLength": 34828
     },
     {
       "frame": 15,
       "file": "docs/qadam/demo/15-plan.png",
       "url": "https://qadam-growth-os.vercel.app/app/plan",
       "note": "Тариф и лимиты: данные, а не условия в коде",
-      "textLength": 30455
+      "textLength": 30470
+    },
+    {
+      "frame": 16,
+      "file": "docs/qadam/demo/16-telegram-card.png",
+      "url": "https://qadam-growth-os.vercel.app/tg/card",
+      "note": "Telegram Mini App: карта гостя, прогресс до награды и меню",
+      "textLength": 20782
+    },
+    {
+      "frame": 17,
+      "file": "docs/qadam/demo/17-telegram-entry.png",
+      "url": "https://qadam-growth-os.vercel.app/tg",
+      "note": "Mini App вне Telegram: отказ с объяснением, а не пустой экран",
+      "textLength": 9175
     }
   ]
 }

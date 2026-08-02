@@ -246,11 +246,31 @@ values('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000
  -2700,87,82,'open','{"source":"synthetic_transactions","comparison":"comparable_weekdays"}',now(),true)
 on conflict(id) do update set change_bps=-2700,growth_opportunity_score=87,is_mock=true;
 
+-- Каждая рекомендация несёт то же, что несёт сгенерированная: балл, аудиторию
+-- и посчитанный вклад с допущениями. Раньше здесь лежало
+-- `{"hypothesis":"synthetic demo","rank":1}`, и кабинет честно печатал «GOS N/A»
+-- и «Нужен forecast» — потому что писать эти поля было некому.
 insert into public.recommendations(id,business_id,signal_id,title_ru,title_kk,explanation,confidence,status,is_mock)
-select private.deterministic_uuid('recommendation-'||g),'10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001',
- (array['Подарок при пороге','Тихие часы','Купон на возврат'])[g],
- (array['Шекке сыйлық','Тыныш сағаттар','Қайтару купоны'])[g],
- jsonb_build_object('hypothesis','synthetic demo; not causal','rank',g),80-g,'open',true from generate_series(1,3) g
+select private.deterministic_uuid('recommendation-'||t.ord),'10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001',
+ t.title_ru,t.title_kk,
+ jsonb_build_object(
+  'reason',t.reason,'gos',t.gos,'eligible',18,'source','signal_detector',
+  'signalType','quiet_hours','metricKey','weekday_revenue_afternoon_15_18','changeBps',-2700,
+  'expectedContributionMinor',t.contribution,
+  'economics',jsonb_build_object('known',true,'expectedOrders',1.6,'averageCheckMinor',3450,
+   'expectedRevenueMinor',5589,'contributionMarginBps',5728,'expectedContributionMinor',t.contribution,
+   'assumptions',jsonb_build_array('Отклик 9% — базовый сценарий, не обещание',
+    'Вклад-маржа взята из цен и себестоимости каталога',
+    'Считаются только клиенты с действующим согласием'))),
+ t.confidence,'open',true
+from (values
+ (1,'Подарок при пороге 3 500 ₸','3 500 ₸ шегінде сыйлық',
+  'В будни с 15 до 18 выручка ниже сопоставимого периода на 27%. Подарок при чеке выше среднего поднимает чек, не раздавая скидку всем.',87,3201,79),
+ (2,'Счастливые часы 15:00–18:00','Бақытты сағаттар 15:00–18:00',
+  'Скидка действует только в провальном окне, а не весь день, поэтому маржа в пиковые часы не страдает.',74,2480,78),
+ (3,'Купон на следующий визит','Келесі келуге купон',
+  'Купон переносит выгоду на второй визит: платит только тот гость, который вернулся.',68,1950,77)
+) as t(ord,title_ru,title_kk,reason,gos,contribution,confidence)
 on conflict(id) do nothing;
 
 insert into public.growth_contracts(id,business_id,signal_id,recommendation_id,schema_version,version,status,accepted_snapshot,content_hash,created_by,approved_by,approved_at,is_mock,consent_summary,simulator_result,margin_decision,attribution_plan,owner_limits_snapshot,compiled_at)
@@ -280,18 +300,67 @@ select private.deterministic_uuid('campaign-'||g),'10000000-0000-4000-8000-00000
  case when g=1 then '00000000-0000-4000-8000-000000000101'::uuid else null end,true
 from generate_series(1,3) g on conflict(id) do nothing;
 
+-- Главный wow-момент концепции, которого не было чем показать на данных:
+-- вариант, который Margin Shield **запретил**. Скидка 20% без порога опускает
+-- вклад-маржу ниже порога владельца, контракт отклонён, кампании из него нет.
+insert into public.growth_contracts(id,business_id,signal_id,recommendation_id,schema_version,version,status,accepted_snapshot,content_hash,created_by,is_mock,consent_summary,simulator_result,margin_decision,attribution_plan,owner_limits_snapshot,compiled_at)
+values(private.deterministic_uuid('contract-blocked'),'10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('recommendation-1'),1,1,'draft',
+ jsonb_build_object('signal',jsonb_build_object('change_bps',-2700),'goal','reactivate',
+  'audience',jsonb_build_object('inclusion','inactive_30','exclusion','no_consent','eligible',18),
+  'consent','required','offer','percentage_discount_20','margin_floor_bps',4200,
+  'locales',array['ru','kk']),
+ -- Статус именно `draft`, и не по небрежности: триггер домена отказывается
+ -- принимать контракт в любом другом статусе, если Margin Shield его не
+ -- пропустил. То есть заблокированный вариант физически не может стать
+ -- утверждённым — это не проверка в интерфейсе, это правило в базе.
+ md5('contract-blocked'),'00000000-0000-4000-8000-000000000101',true,
+ '{"scope":"marketing.telegram","granted":18,"excluded":46}',
+ '{"formulaVersion":"simulator.v1","scenarios":{"pessimistic":{"orders":7,"incrementalContributionMinor":-4200},"base":{"orders":11,"incrementalContributionMinor":-2600,"campaignCostMinor":6800},"optimistic":{"orders":15,"incrementalContributionMinor":900}}}',
+ jsonb_build_object('status','blocked','formulaVersion','margin-shield.v1',
+  'reasons',array['contribution_below_floor','discount_applies_to_everyone'],
+  'explanation','Скидка 20% на весь заказ опускает вклад-маржу до 22% при вашем пороге 42%. В базовом сценарии кампания приносит −2 600 ₸.',
+  'alternatives',jsonb_build_array(
+   jsonb_build_object('titleRu','Подарок при чеке от 3 500 ₸','whyRu','Порог оставляет маржу: подарок отдаётся только при чеке выше среднего.'),
+   jsonb_build_object('titleRu','Счастливые часы 15:00–18:00','whyRu','Скидка действует только в провальном окне, а не весь день.'))),
+ '{"trackingCode":"TAMYR20","method":"exposed_vs_baseline"}',
+ '{"budgetMinor":120000,"marginFloor":0.42,"approvalThresholdMinor":25000}',
+ now()-interval '9 days')
+on conflict(id) do nothing;
+
+insert into public.activity_logs(id,business_id,actor_id,action,resource_type,resource_id,metadata,occurred_at,is_mock)
+values(private.deterministic_uuid('activity-margin-block'),'10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000101',
+ 'growth_contract.blocked','growth_contract',private.deterministic_uuid('contract-blocked'),
+ '{"reason":"contribution_below_floor","requested_discount_bps":2000,"margin_floor_bps":4200}',
+ now()-interval '9 days',true)
+on conflict(id) do nothing;
+
 insert into public.content_items(id,business_id,campaign_id,content_kind,channel,locale,body,alt_text,cta,status,version,is_mock)
 select private.deterministic_uuid('content-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('campaign-1'),
  (array['direct_message','post','story'])[g],(array['telegram','instagram','instagram'])[g],case when g=3 then 'kk' else 'ru' end,
  (array['Круассан в подарок при чеке от 3 500 ₸','Тихие часы в TAMYR Coffee','3 500 ₸ чектен круассан сыйлық'])[g],
  'Synthetic TAMYR Coffee promotion','Открыть предложение','approved',1,true from generate_series(1,3) g on conflict(id) do nothing;
 
+-- Настоящие правила вместо `{"seed_trigger": 1}`: заглушка означала, что
+-- execute_automation читал из них пустоту и подставлял умолчания, а владелец
+-- видел на экране правило, ничего не описывающее.
 insert into public.automations(id,business_id,name,automation_type,trigger_rules,action_rules,guardrails,status,created_by,is_mock)
-select private.deterministic_uuid('automation-'||g),'10000000-0000-4000-8000-000000000001',
- (array['Welcome','Reactivation 30d','Weekly review'])[g],(array['welcome','reactivation','weekly_review'])[g],
- jsonb_build_object('seed_trigger',g),jsonb_build_object('seed_action',g),'{"consent_required":true,"approval_required":true}',
- case when g=1 then 'active' else 'draft' end,'00000000-0000-4000-8000-000000000101',true
-from generate_series(1,3) g on conflict(id) do nothing;
+select private.deterministic_uuid('automation-'||t.ord),'10000000-0000-4000-8000-000000000001',
+ t.name,t.kind,t.trigger_rules::jsonb,t.action_rules::jsonb,
+ '{"consent_required":true,"approval_required":true,"respects_quiet_hours":true,"respects_suppression":true}',
+ t.status,'00000000-0000-4000-8000-000000000101',true
+from (values
+ (1,'Первый визит → второй','welcome','{"days":7,"intervalHours":24}','{"kind":"propose_growth_contract","goal":"repeat_visit","channel":"telegram"}','active'),
+ (2,'Вернуть спящих 30+','reactivation','{"days":30,"intervalHours":24}','{"kind":"propose_growth_contract","goal":"reactivate","channel":"telegram"}','active'),
+ (3,'Итоги недели','weekly_review','{"intervalHours":168}','{"kind":"notify_summary","category":"result"}','active'),
+ (4,'Заполнить тихие часы','quiet_hours','{"utilisationThreshold":0.5,"intervalHours":12}','{"kind":"propose_growth_contract","goal":"fill_quiet_hours","channel":"telegram"}','active'),
+ (5,'Качество данных','data_quality','{"intervalHours":24}','{"kind":"notify_summary","category":"risk"}','active'),
+ (6,'Стоп-лосс кампаний','stop_loss','{"minRedemptionBps":500,"minDelivered":10,"intervalHours":6}','{"kind":"pause_campaign"}','active')
+) as t(ord,name,kind,trigger_rules,action_rules,status)
+-- `do nothing`, not `do update`: `enforce_domain_transition` refuses any update
+-- to this table that does not advance the optimistic version, and the seed
+-- always follows a reset anyway.
+on conflict(id) do nothing;
 
 insert into public.daily_analytics(id,business_id,location_id,metric_date,gross_revenue_minor,transactions_count,new_customers_count,repeat_customers_count,currency,source,is_mock)
 select private.deterministic_uuid('daily-'||g),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
@@ -333,6 +402,15 @@ join (values
 on conflict(code) do update set category_id=excluded.category_id,name_ru=excluded.name_ru,name_kk=excluded.name_kk,
  description_ru=excluded.description_ru,description_kk=excluded.description_kk,route=excluded.route,
  status='published',is_public=true,is_mock=true;
+
+-- Часть инструментов включена: раздел «Активные инструменты» на «Сегодня»
+-- показывает именно их, и активация перестала быть действием без следствия.
+insert into public.business_tools(id,business_id,tool_id,status,activated_by,is_mock)
+select private.deterministic_uuid('business-tool-'||t.code),'10000000-0000-4000-8000-000000000001',
+ (select id from public.tools where code=t.code),'active','00000000-0000-4000-8000-000000000101',true
+from (values ('signal_today'),('campaign_studio'),('qr_loyalty'),('telegram_bot')) as t(code)
+where exists(select 1 from public.tools where code=t.code)
+on conflict(id) do nothing;
 
 insert into public.templates(id,code,name,status,current_version,is_mock)
 select private.deterministic_uuid('template-'||g),'template_'||g,(array['Win-back threshold gift','Quiet hours','First to second visit'])[g],
