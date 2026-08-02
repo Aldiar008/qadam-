@@ -176,7 +176,7 @@ export default async function CampaignStudioPage({
             <label className="grid gap-2 text-sm font-semibold">
               Канал <FieldError field="channel" invalid={invalid} />
               <select name="channel" defaultValue={draft.channel} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
-                {['whatsapp', 'telegram', 'sms', 'email', 'push', 'in_app'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}
+                {['telegram', 'sms', 'email', 'push', 'in_app'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold">
@@ -339,7 +339,7 @@ export default async function CampaignStudioPage({
             <label className="grid gap-2 text-sm font-semibold">
               Канал
               <select name="channel" defaultValue={draft.channel} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
-                {['whatsapp', 'telegram', 'sms', 'email', 'push', 'in_app'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}
+                {['telegram', 'sms', 'email', 'push', 'in_app'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold">

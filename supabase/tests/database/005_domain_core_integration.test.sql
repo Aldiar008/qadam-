@@ -39,12 +39,12 @@ select throws_ok(
 select is((public.transition_domain_entity('growth_contract',private.deterministic_uuid('contract-2'),'awaiting_approval',3,'contract-awaiting-2')->>'status'),'awaiting_approval','compiled contract enters approval queue');
 select is((public.transition_domain_entity('growth_contract',private.deterministic_uuid('contract-2'),'approved',4,'contract-approved-2')->>'status'),'approved','safe consented contract can be approved');
 
-select is((public.launch_growth_contract(private.deterministic_uuid('contract-2'),'Integration safe gift','whatsapp',5,'campaign-launch-safe-2')->>'duplicate')::boolean,false,'approved safe contract launches once');
-select is((public.launch_growth_contract(private.deterministic_uuid('contract-2'),'Integration safe gift','whatsapp',1,'campaign-launch-safe-2')->>'duplicate')::boolean,true,'duplicate launch key returns existing campaign');
+select is((public.launch_growth_contract(private.deterministic_uuid('contract-2'),'Integration safe gift','telegram',5,'campaign-launch-safe-2')->>'duplicate')::boolean,false,'approved safe contract launches once');
+select is((public.launch_growth_contract(private.deterministic_uuid('contract-2'),'Integration safe gift','telegram',1,'campaign-launch-safe-2')->>'duplicate')::boolean,true,'duplicate launch key returns existing campaign');
 select is((select count(*)::integer from public.campaigns where idempotency_key='campaign-launch-safe-2'),1,'duplicate launch creates no second campaign');
 select throws_ok($$
  insert into public.campaigns(business_id,growth_contract_id,name,status,channel,budget_minor,currency,stop_rule,created_by,is_mock,idempotency_key)
- values('10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Bypass launch','approved','whatsapp',1,'KZT','{}','00000000-0000-4000-8000-000000000101',true,'campaign-bypass-direct-1')
+ values('10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Bypass launch','approved','telegram',1,'KZT','{}','00000000-0000-4000-8000-000000000101',true,'campaign-bypass-direct-1')
  $$,'23514',null,'authenticated client cannot insert pre-approved campaign');
 select throws_ok($$
  update public.campaigns set budget_minor=1,optimistic_version=2 where idempotency_key='campaign-launch-safe-2'

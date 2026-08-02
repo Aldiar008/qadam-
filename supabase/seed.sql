@@ -106,7 +106,7 @@ from generate_series(1,180) g on conflict(business_id,identity_type,lookup_hash)
 
 insert into public.customer_consents(id,business_id,customer_id,scope,status,source,evidence,granted_at,is_mock)
 select private.deterministic_uuid('consent-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('customer-'||g),
- 'marketing.whatsapp',case when g<=18 then 'granted' else 'denied' end,'demo_qr','{"synthetic":true}',
+ 'marketing.telegram',case when g<=18 then 'granted' else 'denied' end,'demo_qr','{"synthetic":true}',
  case when g<=18 then '2026-05-01 00:00:00+00'::timestamptz else null end,true
 from generate_series(1,180) g on conflict(id) do nothing;
 
@@ -170,7 +170,7 @@ select private.deterministic_uuid('contract-'||g),'10000000-0000-4000-8000-00000
  md5('contract-'||g),'00000000-0000-4000-8000-000000000101',
  case when g=1 then '00000000-0000-4000-8000-000000000101'::uuid else null end,
  case when g=1 then '2026-07-22 06:00+00'::timestamptz else null end,true,
- '{"scope":"marketing.whatsapp","granted":18,"excluded":46,"checkedAt":"2026-07-22T00:00:00Z"}',
+ '{"scope":"marketing.telegram","granted":18,"excluded":46,"checkedAt":"2026-07-22T00:00:00Z"}',
  '{"formulaVersion":"simulator.v1","scenarios":{"pessimistic":{"orders":6},"base":{"orders":9,"campaignCostMinor":6800},"optimistic":{"orders":12}}}',
  '{"status":"allowed","reasons":[],"formulaVersion":"margin-shield.v1"}',
  '{"trackingCode":"TAMYR3500","method":"exposed_vs_baseline"}',
@@ -181,14 +181,14 @@ on conflict(id) do nothing;
 insert into public.campaigns(id,business_id,growth_contract_id,name,status,channel,budget_minor,currency,starts_at,ends_at,stop_rule,created_by,approved_by,is_mock)
 select private.deterministic_uuid('campaign-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-'||g),
  (array['Круассан при чеке 3 500 ₸','Happy hours','Return coupon'])[g],
- (array['completed','draft','draft'])[g],'whatsapp',6800,'KZT','2026-07-22 09:00+00','2026-07-29 12:00+00',
+ (array['completed','draft','draft'])[g],'telegram',6800,'KZT','2026-07-22 09:00+00','2026-07-29 12:00+00',
  '{"max_redemptions":15,"max_cost_minor":7000}','00000000-0000-4000-8000-000000000101',
  case when g=1 then '00000000-0000-4000-8000-000000000101'::uuid else null end,true
 from generate_series(1,3) g on conflict(id) do nothing;
 
 insert into public.content_items(id,business_id,campaign_id,content_kind,channel,locale,body,alt_text,cta,status,version,is_mock)
 select private.deterministic_uuid('content-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('campaign-1'),
- (array['direct_message','post','story'])[g],(array['whatsapp','instagram','instagram'])[g],case when g=3 then 'kk' else 'ru' end,
+ (array['direct_message','post','story'])[g],(array['telegram','instagram','instagram'])[g],case when g=3 then 'kk' else 'ru' end,
  (array['Круассан в подарок при чеке от 3 500 ₸','Тихие часы в TAMYR Coffee','3 500 ₸ чектен круассан сыйлық'])[g],
  'Synthetic TAMYR Coffee promotion','Открыть предложение','approved',1,true from generate_series(1,3) g on conflict(id) do nothing;
 
@@ -239,7 +239,7 @@ on conflict(id) do nothing;
 
 insert into public.campaign_audiences(id,business_id,campaign_id,customer_id,segment_id,inclusion_status,consent_scope,consent_status,rules_evidence,is_mock)
 select private.deterministic_uuid('audience-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('campaign-1'),private.deterministic_uuid('customer-'||g),
- private.deterministic_uuid('segment-2'),'included','marketing.whatsapp','granted','{"eligible":true}',true from generate_series(1,18) g
+ private.deterministic_uuid('segment-2'),'included','marketing.telegram','granted','{"eligible":true}',true from generate_series(1,18) g
 on conflict(campaign_id,customer_id) do nothing;
 insert into public.campaign_deliveries(id,business_id,campaign_id,customer_id,content_item_id,idempotency_key,status,queued_at,sent_at,delivered_at,is_mock)
 select private.deterministic_uuid('delivery-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('campaign-1'),private.deterministic_uuid('customer-'||g),

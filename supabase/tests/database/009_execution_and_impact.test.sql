@@ -8,10 +8,10 @@ select
  '10000000-0000-4000-8000-000000000001'::uuid as business_id,
  (select id from public.campaigns where business_id='10000000-0000-4000-8000-000000000001' order by created_at limit 1) as campaign_id,
  (select cc.customer_id from public.customer_consents cc
-   where cc.business_id='10000000-0000-4000-8000-000000000001' and cc.scope='marketing.whatsapp' and cc.status='granted'
+   where cc.business_id='10000000-0000-4000-8000-000000000001' and cc.scope='marketing.telegram' and cc.status='granted'
    order by cc.created_at limit 1) as consented_customer,
  (select cc.customer_id from public.customer_consents cc
-   where cc.business_id='10000000-0000-4000-8000-000000000001' and cc.scope='marketing.whatsapp' and cc.status='denied'
+   where cc.business_id='10000000-0000-4000-8000-000000000001' and cc.scope='marketing.telegram' and cc.status='denied'
    order by cc.created_at limit 1) as denied_customer;
 
 -- Quiet hours are wide open for most of these assertions; the quiet-hours test
@@ -23,31 +23,31 @@ on conflict (business_id) do update set quiet_hours_start='03:00', quiet_hours_e
 -- ---------------------------------------------------------------------------
 -- Send gate
 -- ---------------------------------------------------------------------------
-select is((private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'allowed')::boolean,
+select is((private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'allowed')::boolean,
  true,'a consented customer passes the send gate');
 
-select is(private.send_gate((select business_id from exec_fixture),(select denied_customer from exec_fixture),'whatsapp')->>'reason',
+select is(private.send_gate((select business_id from exec_fixture),(select denied_customer from exec_fixture),'telegram')->>'reason',
  'no_effective_consent','a customer who refused this channel is refused at send time');
 
 -- Consent revoked between approval and send must win.
 insert into public.customer_consents(business_id,customer_id,scope,status,source,revoked_at,is_mock)
-select business_id, consented_customer, 'marketing.whatsapp','revoked','owner_request',now(),true from exec_fixture;
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select business_id, consented_customer, 'marketing.telegram','revoked','owner_request',now(),true from exec_fixture;
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'no_effective_consent','consent revoked after approval blocks the send');
 delete from public.customer_consents cc using exec_fixture f
  where cc.customer_id=f.consented_customer and cc.status='revoked' and cc.source='owner_request';
 
 -- Suppression outranks consent.
 insert into public.suppression_entries(business_id,customer_id,channel,reason,is_mock)
-select business_id, consented_customer, 'whatsapp','unsubscribed',true from exec_fixture;
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select business_id, consented_customer, 'telegram','unsubscribed',true from exec_fixture;
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'suppressed','the suppression list outranks a granted consent');
 delete from public.suppression_entries se using exec_fixture f where se.customer_id=f.consented_customer;
 
 -- Quiet hours.
 update public.business_execution_state set quiet_hours_start='00:00', quiet_hours_end='23:59'
 where business_id=(select business_id from exec_fixture);
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'quiet_hours','a send inside quiet hours is refused');
 update public.business_execution_state set quiet_hours_start='03:00', quiet_hours_end='03:01'
 where business_id=(select business_id from exec_fixture);
@@ -55,14 +55,14 @@ where business_id=(select business_id from exec_fixture);
 -- Frequency cap: one delivery already queued in the last 24h is enough.
 insert into public.campaign_deliveries(business_id,campaign_id,customer_id,idempotency_key,status,queued_at,is_mock)
 select business_id, campaign_id, consented_customer, 'freq-cap-fixture-1','queued',now(),true from exec_fixture;
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'frequency_cap','the frequency cap blocks a second message inside 24 hours');
 delete from public.campaign_deliveries where idempotency_key='freq-cap-fixture-1';
 
 -- Emergency stop.
 insert into public.business_execution_state(business_id) values((select business_id from exec_fixture)) on conflict do nothing;
 update public.business_execution_state set emergency_stopped_at=now() where business_id=(select business_id from exec_fixture);
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'emergency_stop','an emergency stop refuses every send');
 select is((select count(*)::integer from private.claim_outbox_batch((select business_id from exec_fixture),'test-worker',10)),
  0,'an emergency stop also stops the worker claiming any work');
@@ -72,11 +72,11 @@ update public.business_execution_state set emergency_stopped_at=null where busin
 -- Delivery queueing and idempotency
 -- ---------------------------------------------------------------------------
 select is((private.enqueue_delivery((select business_id from exec_fixture),(select campaign_id from exec_fixture),
- (select consented_customer from exec_fixture),null,'whatsapp','exec-test-delivery-1')->>'status'),
+ (select consented_customer from exec_fixture),null,'telegram','exec-test-delivery-1')->>'status'),
  'queued','a permitted delivery is queued');
 
 select is((private.enqueue_delivery((select business_id from exec_fixture),(select campaign_id from exec_fixture),
- (select consented_customer from exec_fixture),null,'whatsapp','exec-test-delivery-1')->>'duplicate')::boolean,
+ (select consented_customer from exec_fixture),null,'telegram','exec-test-delivery-1')->>'duplicate')::boolean,
  true,'the same delivery key never queues twice');
 
 select is((select count(*)::integer from public.campaign_deliveries where idempotency_key='exec-test-delivery-1'),
@@ -119,17 +119,17 @@ select is((select count(*)::integer from public.notifications
 -- ---------------------------------------------------------------------------
 -- Provider events: signature, duplication, tenancy
 -- ---------------------------------------------------------------------------
-select throws_ok($$select private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','whatsapp',
+select throws_ok($$select private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','telegram',
  'evt-unsigned-1','delivered',null,false,'{}'::jsonb,now())$$,
  '42501','provider event signature is not verified','an unverified provider event is never ingested');
 
 create temporary table exec_delivery as
 select id from public.campaign_deliveries where idempotency_key='exec-test-delivery-1';
 
-select is((private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','whatsapp',
+select is((private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','telegram',
  'evt-dup-1','delivered',(select id from exec_delivery),true,'{}'::jsonb,now())->>'duplicate')::boolean,
  false,'a first, signed provider event is ingested');
-select is((private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','whatsapp',
+select is((private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','telegram',
  'evt-dup-1','delivered',(select id from exec_delivery),true,'{}'::jsonb,now())->>'duplicate')::boolean,
  true,'the same provider event id is recognised as a duplicate');
 select is((select count(*)::integer from public.campaign_events where external_event_ref='evt-dup-1'),
@@ -138,15 +138,15 @@ select is((select count(*)::integer from public.provider_events where external_e
  1,'the raw event is stored once, separately from the derived metric');
 
 -- Cross-tenant delivery reference must be refused outright.
-select throws_ok($$select private.ingest_provider_event('20000000-0000-4000-8000-000000000001','webhook','whatsapp',
+select throws_ok($$select private.ingest_provider_event('20000000-0000-4000-8000-000000000001','webhook','telegram',
  'evt-cross-1','delivered',(select id from exec_delivery),true,'{}'::jsonb,now())$$,
  '42501','delivery does not belong to this business','a cross-tenant delivery reference is rejected');
 
 -- Unsubscribe takes effect immediately.
-select lives_ok($$select private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','whatsapp',
+select lives_ok($$select private.ingest_provider_event('10000000-0000-4000-8000-000000000001','webhook','telegram',
  'evt-unsub-1','unsubscribed',(select id from exec_delivery),true,'{}'::jsonb,now())$$,
  'an unsubscribe event is ingested');
-select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'whatsapp')->>'reason',
+select is(private.send_gate((select business_id from exec_fixture),(select consented_customer from exec_fixture),'telegram')->>'reason',
  'suppressed','an unsubscribe suppresses the customer immediately');
 
 -- ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ select is(private.send_gate((select business_id from exec_fixture),(select conse
 create temporary table exec_running as
 with inserted as (
  insert into public.campaigns(business_id,growth_contract_id,name,status,channel,budget_minor,currency,stop_rule,created_by,is_mock)
- select f.business_id, c.growth_contract_id, 'Stop-loss fixture','running','whatsapp',5000,'KZT','{}'::jsonb, c.created_by, true
+ select f.business_id, c.growth_contract_id, 'Stop-loss fixture','running','telegram',5000,'KZT','{}'::jsonb, c.created_by, true
  from exec_fixture f join public.campaigns c on c.id=f.campaign_id
  returning id
 ) select id from inserted;

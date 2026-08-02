@@ -10,17 +10,20 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000101'
 
 select is(
  (select count(*)::integer from public.effective_consent_customers(
-  '10000000-0000-4000-8000-000000000001','marketing.whatsapp',
+  '10000000-0000-4000-8000-000000000001','marketing.telegram',
   (select array_agg(sm.customer_id) from public.segment_memberships sm
    join public.customer_segments cs on cs.id=sm.segment_id where cs.code='inactive_30'))),
  18,'consent-first audience reduces 64 inactive customers to 18 eligible');
 
+-- Согласие на один канал не должно распространяться на другой. Демо даёт
+-- согласия на telegram, поэтому вопрос задаётся про whatsapp: правильный ответ
+-- — ноль получателей, и это проверка правила, а не опечатка в имени канала.
 select is(
  (select count(*)::integer from public.effective_consent_customers(
-  '10000000-0000-4000-8000-000000000001','marketing.telegram',
+  '10000000-0000-4000-8000-000000000001','marketing.whatsapp',
   (select array_agg(sm.customer_id) from public.segment_memberships sm
    join public.customer_segments cs on cs.id=sm.segment_id where cs.code='inactive_30'))),
- 0,'whatsapp consent does not leak into another channel');
+ 0,'consent for one channel does not leak into another');
 
 set local role postgres;
 create temporary table prompt3c_customer(id uuid);
@@ -32,12 +35,12 @@ with inserted as (
 insert into public.customer_consents(business_id,customer_id,scope,status,source,granted_at,is_mock)
  select '10000000-0000-4000-8000-000000000001',id,'marketing','granted','qr_checkout',now(),true from prompt3c_customer;
 
-select is(private.resolve_effective_consent('10000000-0000-4000-8000-000000000001',(select id from prompt3c_customer),'marketing.whatsapp'),
+select is(private.resolve_effective_consent('10000000-0000-4000-8000-000000000001',(select id from prompt3c_customer),'marketing.telegram'),
  true,'umbrella marketing consent reaches a channel the customer never answered');
 
 insert into public.customer_consents(business_id,customer_id,scope,status,source,is_mock)
- select '10000000-0000-4000-8000-000000000001',id,'marketing.whatsapp','denied','owner_request',true from prompt3c_customer;
-select is(private.resolve_effective_consent('10000000-0000-4000-8000-000000000001',(select id from prompt3c_customer),'marketing.whatsapp'),
+ select '10000000-0000-4000-8000-000000000001',id,'marketing.telegram','denied','owner_request',true from prompt3c_customer;
+select is(private.resolve_effective_consent('10000000-0000-4000-8000-000000000001',(select id from prompt3c_customer),'marketing.telegram'),
  false,'explicit channel refusal overrides the umbrella grant');
 
 insert into public.customer_consents(business_id,customer_id,scope,status,source,revoked_at,is_mock)

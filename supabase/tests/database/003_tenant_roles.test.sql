@@ -11,11 +11,11 @@ select throws_ok($$update public.customers set business_id='20000000-0000-4000-8
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000103',true);
 select throws_ok($$insert into public.campaigns(business_id,growth_contract_id,name,status,channel,budget_minor,currency,stop_rule,created_by,is_mock) values
- ('10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Viewer campaign','draft','whatsapp',0,'KZT','{}','00000000-0000-4000-8000-000000000103',true)$$,'42501',null,'viewer cannot create campaign');
+ ('10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Viewer campaign','draft','telegram',0,'KZT','{}','00000000-0000-4000-8000-000000000103',true)$$,'42501',null,'viewer cannot create campaign');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000102',true);
 select lives_ok($$insert into public.campaigns(id,business_id,growth_contract_id,name,status,channel,budget_minor,currency,stop_rule,created_by,is_mock) values
- ('39999999-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Marketer draft','draft','whatsapp',0,'KZT','{}','00000000-0000-4000-8000-000000000102',true)$$,'marketer creates draft campaign');
+ ('39999999-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',private.deterministic_uuid('contract-2'),'Marketer draft','draft','telegram',0,'KZT','{}','00000000-0000-4000-8000-000000000102',true)$$,'marketer creates draft campaign');
 select lives_ok($$update public.business_limits set monthly_budget_minor=1$$,'marketer update is safely filtered by RLS');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000101',true);

@@ -159,7 +159,7 @@ export default async function AutomationsPage({
               </tr>
             </thead>
             <tbody>
-              {['whatsapp', 'telegram', 'email', 'webhook'].map((channel) => {
+              {['telegram', 'email', 'webhook'].map((channel) => {
                 const row = data.channels.find((item) => item.channel_type === channel);
                 const state = (row?.connector_state ?? 'not_configured') as ConnectorState;
                 const meta = CONNECTOR_STATE_LABELS[state];
