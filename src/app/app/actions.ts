@@ -3,9 +3,10 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { canManage, canMarket, requireBusinessContext } from '@/server/qadam/repository';
+import { canManage, canMarket, countSegmentAudience, requireBusinessContext } from '@/server/qadam/repository';
 import { describeDbError } from '@/server/qadam/errors';
 import { buildContentPack, checkPackCompleteness } from '@/ai/content-pack.ts';
+import type { SegmentRule } from '@/lib/segment-rules';
 import type { Json } from '@/types/database.generated';
 
 const textValue = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
@@ -371,22 +372,42 @@ export async function saveBusinessSettings(form: FormData) {
   redirect('/app/settings?saved=1');
 }
 
+/** Reads the rule out of a form exactly as both the preview and the card read it. */
+function segmentRuleFromForm(form: FormData): SegmentRule {
+  const positive = (key: string) => {
+    const value = Number(textValue(form, key) || '0');
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined;
+  };
+  const filter = textValue(form, 'consentFilter');
+  return {
+    stage: textValue(form, 'stage') || undefined,
+    daysInactive: positive('daysInactive'),
+    minVisits: positive('minVisits'),
+    minAovMinor: positive('minAov'),
+    consentFilter: filter === 'loyalty_only' || filter === 'marketing_required' ? filter : 'any',
+    channel: 'telegram',
+  };
+}
+
+/**
+ * Counts a segment rule against the tenant's own rows.
+ *
+ * The editor used to estimate this in the browser from constants. Numbers a
+ * person is about to act on are measured here or not shown at all.
+ */
+export async function previewSegmentAudience(rule: SegmentRule): Promise<{ matched: number; eligible: number; scope: string }> {
+  return countSegmentAudience(rule);
+}
+
 export async function saveCustomSegment(form: FormData) {
   const ctx = await requireBusinessContext();
   if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
   const nameRu = textValue(form, 'nameRu');
   const nameKk = textValue(form, 'nameKk');
-  const stage = textValue(form, 'stage');
-  const minVisits = Number(textValue(form, 'minVisits') || '0');
-  const minAov = Number(textValue(form, 'minAov') || '0');
-  const daysInactive = Number(textValue(form, 'daysInactive') || '0');
-
-  const definition = {
-    stage: stage || undefined,
-    minVisits: minVisits > 0 ? minVisits : undefined,
-    minAovMinor: minAov > 0 ? minAov : undefined,
-    daysInactive: daysInactive > 0 ? daysInactive : undefined,
-  };
+  // The consent filter used to be collected by the form, shown in the preview
+  // and then dropped on save: the stored rule quietly meant something looser
+  // than what was agreed to on screen.
+  const definition = segmentRuleFromForm(form);
 
   const { error } = await ctx.supabase.from('customer_segments').insert({
     business_id: ctx.businessId,

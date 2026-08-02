@@ -1,17 +1,12 @@
 import Link from 'next/link';
 import { ArrowRight, Download, FileSpreadsheet, Search } from 'lucide-react';
 import { DemoBadge } from '@/components/common/DemoBadge';
-import { canMarket, getCustomersData } from '@/server/qadam/repository';
+import { canMarket, countSegmentAudience, getCustomersData } from '@/server/qadam/repository';
+import { STAGE_OPTIONS } from '@/lib/segment-rules';
 import { auditCustomerExport } from '@/app/app/actions';
 
 export const dynamic = 'force-dynamic';
-const stages = [
-  ['new', 'Новые'],
-  ['active', 'Постоянные'],
-  ['loyal', 'Лояльные'],
-  ['vip', 'VIP'],
-  ['inactive', 'Спящие'],
-];
+const stages = STAGE_OPTIONS;
 
 export default async function CustomersPage({
   searchParams,
@@ -21,6 +16,12 @@ export default async function CustomersPage({
   const params = await searchParams;
   const data = await getCustomersData(params);
   const isMarketable = canMarket(data.role);
+  // Shown only for a lifecycle filter, where the rule being counted is exactly
+  // the rule the person selected. For a saved segment the membership is what
+  // matters, and it is already on the card that sent them here.
+  const audience = params.segment && stages.some(([code]) => code === params.segment)
+    ? await countSegmentAudience({ stage: params.segment, consentFilter: 'marketing_required', channel: 'telegram' })
+    : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -100,10 +101,19 @@ export default async function CustomersPage({
         </Link>
       </form>
 
-      {params.segment === 'inactive' && (
-        <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
-          <strong>Explainable audience:</strong> 64 inactive по правилу 30+ дней. Финальный consent и return-score фильтр
-          выполняется перед campaign audience и даёт 18 eligible в TAMYR DEMO DATA.
+      {/* This used to print «64 inactive … даёт 18 eligible» for every tenant,
+          whatever their data actually was. It is counted now, or not shown. */}
+      {audience && (
+        <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6">
+          <strong>Из чего складывается аудитория:</strong> под фильтр подходят {audience.matched} чел., из них{' '}
+          {audience.eligible} дали действующее согласие на рассылку в Telegram — только им и можно написать.
+          Остальные {audience.matched - audience.eligible} останутся в базе, но не в кампании.
+        </section>
+      )}
+
+      {data.segmentMissing && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          Сегмент «{data.segmentMissing}» не найден в этом заведении, поэтому список пуст — это не «нет клиентов».
         </section>
       )}
 

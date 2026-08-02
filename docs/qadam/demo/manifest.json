@@ -42,14 +42,14 @@
       "file": "docs/qadam/demo/06-customers.png",
       "url": "https://qadam-growth-os.vercel.app/app/customers",
       "note": "Клиентская база: сегменты и согласия",
-      "textLength": 58219
+      "textLength": 58212
     },
     {
       "frame": 7,
       "file": "docs/qadam/demo/07-segments.png",
       "url": "https://qadam-growth-os.vercel.app/app/segments",
       "note": "Сегменты: кто именно попадёт в кампанию",
-      "textLength": 23621
+      "textLength": 28772
     },
     {
       "frame": 8,

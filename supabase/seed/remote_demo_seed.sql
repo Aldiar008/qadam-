@@ -84,20 +84,39 @@ insert into public.business_limits(id,business_id,monthly_budget_minor,currency,
 values('24000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',60000,'KZT',5,250,15000,false)
 on conflict(business_id) do update set monthly_budget_minor=60000,is_mock=false;
 
-insert into public.customer_segments(id,business_id,code,name_ru,name_kk,definition,is_dynamic,status,is_mock)
+-- The rule is the segment. It used to be `{"seed_rule": 2}` — a placeholder that
+-- the cabinet printed verbatim, so the screen showed a number nobody could
+-- check against anything. These are written in the shape
+-- `public.preview_segment_audience` executes, and the memberships below are
+-- derived from the same conditions, so the card and the list agree.
+insert into public.customer_segments(id,business_id,code,name_ru,name_kk,definition,is_dynamic,status,is_mock,last_evaluated_at)
 select private.deterministic_uuid('segment-'||g),'10000000-0000-4000-8000-000000000001',
  (array['inactive_30','eligible_winback','new','loyal','vip'])[g],
- (array['Спящие 30+ дней','Eligible win-back','Новые','Постоянные','VIP'])[g],
- (array['30+ күн белсенді емес','Eligible win-back','Жаңа','Тұрақты','VIP'])[g],
- jsonb_build_object('seed_rule',g),true,'active',true from generate_series(1,5) g
-on conflict(business_id,code) do update set definition=excluded.definition,is_mock=true;
+ (array['Спящие 30+ дней','Готовы к возврату','Новые','Постоянные','VIP'])[g],
+ (array['30+ күн белсенді емес','Қайтаруға дайын','Жаңа','Тұрақты','VIP'])[g],
+ (array[
+   '{"stage":"inactive","daysInactive":30}',
+   '{"stage":"inactive","daysInactive":30,"consentFilter":"marketing_required","channel":"telegram"}',
+   '{"stage":"new"}',
+   '{"stage":"loyal","minVisits":5}',
+   '{"stage":"vip","minVisits":5}'
+ ])[g]::jsonb,true,'active',true,
+ -- The memberships below are written in the same transaction, so this is when
+ -- the rule was last run — the cabinet says «ещё не пересчитывался» otherwise.
+ now() from generate_series(1,5) g
+on conflict(business_id,code) do update set name_ru=excluded.name_ru,name_kk=excluded.name_kk,definition=excluded.definition,is_mock=true,last_evaluated_at=excluded.last_evaluated_at;
 
 insert into public.customers(id,business_id,display_name,preferred_locale,lifecycle_stage,first_seen_at,last_seen_at,is_mock)
 select private.deterministic_uuid('customer-'||g),'10000000-0000-4000-8000-000000000001','Demo Guest '||lpad(g::text,3,'0'),
  case when g%3=0 then 'kk' else 'ru' end,
- case when g<=64 then 'inactive' when g>165 then 'vip' else 'active' end,
- '2026-04-01 00:00:00+00'::timestamptz + ((g%30)||' days')::interval,
- case when g<=64 then '2026-06-20 00:00:00+00'::timestamptz-((g%20)||' days')::interval else '2026-07-29 00:00:00+00'::timestamptz-((g%14)||' days')::interval end,true
+ -- Five lifecycle stages instead of three: «Новые» and «Постоянные» were shown
+ -- in the cabinet as segments with nobody in them, because no seeded customer
+ -- ever had those stages.
+ case when g<=64 then 'inactive' when g<=100 then 'new' when g<=145 then 'active' when g<=165 then 'loyal' else 'vip' end,
+ -- Anchored to now(), like the sales history: a demonstration where «спящие»
+ -- silently become «ушедшие» after a fortnight is a demonstration that expires.
+ now()-((120-(g%30))||' days')::interval,
+ case when g<=64 then now()-((44+(g%20))||' days')::interval else now()-((g%14)||' days')::interval end,true
 from generate_series(1,180) g
 on conflict(id) do update set lifecycle_stage=excluded.lifecycle_stage,last_seen_at=excluded.last_seen_at,is_mock=true;
 
@@ -112,13 +131,35 @@ select private.deterministic_uuid('consent-'||g),'10000000-0000-4000-8000-000000
  case when g<=18 then '2026-05-01 00:00:00+00'::timestamptz else null end,true
 from generate_series(1,180) g on conflict(id) do nothing;
 
+-- Membership is selected by the segment's own rule rather than by a hardcoded
+-- range of ids, so «правило» on the card and «состав» in the list cannot drift
+-- apart as the rest of the seed changes.
 insert into public.segment_memberships(id,business_id,segment_id,customer_id,evaluated_at,reason,is_mock)
-select private.deterministic_uuid('inactive-membership-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('segment-1'),private.deterministic_uuid('customer-'||g),
- '2026-07-29 00:00:00+00','{"inactive_days":30}',true from generate_series(1,64) g
+select private.deterministic_uuid('inactive-membership-'||c.id::text),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('segment-1'),c.id,now(),
+ jsonb_build_object('rule','stage=inactive & daysInactive>=30','days',floor(extract(epoch from now()-c.last_seen_at)/86400)),true
+from public.customers c
+where c.business_id='10000000-0000-4000-8000-000000000001' and c.lifecycle_stage='inactive'
 on conflict(segment_id,customer_id) do nothing;
+
 insert into public.segment_memberships(id,business_id,segment_id,customer_id,evaluated_at,reason,is_mock)
-select private.deterministic_uuid('eligible-membership-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('segment-2'),private.deterministic_uuid('customer-'||g),
- '2026-07-29 00:00:00+00','{"consent":"granted","return_score":"high"}',true from generate_series(1,18) g
+select private.deterministic_uuid('eligible-membership-'||c.id::text),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('segment-2'),c.id,now(),
+ jsonb_build_object('rule','stage=inactive & consent=marketing.telegram','consent','granted'),true
+from public.customers c
+where c.business_id='10000000-0000-4000-8000-000000000001' and c.lifecycle_stage='inactive'
+ and private.resolve_effective_consent(c.business_id,c.id,'marketing.telegram')
+on conflict(segment_id,customer_id) do nothing;
+
+-- New, loyal and VIP were declared segments with no members at all: three of
+-- five cards in the cabinet read «0 клиентов».
+insert into public.segment_memberships(id,business_id,segment_id,customer_id,evaluated_at,reason,is_mock)
+select private.deterministic_uuid(s.code||'-membership-'||c.id::text),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('segment-'||s.g),c.id,now(),
+ jsonb_build_object('rule','stage='||s.stage),true
+from (values (3,'new','new'),(4,'loyal','loyal'),(5,'vip','vip')) as s(g,code,stage)
+join public.customers c
+ on c.business_id='10000000-0000-4000-8000-000000000001' and c.lifecycle_stage=s.stage
 on conflict(segment_id,customer_id) do nothing;
 
 insert into public.transactions(id,business_id,location_id,customer_id,external_ref,occurred_at,gross_minor,discount_minor,net_minor,cost_minor,currency,source,is_mock)

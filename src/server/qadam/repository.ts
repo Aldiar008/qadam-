@@ -2,6 +2,8 @@ import 'server-only';
 
 import { createClient } from '@/lib/supabase/server';
 import { asBusinessMode } from '@/lib/app-mode';
+import type { SegmentRule } from '@/lib/segment-rules';
+import type { Json } from '@/types/database.generated';
 
 export type BusinessRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer';
 
@@ -88,13 +90,51 @@ export async function getToolsData(filters: { q?: string; category?: string; fav
   return { ...ctx, tools: rows, categories: categories ?? [] };
 }
 
+/**
+ * Counts a segment rule against the tenant's own rows.
+ *
+ * Every audience number a person sees comes through here, so there is one place
+ * where the count can be checked and no second, looser way to produce one.
+ */
+export async function countSegmentAudience(rule: SegmentRule): Promise<{ matched: number; eligible: number; scope: string }> {
+  const ctx = await requireBusinessContext();
+  const { data, error } = await ctx.supabase.rpc('preview_segment_audience', { p_business_id: ctx.businessId, p_rule: rule as unknown as Json });
+  if (error) throw error;
+  const result = (data ?? {}) as { matched?: number; eligible?: number; scope?: string };
+  return { matched: Number(result.matched ?? 0), eligible: Number(result.eligible ?? 0), scope: String(result.scope ?? '') };
+}
+
+/** Lifecycle stages, as opposed to segment codes — both arrive in the same query parameter. */
+const LIFECYCLE_STAGES = new Set(['new', 'active', 'loyal', 'vip', 'inactive', 'churned']);
+
 export async function getCustomersData(filters: { q?: string; segment?: string; cursor?: string }) {
   const ctx = await requireBusinessContext();
-  let query = ctx.supabase.from('customers').select('id,display_name,lifecycle_stage,first_seen_at,last_seen_at,created_at').eq('business_id', ctx.businessId).neq('lifecycle_stage', 'anonymized').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(26);
-  if (filters.q) query = query.ilike('display_name', `%${filters.q.replace(/[%_,()]/g, '')}%`);
-  if (filters.segment) query = query.eq('lifecycle_stage', filters.segment);
-  if (filters.cursor) query = query.lt('created_at', filters.cursor);
-  const { data: customerRows } = await query;
+  const columns = 'id,display_name,lifecycle_stage,first_seen_at,last_seen_at,created_at';
+  // «Просмотреть список» on a segment card passes the segment's code, while the
+  // filter above passes a lifecycle stage. Both used to be compared against
+  // `lifecycle_stage`, so every card whose code was not also a stage opened an
+  // empty table and looked like a segment with nobody in it.
+  const stage = filters.segment && LIFECYCLE_STAGES.has(filters.segment) ? filters.segment : null;
+  let segmentId: string | null = null;
+  if (filters.segment && !stage) {
+    const { data: segment } = await ctx.supabase.from('customer_segments').select('id').eq('business_id', ctx.businessId).eq('code', filters.segment).maybeSingle();
+    segmentId = segment?.id ?? null;
+    // An unknown code must not silently widen the list to everybody.
+    if (!segmentId) return { ...ctx, customers: [], nextCursor: null as string | null, segmentMissing: filters.segment };
+  }
+  type CustomerRow = { id: string; display_name: string | null; lifecycle_stage: string; first_seen_at: string | null; last_seen_at: string | null; created_at: string };
+  const build = (select: string) => {
+    let query = ctx.supabase.from('customers').select(select).eq('business_id', ctx.businessId).neq('lifecycle_stage', 'anonymized').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(26);
+    if (filters.q) query = query.ilike('display_name', `%${filters.q.replace(/[%_,()]/g, '')}%`);
+    if (stage) query = query.eq('lifecycle_stage', stage);
+    if (filters.cursor) query = query.lt('created_at', filters.cursor);
+    return query;
+  };
+  // The membership join is done by the database rather than by sending a list
+  // of ids back to it: a segment of a few thousand people would not fit in a URL.
+  const { data: customerRows } = segmentId
+    ? await build(`${columns},segment_memberships!inner(segment_id)`).eq('segment_memberships.segment_id', segmentId).overrideTypes<CustomerRow[]>()
+    : await build(columns).overrideTypes<CustomerRow[]>();
   const page = (customerRows ?? []).slice(0, 25);
   const ids = page.map((row) => row.id);
   const [{ data: tx }, { data: identities }, { data: consents }, { data: accounts }] = ids.length ? await Promise.all([
@@ -108,7 +148,7 @@ export async function getCustomersData(filters: { q?: string; segment?: string; 
     const spentMinor = purchases.reduce((sum, item) => sum + Number(item.net_minor), 0);
     return { ...row, identity: (identities ?? []).find((item) => item.customer_id === row.id), visits: purchases.length, spentMinor, aovMinor: purchases.length ? Math.round(spentMinor / purchases.length) : 0, consents: (consents ?? []).filter((item) => item.customer_id === row.id), loyalty: (accounts ?? []).find((item) => item.customer_id === row.id) };
   });
-  return { ...ctx, customers, nextCursor: (customerRows ?? []).length > 25 ? page.at(-1)?.created_at ?? null : null };
+  return { ...ctx, customers, nextCursor: (customerRows ?? []).length > 25 ? page.at(-1)?.created_at ?? null : null, segmentMissing: null as string | null };
 }
 
 export async function getRecommendationsData() {

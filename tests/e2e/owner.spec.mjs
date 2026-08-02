@@ -21,7 +21,12 @@ try {
   const signupCta = page.locator('a[href="/signup"]').last();
   await signupCta.scrollIntoViewIfNeeded();
   await signupCta.click();
-  await page.waitForURL('**/signup**');
+  // Waiting for the route, not for every last asset on it: the default here is
+  // `load`, and on a cold deployed stand one slow font once turned a working
+  // CTA into a two-minute timeout reported as a broken sign-up. What the check
+  // is about — that the click reaches a real form — is proved by the heading
+  // read on the next line, which waits on its own.
+  await page.waitForURL('**/signup**', { waitUntil: 'commit' });
   r.check('sign-up CTA reaches a real form', await page.textContent('h1'), 'Регистрация');
   await shot(page, 'owner-01-landing-signup');
 

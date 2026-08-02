@@ -4857,6 +4857,10 @@ export type Database = {
         }
         Returns: Json
       }
+      preview_segment_audience: {
+        Args: { p_business_id: string; p_rule: Json }
+        Returns: Json
+      }
       process_customer_privacy_request: {
         Args: {
           p_idempotency_key: string

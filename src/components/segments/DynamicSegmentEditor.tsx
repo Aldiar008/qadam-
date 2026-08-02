@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { ArrowRight, Filter, Users, ShieldCheck, Save, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { saveCustomSegment } from '@/app/app/actions';
+import { previewSegmentAudience, saveCustomSegment } from '@/app/app/actions';
+import { STAGE_OPTIONS, type SegmentRule } from '@/lib/segment-rules';
 
-interface SegmentRule {
+interface EditorRule {
   stage: string;
   minVisits: number;
   minAov: number;
@@ -14,77 +15,100 @@ interface SegmentRule {
 }
 
 interface DynamicSegmentEditorProps {
-  initialTotalCount?: number;
   canEdit?: boolean;
 }
 
-export function DynamicSegmentEditor({
-  initialTotalCount = 64,
-  canEdit = true,
-}: DynamicSegmentEditorProps) {
-  const [rule, setRule] = useState<SegmentRule>({
+const toRule = (rule: EditorRule): SegmentRule => ({
+  stage: rule.stage,
+  daysInactive: rule.daysInactive > 0 ? rule.daysInactive : undefined,
+  minVisits: rule.minVisits > 0 ? rule.minVisits : undefined,
+  minAovMinor: rule.minAov > 0 ? rule.minAov : undefined,
+  consentFilter: rule.consentFilter,
+  channel: 'telegram',
+});
+
+const field = 'min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary';
+
+export function DynamicSegmentEditor({ canEdit = true }: DynamicSegmentEditorProps) {
+  const [rule, setRule] = useState<EditorRule>({
     stage: 'inactive',
-    minVisits: 2,
-    minAov: 1500,
+    minVisits: 0,
+    minAov: 0,
     daysInactive: 30,
     consentFilter: 'marketing_required',
   });
+  const [preview, setPreview] = useState<{ matched: number; eligible: number } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [pending, startTransition] = useTransition();
+  // A slow answer to an old rule must not overwrite a fresh one: the number on
+  // screen has to belong to the settings on screen.
+  const request = useRef(0);
 
-  // Calculate live dynamic preview estimations based on inputs
-  const calculatePreview = () => {
-    let base = initialTotalCount;
-    if (rule.stage === 'vip') base = 12;
-    else if (rule.stage === 'loyal') base = 34;
-    else if (rule.stage === 'new') base = 25;
-    else if (rule.stage === 'active') base = 45;
-    else if (rule.stage === 'all') base = 180;
+  const recount = useCallback((next: EditorRule) => {
+    const ticket = (request.current += 1);
+    startTransition(async () => {
+      try {
+        const result = await previewSegmentAudience(toRule(next));
+        if (ticket === request.current) {
+          setPreview({ matched: result.matched, eligible: result.eligible });
+          setFailed(false);
+        }
+      } catch {
+        if (ticket === request.current) {
+          setPreview(null);
+          setFailed(true);
+        }
+      }
+    });
+  }, []);
 
-    if (rule.daysInactive > 60) base = Math.round(base * 0.4);
-    else if (rule.daysInactive > 30) base = Math.round(base * 0.85);
+  useEffect(() => {
+    const timer = setTimeout(() => recount(rule), 350);
+    return () => clearTimeout(timer);
+  }, [rule, recount]);
 
-    if (rule.minVisits > 5) base = Math.round(base * 0.5);
-
-    const consentRatio = rule.consentFilter === 'marketing_required' ? 0.28125 : rule.consentFilter === 'loyalty_only' ? 0.75 : 1.0;
-    const eligible = Math.max(1, Math.round(base * consentRatio));
-
-    return { total: base, eligible };
-  };
-
-  const preview = calculatePreview();
+  const excluded = preview ? preview.matched - preview.eligible : 0;
+  const consentSentence =
+    rule.consentFilter === 'any'
+      ? 'Фильтр согласий выключен: такой сегмент годится для аналитики, но рассылать по нему нельзя.'
+      : rule.consentFilter === 'loyalty_only'
+        ? 'Считаются те, кто дал согласие на программу лояльности.'
+        : 'Считаются те, у кого сейчас активно согласие на рассылку в Telegram.';
 
   return (
     <div className="grid gap-6 rounded-3xl border border-border bg-surface p-6 shadow-xl lg:grid-cols-[1fr_380px]">
       <div className="space-y-5">
-        <div className="flex items-center gap-2 text-primary font-bold text-sm">
+        <div className="flex items-center gap-2 text-sm font-bold text-primary">
           <Filter className="size-4" />
-          <span>Динамический редактор сегментов (Dynamic Segment Editor)</span>
+          <span>Конструктор сегмента</span>
         </div>
-        <h2 className="text-2xl font-extrabold tracking-tight">Настройка аудитории и правил</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight">Кому вы хотите написать</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Создавайте точные правила сегментации. Каждая аудитория проверяется на согласие (Consent-First) перед рассылкой.
+          Задайте условия — справа посчитается, сколько человек им отвечает и скольким из них можно
+          написать по закону. Числа считаются в базе по вашим данным, а не оцениваются на глаз.
         </p>
 
         <form action={saveCustomSegment} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold">
-              Жизненный цикл (Stage)
+              Кто нас интересует
               <select
                 name="stage"
                 value={rule.stage}
                 onChange={(e) => setRule({ ...rule, stage: e.target.value })}
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className={field}
               >
                 <option value="all">Все клиенты</option>
-                <option value="new">Новые (New)</option>
-                <option value="active">Постоянные (Active)</option>
-                <option value="loyal">Лояльные (Loyal)</option>
-                <option value="vip">VIP</option>
-                <option value="inactive">Спящие / Inactive (30+ дней)</option>
+                {STAGE_OPTIONS.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className="grid gap-2 text-sm font-semibold">
-              Дней без визита (Inactive threshold)
+              Не приходили дней (0 — не важно)
               <input
                 type="number"
                 name="daysInactive"
@@ -92,26 +116,26 @@ export function DynamicSegmentEditor({
                 max="365"
                 value={rule.daysInactive}
                 onChange={(e) => setRule({ ...rule, daysInactive: Number(e.target.value) })}
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className={field}
               />
             </label>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold">
-              Минимум визитов
+              Минимум визитов (0 — не важно)
               <input
                 type="number"
                 name="minVisits"
                 min="0"
                 value={rule.minVisits}
                 onChange={(e) => setRule({ ...rule, minVisits: Number(e.target.value) })}
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className={field}
               />
             </label>
 
             <label className="grid gap-2 text-sm font-semibold">
-              Минимальный AOV (₸)
+              Средний чек от, ₸ (0 — не важно)
               <input
                 type="number"
                 name="minAov"
@@ -119,43 +143,33 @@ export function DynamicSegmentEditor({
                 step="500"
                 value={rule.minAov}
                 onChange={(e) => setRule({ ...rule, minAov: Number(e.target.value) })}
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className={field}
               />
             </label>
           </div>
 
           <label className="grid gap-2 text-sm font-semibold">
-            Фильтр согласий (Consent Filter)
+            Согласие
             <select
               name="consentFilter"
               value={rule.consentFilter}
-              onChange={(e) => setRule({ ...rule, consentFilter: e.target.value as SegmentRule['consentFilter'] })}
-              className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
+              onChange={(e) => setRule({ ...rule, consentFilter: e.target.value as EditorRule['consentFilter'] })}
+              className={field}
             >
-              <option value="marketing_required">Обязателен активный Marketing Consent (Для кампаний)</option>
-              <option value="loyalty_only">Достаточно Loyalty Consent</option>
-              <option value="any">Без фильтра согласий (Только для аналитики)</option>
+              <option value="marketing_required">Есть согласие на рассылку — можно писать</option>
+              <option value="loyalty_only">Достаточно согласия на лояльность</option>
+              <option value="any">Без фильтра — только для аналитики</option>
             </select>
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2 pt-2">
+          <div className="grid gap-4 pt-2 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold">
               Название сегмента (RU)
-              <input
-                name="nameRu"
-                required
-                placeholder="Например: Спящие лояльные 30+"
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
-              />
+              <input name="nameRu" required placeholder="Например: Спящие постоянные 30+" className={field} />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Название сегмента (KK)
-              <input
-                name="nameKk"
-                required
-                placeholder="Мысалы: Ұйықтап жатқан белсенділер"
-                className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm outline-none focus:ring-2 focus:ring-primary"
-              />
+              <input name="nameKk" required placeholder="Мысалы: Ұйықтап жатқан тұрақтылар" className={field} />
             </label>
           </div>
 
@@ -165,56 +179,72 @@ export function DynamicSegmentEditor({
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.98]"
             >
               <Save className="size-4" />
-              Сохранить сегмент в базу
+              Сохранить сегмент
             </button>
           )}
         </form>
       </div>
 
-      {/* Live Preview Card */}
-      <div className="flex flex-col justify-between rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-6">
+      <div className="flex flex-col justify-between space-y-6 rounded-2xl border border-primary/30 bg-primary/5 p-6">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
             <Sparkles className="size-4" />
-            Live Audience Preview
+            Подсчёт по базе
           </div>
-          <h3 className="mt-2 text-xl font-extrabold">Предпросмотр сегмента</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Расчёт в реальном времени с учётом RLS и фильтра согласий.
+          <h3 className="mt-2 text-xl font-extrabold">Сколько человек попадёт</h3>
+          <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+            {pending ? 'Считаю по вашим данным…' : failed ? 'Посчитать не удалось' : 'Обновляется при изменении условий'}
           </p>
 
           <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-surface p-4 border border-border">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
               <div className="flex items-center gap-3">
                 <Users className="size-5 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Подходят по правилу</p>
-                  <p className="text-lg font-bold">{preview.total} клиентов</p>
+                  <p className="text-xs text-muted-foreground">Подходят по условиям</p>
+                  <p className="text-lg font-bold">{preview ? `${preview.matched} чел.` : '—'}</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 p-4 border border-emerald-500/30">
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="size-5 text-emerald-600" />
                 <div>
-                  <p className="text-xs text-emerald-700 font-semibold">Consent-Eligible (Для отправки)</p>
-                  <p className="text-lg font-extrabold text-emerald-900">{preview.eligible} клиентов</p>
+                  <p className="text-xs font-semibold text-emerald-700">Можно написать по закону</p>
+                  <p className="text-lg font-extrabold text-emerald-900">{preview ? `${preview.eligible} чел.` : '—'}</p>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="mt-4 rounded-xl border border-border bg-surface/80 p-3 text-xs leading-5 text-muted-foreground">
-            <strong>Объяснимое сокращение (Explainable Reduction):</strong> Из {preview.total} клиентов, соответствующих правилу, ровно {preview.eligible} дали активное маркетинговое согласие. Клиенты с отозванным согласием исключены автоматически.
+            {failed ? (
+              <>Подсчёт не выполнен, поэтому здесь ничего не показано. Обновите страницу — придумывать число вместо ответа базы мы не будем.</>
+            ) : preview ? (
+              <>
+                <strong>Почему меньше:</strong> условиям отвечают {preview.matched} чел., из них {excluded} исключены —
+                {' '}у них нет действующего согласия или оно отозвано. Остаётся {preview.eligible}. {consentSentence}
+              </>
+            ) : (
+              <>{consentSentence}</>
+            )}
           </div>
         </div>
 
+        {/* An unsaved rule is not a segment yet, so this cannot start a campaign
+            without lying about which audience it would use. It shows the people
+            instead; the campaign starts from a saved segment below. */}
         <Link
-          href={`/app/campaigns/new?segment=${rule.stage}&count=${preview.eligible}`}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.98]"
+          href={`/app/customers?segment=${rule.stage === 'all' ? '' : rule.stage}`}
+          className={
+            'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all ' +
+            (preview && preview.matched > 0
+              ? 'bg-primary text-primary-foreground hover:brightness-110 active:scale-[0.98]'
+              : 'pointer-events-none bg-surface-muted text-muted-foreground')
+          }
         >
-          Вернуть {preview.eligible} клиентов
+          {preview && preview.matched > 0 ? `Посмотреть этих клиентов (${preview.matched})` : 'Под эти условия никто не попадает'}
           <ArrowRight className="size-4" />
         </Link>
       </div>
