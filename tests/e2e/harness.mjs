@@ -6,10 +6,10 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { dbContainer } from '../../scripts/db-container.mjs';
 
 export const BASE = process.env.QADAM_E2E_BASE ?? 'http://localhost:3000';
 export const PASSWORD = 'QadamLocal!2026';
-export const DB_CONTAINER = process.env.QADAM_DB_CONTAINER ?? 'supabase_db_qadam_serpin';
 export const SHOTS = 'tests/e2e/screenshots';
 
 /**
@@ -19,6 +19,10 @@ export const SHOTS = 'tests/e2e/screenshots';
  * real deployment; leave it unset and nothing about local runs changes.
  */
 export const REMOTE_REF = process.env.QADAM_SUPABASE_PROJECT_REF ?? '';
+
+// Resolved only when a local container is actually the target: a run against a
+// deployed stand has no container, and failing to name one must not stop it.
+export const DB_CONTAINER = REMOTE_REF ? '' : dbContainer();
 
 /**
  * Every wait below was tuned against a local stack, where a page is a few

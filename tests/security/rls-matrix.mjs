@@ -14,8 +14,9 @@
 // none of them is an unprotected side door.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { dbContainer } from '../../scripts/db-container.mjs';
 
-const CONTAINER = process.env.QADAM_DB_CONTAINER ?? 'supabase_db_qadam_serpin';
+const CONTAINER = dbContainer();
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '20000000-0000-4000-8000-000000000001';
 const OWNER_A = '00000000-0000-4000-8000-000000000101';

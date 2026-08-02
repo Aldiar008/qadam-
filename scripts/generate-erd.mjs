@@ -4,9 +4,10 @@
 // with the foreign keys that actually exist in Postgres rather than the ones
 // someone remembered while drawing.
 import { execFileSync } from 'node:child_process';
+import { dbContainer } from './db-container.mjs';
 import { writeFileSync } from 'node:fs';
 
-const CONTAINER = process.env.QADAM_DB_CONTAINER ?? 'supabase_db_qadam_serpin';
+const CONTAINER = dbContainer();
 const q = (sql) => execFileSync('docker', ['exec', '-i', CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-A', '-t', '-F', '\u0001', '-c', sql], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).replace(/\r/g, '').trim();
 
 const GROUPS = [
