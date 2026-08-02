@@ -85,6 +85,14 @@ export async function POST(request: Request) {
     return guestJoin(db, chat, startPayload.slice(2), update.message?.from?.first_name ?? 'Гость');
   }
 
+  // Marketing consent is a separate decision from joining, so it is taken
+  // separately — and can be withdrawn the same way, in the same chat.
+  const wantsMarketing = /^(да|иә|yes|ok|ок)$/i.test(text);
+  const refusesMarketing = /^(нет|жоқ|no|стоп|stop|отписаться)$/i.test(text);
+  if (wantsMarketing || refusesMarketing) {
+    return marketingConsent(db, chat, wantsMarketing);
+  }
+
   await reply(chat, [
     'Это бот QADAM.',
     '',
@@ -92,6 +100,42 @@ export async function POST(request: Request) {
     'Владельцу: в кабинете, в разделе «Автоматизации», есть код привязки — откройте ссылку оттуда.',
   ].join('\n'));
   return NextResponse.json({ ok: true, handled: 'help' });
+}
+
+/**
+ * Records a guest's decision about marketing, taken in the chat they are in.
+ *
+ * Withdrawal is handled by the same path as agreement. A channel that can only
+ * collect consent and never release it is not consent.
+ */
+async function marketingConsent(db: ReturnType<typeof createAdminClient>, chat: string, granted: boolean) {
+  const { data, error } = await db.rpc('customer_for_channel_address', { p_channel: 'telegram', p_address: chat });
+  // The function returns a set, so the generated types describe a row array;
+  // narrowing here keeps the shape explicit rather than asserting it away.
+  const rows = (Array.isArray(data) ? data : [data]) as { business_id?: string; customer_id?: string }[];
+  const found = rows[0];
+  if (error || !found?.customer_id || !found.business_id) {
+    await reply(chat, 'Сначала присоединитесь по QR-коду заведения — тогда я буду знать, чью карту менять.');
+    return NextResponse.json({ ok: true, handled: 'consent_no_customer' });
+  }
+
+  const { error: consentError } = await db.rpc('record_channel_consent', {
+    p_business_id: found.business_id,
+    p_customer_id: found.customer_id,
+    p_scope: 'marketing.telegram',
+    p_granted: granted,
+    p_source: 'telegram_bot',
+    p_evidence: { chat_masked: `tg:***${chat.slice(-4)}` },
+  });
+  if (consentError) {
+    await reply(chat, 'Не получилось записать решение. Попробуйте ещё раз через минуту.');
+    return NextResponse.json({ ok: true, handled: 'consent_failed', reason: consentError.message });
+  }
+
+  await reply(chat, granted
+    ? 'Записал: буду присылать персональные предложения этого заведения. Написать «нет» — и я перестану, без объяснений.'
+    : 'Записал: предложения присылать не буду. Карта лояльности и штампы остаются при вас.');
+  return NextResponse.json({ ok: true, handled: granted ? 'consent_granted' : 'consent_revoked' });
 }
 
 /** Attaches an owner's chat to their business, so the assistant can reach them. */

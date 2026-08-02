@@ -4732,6 +4732,13 @@ export type Database = {
         Returns: Json
       }
       current_platform_role: { Args: never; Returns: string }
+      customer_for_channel_address: {
+        Args: { p_address: string; p_channel: string }
+        Returns: {
+          business_id: string
+          customer_id: string
+        }[]
+      }
       demo_time_jump: {
         Args: {
           p_business_id: string
@@ -4911,6 +4918,17 @@ export type Database = {
           p_source: string
           p_status: string
           p_token_usage: Json
+        }
+        Returns: Json
+      }
+      record_channel_consent: {
+        Args: {
+          p_business_id: string
+          p_customer_id: string
+          p_evidence?: Json
+          p_granted: boolean
+          p_scope: string
+          p_source: string
         }
         Returns: Json
       }
