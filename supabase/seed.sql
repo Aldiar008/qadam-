@@ -241,4 +241,110 @@ select private.deterministic_uuid('event-redeemed-'||g),'10000000-0000-4000-8000
  private.deterministic_uuid('customer-'||g),'redeemed','2026-07-25 09:00+00','demo','redeemed-'||g,'{}',true from generate_series(1,9) g
 on conflict(id) do nothing;
 
+
+-- ---------------------------------------------------------------------------
+-- QR-лояльность: программа, коды, награды, счета и история сканов.
+--
+-- Модуль полностью реализован в коде и полностью отсутствовал в демо-данных,
+-- поэтому показать его было нечем. Токены кодов известны заранее и не
+-- случайны: страница /q/<token> должна открываться на демонстрации, а в базе,
+-- как и для настоящего кода, лежит только sha256 от него.
+-- ---------------------------------------------------------------------------
+insert into public.loyalty_programs(id,business_id,name,program_type,rules,status,is_mock) values
+ ('15000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','TAMYR Кофе-карта','stamps',
+  '{"joinStamps":1,"stampsPerVisit":1,"joinPoints":0,"pointsPerVisit":0}'::jsonb,'active',true)
+on conflict(id) do update set rules=excluded.rules,status='active',is_mock=true;
+
+insert into public.rewards(id,business_id,loyalty_program_id,name_ru,name_kk,cost_points,cost_stamps,inventory_limit,status,is_mock) values
+ ('16000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','15000000-0000-4000-8000-000000000001',
+  'Круассан в подарок','Сыйлыққа круассан',null,5,200,'active',true),
+ ('16000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','15000000-0000-4000-8000-000000000001',
+  'Капучино в подарок','Сыйлыққа капучино',null,8,120,'active',true)
+on conflict(id) do update set cost_stamps=excluded.cost_stamps,status='active',is_mock=true;
+
+insert into public.qr_codes(id,business_id,location_id,loyalty_program_id,token_hash,purpose,status,public_context,is_mock) values
+ ('17000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  '15000000-0000-4000-8000-000000000001',extensions.digest('tamyr-kassa-demo','sha256'),'loyalty_join','active',
+  '{"placement":"kassa","label":"Карта TAMYR на кассе"}'::jsonb,true),
+ ('17000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  '15000000-0000-4000-8000-000000000001',extensions.digest('tamyr-stol-demo','sha256'),'loyalty_join','active',
+  '{"placement":"stol","label":"Карта TAMYR на столе"}'::jsonb,true),
+ ('17000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  '15000000-0000-4000-8000-000000000001',extensions.digest('tamyr-chek-demo','sha256'),'loyalty_join','active',
+  '{"placement":"chek","label":"Карта TAMYR на чеке"}'::jsonb,true)
+on conflict(id) do update set status='active',public_context=excluded.public_context,is_mock=true;
+
+-- Счета первых 60 гостей: карта заведена, штампы накоплены неравномерно.
+insert into public.loyalty_accounts(id,business_id,loyalty_program_id,customer_id,points_balance,stamps_balance,is_mock)
+select private.deterministic_uuid('loyalty-account-'||g),'10000000-0000-4000-8000-000000000001',
+ '15000000-0000-4000-8000-000000000001',private.deterministic_uuid('customer-'||g),0,(g%9)+1,true
+from generate_series(1,60) g
+on conflict(id) do update set stamps_balance=excluded.stamps_balance,is_mock=true;
+
+insert into public.loyalty_ledger(id,business_id,loyalty_account_id,entry_type,points_delta,stamps_delta,source_type,idempotency_key,occurred_at,metadata,is_mock)
+select private.deterministic_uuid('ledger-join-'||g),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('loyalty-account-'||g),'earn',0,1,'qr_join','seed:join:'||g,
+ '2026-05-04 10:00+00'::timestamptz + (g||' hours')::interval,'{"source":"qadam_demo_seed"}'::jsonb,true
+from generate_series(1,60) g
+on conflict(id) do nothing;
+
+insert into public.loyalty_ledger(id,business_id,loyalty_account_id,entry_type,points_delta,stamps_delta,source_type,idempotency_key,occurred_at,metadata,is_mock)
+select private.deterministic_uuid('ledger-visit-'||g),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('loyalty-account-'||g),'earn',0,(g%9),'qr_scan','seed:visit:'||g,
+ '2026-06-10 12:00+00'::timestamptz + (g||' hours')::interval,'{"source":"qadam_demo_seed"}'::jsonb,true
+from generate_series(1,60) g
+on conflict(id) do nothing;
+
+insert into public.qr_scans(id,business_id,qr_code_id,customer_id,scanned_at,scan_kind,request_key,is_mock)
+select private.deterministic_uuid('qr-scan-'||g),'10000000-0000-4000-8000-000000000001',
+ (array['17000000-0000-4000-8000-000000000001','17000000-0000-4000-8000-000000000002','17000000-0000-4000-8000-000000000003'])[(g%3)+1]::uuid,
+ private.deterministic_uuid('customer-'||g),'2026-05-04 10:00+00'::timestamptz + (g||' hours')::interval,
+ case when g%5=0 then 'redeem' else case when g<=60 then 'join' else 'scan' end end,'seed:scan:'||g,true
+from generate_series(1,84) g
+on conflict(id) do nothing;
+
+-- Двенадцать гостей уже забрали награду: это и есть замкнутая петля лояльности.
+insert into public.loyalty_ledger(id,business_id,loyalty_account_id,entry_type,points_delta,stamps_delta,source_type,idempotency_key,occurred_at,metadata,is_mock)
+select private.deterministic_uuid('ledger-redeem-'||g),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('loyalty-account-'||g),'redeem',0,-5,'reward','seed:redeem:'||g,
+ '2026-07-14 15:00+00'::timestamptz + (g||' hours')::interval,'{"source":"qadam_demo_seed"}'::jsonb,true
+from generate_series(1,12) g
+on conflict(id) do nothing;
+
+insert into public.reward_redemptions(id,business_id,reward_id,customer_id,loyalty_ledger_id,status,issued_at,redeemed_at,idempotency_key,is_mock)
+select private.deterministic_uuid('redemption-'||g),'10000000-0000-4000-8000-000000000001',
+ '16000000-0000-4000-8000-000000000001',private.deterministic_uuid('customer-'||g),
+ private.deterministic_uuid('ledger-redeem-'||g),'redeemed',
+ '2026-07-14 15:00+00'::timestamptz + (g||' hours')::interval,
+ '2026-07-14 16:00+00'::timestamptz + (g||' hours')::interval,'seed:redemption:'||g,true
+from generate_series(1,12) g
+on conflict(id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- «Скидки рядом»: витрина района. Код был, предложений не было ни одного.
+-- ---------------------------------------------------------------------------
+insert into public.nearby_offers(id,business_id,location_id,title_ru,title_kk,description_ru,description_kk,
+ district,category,public_slug,terms_ru,terms_kk,status,published_at,expires_at,is_mock) values
+ ('18000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  'Круассан в подарок при чеке от 3 500 ₸','3 500 ₸ чектен круассан сыйлық',
+  'Будни с 15:00 до 18:00 — тихие часы в TAMYR Coffee.','Жұмыс күндері 15:00–18:00 — TAMYR Coffee тыныш сағаттары.',
+  'Бостандыкский','cafe','tamyr-quiet-hours','Один подарок на гостя в день.','Күніне бір қонаққа бір сыйлық.',
+  'published','2026-07-20 09:00+00','2026-09-30 21:00+00',true),
+ ('18000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  'Второй капучино за полцены','Екінші капучино жарты бағамен',
+  'Утро понедельника и вторника, до 11:00.','Дүйсенбі мен сейсенбі таңы, 11:00-ге дейін.',
+  'Бостандыкский','cafe','tamyr-second-cup','Не суммируется с другими акциями.','Басқа акциялармен қосылмайды.',
+  'published','2026-07-22 08:00+00','2026-09-15 11:00+00',true),
+ ('18000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  'Кофе с собой за 990 ₸','Сыртқа кофе 990 ₸',
+  'Каждый будний день до 09:00 — для тех, кто спешит.','Әр жұмыс күні 09:00-ге дейін — асығатындарға.',
+  'Бостандыкский','cafe','tamyr-morning-990','Только напитки объёмом 250 мл.','Тек 250 мл сусындар.',
+  'published','2026-07-25 07:00+00','2026-10-31 09:00+00',true),
+ ('18000000-0000-4000-8000-000000000004','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+  'Пятничный сет: кофе и десерт','Жұма сеті: кофе мен десерт',
+  'Пятница, весь день. Скидка 15% на сет.','Жұма, күні бойы. Сетке 15% жеңілдік.',
+  'Бостандыкский','cafe','tamyr-friday-set','Действует при заказе сета целиком.','Сет толық тапсырыс берілгенде жарамды.',
+  'published','2026-07-26 10:00+00','2026-09-27 22:00+00',true)
+on conflict(id) do update set status='published',expires_at=excluded.expires_at,is_mock=true;
+
 commit;
