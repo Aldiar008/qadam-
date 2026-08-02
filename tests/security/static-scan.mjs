@@ -130,7 +130,13 @@ check('demo', 'no demo/seed/reset endpoint ships without a mode guard', unguarde
 check('demo', 'route handlers present', String(routeFiles.length), (v) => Number(v) > 0);
 
 const timeJump = srcFiles.filter((f) => /demo_time_jump/.test(read(f)));
-check('demo', 'the time jump is reachable only where the mode is checked', timeJump.map((f) => `${f}:${/mode === 'demo'|isDemo|DEMO_MODE/.test(read(f)) ? 'guarded' : 'UNGUARDED'}`).join(', ') || 'not present', (v) => !v.includes('UNGUARDED'));
+// A guard is a guard whichever way it is written: `mode === 'demo'` to allow
+// and `mode !== 'demo'` to refuse are the same check with opposite polarity,
+// and the refusing form is the one that reads better at a call site. The
+// pattern used to accept only the affirmative one, so tightening the guard to
+// an early return reported it as absent.
+const MODE_GUARD = /business\.mode\s*[!=]==\s*'demo'|mode\s*[!=]==\s*'demo'|isDemo|demoTenantsEnabled|DEMO_MODE/;
+check('demo', 'the time jump is reachable only where the mode is checked', timeJump.map((f) => `${f}:${MODE_GUARD.test(read(f)) ? 'guarded' : 'UNGUARDED'}`).join(', ') || 'not present', (v) => !v.includes('UNGUARDED'));
 
 // ------------------------------------------------- Data API exposure is explicit
 process.stdout.write('\nSEC-STATIC-6  The Data API surface is declared, not inherited\n');

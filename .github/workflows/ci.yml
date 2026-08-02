@@ -53,6 +53,13 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      # The scan inspects the client bundle for leaked secrets, so it has to run
+      # where a bundle exists. It used to live in the database job, which never
+      # builds — the check reported "0 bundles to inspect" and failed on its own
+      # precondition rather than on anything it was meant to catch.
+      - name: Static security scan
+        run: node tests/security/static-scan.mjs
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: build-time-placeholder
@@ -95,10 +102,8 @@ jobs:
       - name: pgTAP, including the RLS suites
         run: supabase test db --local supabase/tests/database
 
-      - name: Two-tenant RLS matrix and static security scan
-        run: |
-          node tests/security/rls-matrix.mjs
-          node tests/security/static-scan.mjs
+      - name: Two-tenant RLS matrix
+        run: node tests/security/rls-matrix.mjs
 
       - name: Schema lint
         run: supabase db lint --local --level error --fail-on error
