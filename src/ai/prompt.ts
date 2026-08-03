@@ -226,7 +226,7 @@ ${redactedPayload}
   ]
 }
 
-Нужны ровно: post ×1, short_post ×1, story ×3 (ordinal 1,2,3), video_script ×1, direct_message ×1 — для каждого языка, всего 12 материалов.
+Нужны ровно: post ×1, short_post ×1, story ×3 (ordinal 1,2,3), video_script ×1, direct_message ×1 — для каждого языка, всего 14 материалов.
 Лимиты длины тела: ${limits}.
 Три сторис решают разные задачи: зацепка, суть предложения, действие.
 В post, short_post и direct_message обязательно упомяни код ${payload.trackingCode}.`;

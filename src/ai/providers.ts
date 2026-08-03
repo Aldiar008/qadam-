@@ -7,6 +7,7 @@
  */
 
 import { AiProviderError, type AiProvider, type AiRequest, type AiResponse } from './contract.ts';
+import { createDemoProvider } from './demo-provider.ts';
 
 export interface ProviderConfig {
   provider: string;
@@ -39,6 +40,18 @@ const DEFAULTS = {
 export function readProviderConfig(env: Readonly<Record<string, string | undefined>> = process.env): ProviderConfig | null {
   const provider = (env.QADAM_AI_PROVIDER ?? '').trim().toLowerCase();
   if (!provider || provider === 'none' || provider === 'deterministic') return null;
+
+  // `demo` returns curated answers of exactly the shape a model must produce,
+  // after a pause the length of a real generation. It needs no key, and it is
+  // never selected implicitly — only by asking for it by name.
+  if (provider === 'demo') {
+    return {
+      provider: 'demo', apiKey: '', model: 'qadam-demo-answers-v1', baseUrl: '',
+      timeoutMs: Number(env.QADAM_AI_TIMEOUT_MS ?? 30_000),
+      maxAttempts: 1,
+      costCeilingMicros: Number(env.QADAM_AI_COST_CEILING_MICROS ?? DEFAULTS.costCeilingMicros),
+    };
+  }
 
   const timeoutMs = Number(env.QADAM_AI_TIMEOUT_MS ?? DEFAULTS.timeoutMs);
   const maxAttempts = Number(env.QADAM_AI_MAX_ATTEMPTS ?? DEFAULTS.maxAttempts);
@@ -219,6 +232,9 @@ export function createGeminiProvider(config: ProviderConfig): AiProvider {
 }
 
 export function createProvider(config: ProviderConfig): AiProvider | null {
+  // Curated answers of the same shape, after a pause the length of a real
+  // generation. Selected only by name; nothing falls back to it silently.
+  if (config.provider === 'demo') return createDemoProvider();
   if (config.provider === 'anthropic') return createAnthropicProvider(config);
   if (config.provider === 'openai') return createOpenAiProvider(config);
   if (config.provider === 'gemini') return createGeminiProvider(config);
