@@ -1,6 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { AppSidebar } from '@/components/app/AppSidebar';
+import { NotificationToast } from '@/components/app/NotificationToast';
 import { AppHeader } from '@/components/app/AppHeader';
 import { requireBusinessContext } from '@/server/qadam/repository';
 import { LanguageProvider } from '@/context/LanguageContext';
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Anything else is a genuine failure: let the root boundary offer a retry.
     throw error;
   }
-  const [{ data: isPlatformAdmin }, { count: unread }, { data: claims }] = await Promise.all([
+  const [{ data: isPlatformAdmin }, { count: unread }, { data: claims }, { data: newest }] = await Promise.all([
     ctx.supabase.rpc('is_current_platform_admin'),
     ctx.supabase
       .from('notifications')
@@ -33,6 +34,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .is('read_at', null)
       .is('dismissed_at', null),
     ctx.supabase.auth.getClaims(),
+    // The bell carried a number and nothing ever came forward on its own, so a
+    // paused campaign waited until somebody thought to look.
+    ctx.supabase
+      .from('notifications')
+      .select('id,title,body,category,action_url')
+      .eq('business_id', ctx.businessId)
+      .is('read_at', null)
+      .is('dismissed_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   // Inside the cabinet the person's own stored preference is the fallback, so a
   // Kazakh-speaking owner does not have to switch on every new device. An
@@ -54,6 +66,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <LocaleCoverageNotice locale={locale} />
           {children}
         </main>
+        <NotificationToast
+          unread={unread ?? 0}
+          notification={newest ? { id: newest.id, title: newest.title, body: newest.body, category: newest.category, actionUrl: newest.action_url } : null}
+        />
       </div>
     </div>
     </LanguageProvider>

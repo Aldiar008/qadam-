@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
 import { getCampaignStudioData, segmentForCustomer } from '@/server/qadam/repository';
+import { mechanicFromRecommendation } from '@/lib/recommendation-mechanic';
 import { compileCampaignDraft, launchCampaign, transitionContract } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,14 @@ export default async function CampaignStudioPage({
   const signal = data.signals[0];
   const recommendation = data.selectedRecommendation;
   const aovDefault = data.profile?.average_check_minor ?? 3450;
+  // The chosen suggestion arrives in the form. Without this the studio opened
+  // on the same factory gift at the same threshold whichever recommendation the
+  // owner had just pressed «Собрать кампанию» on.
+  const preset = mechanicFromRecommendation(
+    recommendation?.explanation,
+    recommendation?.title_ru ?? '',
+    { averageCheckMinor: aovDefault, unitCostMinor: Math.round(aovDefault * 0.4) },
+  );
   const blocked = decision?.status === 'blocked';
 
   return (
@@ -150,10 +159,16 @@ export default async function CampaignStudioPage({
 
           <fieldset className="rounded-3xl border border-border bg-surface p-6">
             <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">Шаг 3 · Механика</legend>
+            {recommendation && (
+              <p className="mt-2 rounded-xl bg-primary/5 p-3 text-xs leading-5">
+                Поля заполнены под рекомендацию «{recommendation.title_ru}»: {preset.because}. Меняйте
+                свободно — сервер пересчитает экономику заново.
+              </p>
+            )}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
                 Тип механики
-                <select name="mechanic" defaultValue="gift_with_threshold" className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
+                <select name="mechanic" defaultValue={preset.mechanic} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
                   <option value="gift_with_threshold">Подарок при пороге чека</option>
                   <option value="percentage_discount">Скидка в процентах</option>
                   <option value="fixed_discount">Фиксированная скидка</option>
@@ -165,19 +180,19 @@ export default async function CampaignStudioPage({
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Стоимость выгоды, ₸ (или bps для скидок)
-                <input name="mechanicAmount" type="number" min="0" defaultValue="600" className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
+                <input name="mechanicAmount" type="number" min="0" defaultValue={preset.amount} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Минимальный чек, ₸
-                <input name="thresholdMinor" type="number" min="1" defaultValue="3500" className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
+                <input name="thresholdMinor" type="number" min="1" defaultValue={preset.thresholdMinor || Math.round(aovDefault * 1.02)} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Длительность, дней
-                <input name="durationDays" type="number" min="1" max="90" defaultValue="7" className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
+                <input name="durationDays" type="number" min="1" max="90" defaultValue={preset.durationDays} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Себестоимость заказа, ₸
-                <input name="unitCostMinor" type="number" min="0" defaultValue="1400" className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
+                <input name="unitCostMinor" type="number" min="0" defaultValue={Math.round(aovDefault * 0.4)} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Стоимость контакта, ₸
