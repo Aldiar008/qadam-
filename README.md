@@ -168,6 +168,7 @@ npm start
 | [DEPLOY_RUNBOOK](docs/qadam/DEPLOY_RUNBOOK.md) | пошаговое развёртывание, dry run, smoke, откат |
 | [DEMO_SCRIPT](docs/qadam/DEMO_SCRIPT.md) | сценарий демонстрации на 4:30 |
 | [DEMO_WALKTHROUGH](docs/qadam/DEMO_WALKTHROUGH.md) | живой показ: 14 остановок, куда нажать и что сказать |
+| [DEMO_3MIN](docs/qadam/DEMO_3MIN.md) | показ за 3 минуты: пять вкладок, текст слово в слово |
 | [TECHNICAL_DESCRIPTION](docs/qadam/TECHNICAL_DESCRIPTION.md) | система, инварианты и чем они держатся |
 | [ERD](docs/qadam/ERD.md) | 80 таблиц и 139 связей, генерируется из живой схемы |
 | [PRODUCT_CONSTITUTION](docs/qadam/PRODUCT_CONSTITUTION.md) | принципы продукта и границы честности |
