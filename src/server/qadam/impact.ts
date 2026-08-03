@@ -1,5 +1,15 @@
 import 'server-only';
 
+import {
+  campaignFunnel,
+  dailyRevenueSeries,
+  lifecycleMix,
+  visitHeatmap,
+  type FunnelStage,
+  type LifecycleSlice,
+  type RevenueSeries,
+  type VisitHeatmap,
+} from '@/domain/analytics-charts.ts';
 import { requireBusinessContext } from './repository';
 
 /**
@@ -85,6 +95,19 @@ export interface ImpactDashboard {
   baselines: { campaignId: string; measurementVersion: string; method: string; baselineRevenueMinor: number; minSampleSize: number; audienceSize: number }[];
   /** Campaigns whose sample is still too small for an incremental claim. */
   underpowered: { campaignName: string; delivered: number; minSample: number }[];
+  /**
+   * Те же данные, но в форме, по которой видно решение.
+   *
+   * Computed from the rows already loaded above — the dashboard costs no extra
+   * query. Each chart carries its own honesty rule (too few points, no sends
+   * yet) inside the shape it returns.
+   */
+  charts: {
+    revenue: RevenueSeries;
+    heatmap: VisitHeatmap;
+    funnel: FunnelStage[];
+    lifecycle: { slices: LifecycleSlice[]; total: number };
+  };
 }
 
 const LEDGER_PAGE = 20;
@@ -188,9 +211,17 @@ export async function getImpactDashboard(options: { days?: number; cursor?: stri
     .filter((row) => row.delivered < row.minSample);
 
   const page = (ledgerRows ?? []).slice(0, LEDGER_PAGE);
+  const timeZone = ctx.business.timezone || 'Asia/Almaty';
+  const periodTransactions = (transactions ?? []).filter((row) => inPeriod(row.occurred_at));
   return {
     ctx,
     period,
+    charts: {
+      revenue: dailyRevenueSeries(transactions ?? [], period, timeZone),
+      heatmap: visitHeatmap(periodTransactions, timeZone),
+      funnel: campaignFunnel(events ?? []),
+      lifecycle: lifecycleMix(customerRows),
+    },
     kpis: {
       newCustomers,
       newCustomersPrevious,

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, Clock, TrendingUp } from 'lucide-react';
 
+import { CampaignFunnel, LifecycleMix, RevenueTrend, VisitHeatmapCard } from '@/components/app/AnalyticsCharts';
 import { KIND_META, getImpactDashboard, type MetricKind } from '@/server/qadam/impact';
 import { canManage, canMarket } from '@/server/qadam/repository';
 import { recomputeImpact, runDemoTimeJump } from './actions';
@@ -96,7 +97,21 @@ export default async function AnalyticsPage({
         </div>
       )}
 
+      {/* Dashboards -------------------------------------------------------- */}
+      {/* Картинки идут первыми, цифры — под ними. Двенадцать точных чисел
+          подряд читаются как отчёт, который откладывают на потом; форма
+          отвечает на вопрос «когда и куда», который у владельца и есть. */}
+      <RevenueTrend series={data.charts.revenue} days={days} />
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <CampaignFunnel stages={data.charts.funnel} />
+        <LifecycleMix slices={data.charts.lifecycle.slices} total={data.charts.lifecycle.total} />
+      </div>
+
+      <VisitHeatmapCard heatmap={data.charts.heatmap} />
+
       {/* KPI grid ---------------------------------------------------------- */}
+      <h2 className="pt-2 text-xl font-bold">Показатели за период</h2>
       <section aria-label="Ключевые показатели" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Новые клиенты', value: String(kpis.newCustomers), note: `${newDelta >= 0 ? '+' : ''}${newDelta} к прошлому периоду` },
