@@ -11,6 +11,17 @@ const moment = (iso: string) => new Date(iso).toLocaleString('ru-RU');
 
 const card = 'rounded-3xl border border-border bg-surface p-6';
 
+const INTERACTION_LABELS: Record<string, string> = {
+  question: 'вопрос',
+  answer: 'ответ',
+  join: 'вступил в программу',
+  consent: 'решение о рассылке',
+  redeem: 'забрал награду',
+  order: 'заказ',
+  visit: 'визит',
+  notice: 'уведомление',
+};
+
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await getCustomerDetail(id);
@@ -168,6 +179,34 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             </p>
           )) : <p className="text-sm text-muted-foreground">Заметок пока нет.</p>}
         </div>
+      </section>
+
+      {/* Everything the guest did outside the till. Until this existed, a person
+          could join, ask three questions and take a reward in Telegram, and the
+          card in the cabinet would show none of it. */}
+      <section className={card}>
+        <h2 className="text-xl font-bold">Что делал и о чём спрашивал</h2>
+        {data.interactions.length ? (
+          <ul className="mt-4 grid gap-3">
+            {data.interactions.map((row) => (
+              <li key={row.id} className={'rounded-2xl p-3 text-sm leading-6 ' + (row.direction === 'inbound' ? 'bg-surface-muted' : 'border border-primary/20 bg-primary/5')}>
+                <p className="flex flex-wrap items-baseline gap-2 text-xs text-muted-foreground">
+                  <span className="font-bold text-foreground">
+                    {row.direction === 'inbound' ? 'Гость' : 'Заведение'}
+                  </span>
+                  <span>{INTERACTION_LABELS[row.kind] ?? row.kind}</span>
+                  <span>· {row.channel}</span>
+                  <span>· {moment(row.occurred_at)}</span>
+                </p>
+                <p className="mt-1 whitespace-pre-line">{row.body}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Этот гость пока ничего не делал в чате и не задавал вопросов.
+          </p>
+        )}
       </section>
 
       <section className={card}>

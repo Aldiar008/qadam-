@@ -16,6 +16,9 @@ export const CAMPAIGN_PROMPT_VERSION = 'campaign-generator-prompt.v1';
 export const BRIEF_SCHEMA_VERSION = 'customer-brief.v1';
 export const BRIEF_PROMPT_VERSION = 'customer-brief-prompt.v1';
 
+export const REPLY_SCHEMA_VERSION = 'guest-reply.v1';
+export const REPLY_PROMPT_VERSION = 'guest-reply-prompt.v1';
+
 export type MechanicKind =
   | '2_plus_1'
   | 'happy_hours'
@@ -122,8 +125,24 @@ export interface CustomerBriefInput {
   currency: string;
 }
 
+/**
+ * Ответ гостю в чате заведения.
+ *
+ * The bot answers as staff would, and staff do not invent prices. Everything it
+ * may say is handed to it as facts; anything outside them is `needsHuman`,
+ * which is a real answer — «спрошу и вернусь» beats a confident wrong price.
+ */
+export interface GuestReply {
+  schemaVersion: string;
+  reply: string;
+  /** Which supplied facts the answer leans on, so it can be checked. */
+  usedFacts: readonly string[];
+  /** True when the question cannot be answered from the venue's own data. */
+  needsHuman: boolean;
+}
+
 export interface AiRequest {
-  purpose: 'campaign_generation' | 'content_generation' | 'customer_brief';
+  purpose: 'campaign_generation' | 'content_generation' | 'customer_brief' | 'guest_reply' | 'automation_content';
   schemaVersion: string;
   promptVersion: string;
   system: string;
@@ -323,6 +342,33 @@ export function parseCustomerBrief(raw: unknown, input: CustomerBriefInput): Cus
   assertNoInventedNumbers(nextStep, allowed, 'brief.nextStep', name);
 
   return Object.freeze({ schemaVersion, summary, observations, nextStep, cautions });
+}
+
+/**
+ * A guest reply may repeat the venue's own numbers and may not introduce new ones.
+ *
+ * A wrong price quoted by the venue's own bot is worse than no answer: the guest
+ * arrives expecting it. `allowedNumbers` is every figure handed to the model —
+ * prices, balances, reward costs, hours — and anything else fails the parse.
+ */
+export function parseGuestReply(raw: unknown, allowedNumbers: ReadonlySet<string>): GuestReply {
+  const body = asObject(raw, 'reply');
+  const schemaVersion = asText(body.schemaVersion, 'reply.schemaVersion', 60);
+  if (schemaVersion !== REPLY_SCHEMA_VERSION) fail(`reply.schemaVersion must be ${REPLY_SCHEMA_VERSION}`);
+
+  const text = asText(body.reply, 'reply.reply', 900);
+  const usedFacts = Array.isArray(body.usedFacts) ? asTextList(body.usedFacts, 'reply.usedFacts', 0, 6) : Object.freeze([]);
+  const needsHuman = body.needsHuman === true;
+
+  for (const match of text.matchAll(/\d[\d\s ]*/g)) {
+    const digits = match[0].replace(/[\s ]/g, '');
+    if (digits.length <= 1) continue;
+    if (!allowedNumbers.has(digits)) {
+      fail(`reply.reply quotes ${digits}, which is not one of the venue's own figures`);
+    }
+  }
+
+  return Object.freeze({ schemaVersion, reply: text, usedFacts, needsHuman });
 }
 
 /**

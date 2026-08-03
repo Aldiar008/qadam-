@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { answerGuest } from '@/server/ai/guest-assistant';
 
 /**
  * The Telegram bot's inbox.
@@ -118,13 +119,59 @@ export async function POST(request: Request) {
     return marketingConsent(db, chat, wantsMarketing);
   }
 
-  await reply(chat, [
-    'Это бот QADAM.',
-    '',
-    'Гостю: отсканируйте QR-код заведения — он откроет этот чат с нужной ссылкой, и карта лояльности заведётся сама. Потом карту можно открыть кнопкой ниже.',
-    'Владельцу: в кабинете, в разделе «Автоматизации», есть код привязки — откройте ссылку оттуда.',
-  ].join('\n'), openCardKeyboard());
-  return NextResponse.json({ ok: true, handled: 'help' });
+  // Anything else is a question for the venue. The bot answers as staff would —
+  // from the venue's own facts — and both sides of the exchange are written to
+  // the guest's card, so the owner sees what was asked and what was said.
+  return answerQuestion(db, chat, text);
+}
+
+/**
+ * Answers a guest's question in the venue's own words.
+ *
+ * A chat that belongs to no venue gets the help text instead: there is nothing
+ * to answer *about* until a card exists. Both the question and the answer are
+ * recorded, so the owner reads the conversation on the guest's card rather than
+ * hearing about it second-hand.
+ */
+async function answerQuestion(db: ReturnType<typeof createAdminClient>, chat: string, question: string) {
+  const { data: rows } = await db.rpc('customer_channels_for_address', { p_channel: 'telegram', p_address: chat });
+  const pairing = ((rows ?? []) as { business_id: string; customer_id: string }[])[0];
+
+  if (!pairing) {
+    await reply(chat, [
+      'Это бот QADAM.',
+      '',
+      'Гостю: отсканируйте QR-код заведения — он откроет этот чат с нужной ссылкой, и карта лояльности заведётся сама. После этого я смогу отвечать на вопросы о меню, часах работы и вашей карте.',
+      'Владельцу: в кабинете, в разделе «Автоматизации», есть код привязки.',
+    ].join('\n'), openCardKeyboard());
+    return NextResponse.json({ ok: true, handled: 'help' });
+  }
+
+  await db.rpc('record_customer_interaction', {
+    p_business_id: pairing.business_id, p_customer_id: pairing.customer_id,
+    p_channel: 'telegram', p_direction: 'inbound', p_kind: 'question', p_body: question,
+    p_metadata: { chat_masked: `tg:***${chat.slice(-4)}` },
+  });
+
+  const answer = await answerGuest(db, {
+    businessId: pairing.business_id,
+    customerId: pairing.customer_id,
+    question,
+    idempotencyKey: `tg:reply:${chat}:${Date.now()}`,
+  });
+
+  const text = answer.reply.needsHuman
+    ? `${answer.reply.reply}\n\nЯ передал вопрос заведению — ответят здесь же.`
+    : answer.reply.reply;
+
+  await db.rpc('record_customer_interaction', {
+    p_business_id: pairing.business_id, p_customer_id: pairing.customer_id,
+    p_channel: 'telegram', p_direction: 'outbound', p_kind: 'answer', p_body: text,
+    p_metadata: { source: answer.source, run_id: answer.runId, needs_human: answer.reply.needsHuman },
+  });
+
+  await reply(chat, text, openCardKeyboard());
+  return NextResponse.json({ ok: true, handled: 'answered', needsHuman: answer.reply.needsHuman });
 }
 
 /**
@@ -208,6 +255,13 @@ async function marketingConsent(db: ReturnType<typeof createAdminClient>, chat: 
     return NextResponse.json({ ok: true, handled: 'consent_failed', reason: consentError.message });
   }
 
+  await db.rpc('record_customer_interaction', {
+    p_business_id: found.business_id, p_customer_id: found.customer_id,
+    p_channel: 'telegram', p_direction: 'inbound', p_kind: 'consent',
+    p_body: granted ? 'Гость разрешил присылать предложения' : 'Гость отозвал согласие на рассылку',
+    p_metadata: { granted },
+  });
+
   await reply(chat, granted
     ? 'Записал: буду присылать персональные предложения этого заведения. Написать «нет» — и я перестану, без объяснений.'
     : 'Записал: предложения присылать не буду. Карта лояльности и штампы остаются при вас.');
@@ -265,6 +319,15 @@ async function guestJoin(db: ReturnType<typeof createAdminClient>, chat: string,
       p_channel: 'telegram',
       p_address: chat,
       p_customer_id: result.customer_id,
+    });
+  }
+
+  if (result.business_id && result.customer_id) {
+    await db.rpc('record_customer_interaction', {
+      p_business_id: result.business_id, p_customer_id: result.customer_id,
+      p_channel: 'telegram', p_direction: 'inbound', p_kind: 'join',
+      p_body: 'Гость присоединился к программе лояльности по QR-коду',
+      p_metadata: { stamps: result.stamps_balance ?? 1 },
     });
   }
 

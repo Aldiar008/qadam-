@@ -20,7 +20,7 @@ const DAILY_COST_CEILING_MICROS = Number(process.env.QADAM_AI_DAILY_COST_MICROS 
 
 export interface RecordRunCommand {
   businessId: string;
-  purpose: 'campaign_generation' | 'content_generation' | 'customer_brief' | 'recommendation';
+  purpose: 'campaign_generation' | 'content_generation' | 'customer_brief' | 'recommendation' | 'guest_reply' | 'automation_content';
   output: unknown;
   source: GenerationSource;
   telemetry: GenerationTelemetry;

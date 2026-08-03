@@ -1635,6 +1635,63 @@ export type Database = {
           },
         ]
       }
+      customer_interactions: {
+        Row: {
+          body: string
+          business_id: string
+          channel: string
+          created_at: string
+          customer_id: string | null
+          direction: string
+          id: string
+          is_mock: boolean
+          kind: string
+          metadata: Json
+          occurred_at: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          channel: string
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          id?: string
+          is_mock?: boolean
+          kind: string
+          metadata?: Json
+          occurred_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          id?: string
+          is_mock?: boolean
+          kind?: string
+          metadata?: Json
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_interactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_interactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_notes: {
         Row: {
           author_id: string
@@ -4683,6 +4740,10 @@ export type Database = {
         Args: { p_business_id: string; p_customer_id: string; p_reason: string }
         Returns: Json
       }
+      assistant_context: {
+        Args: { p_business_id: string; p_customer_id?: string }
+        Returns: Json
+      }
       claim_outbox_batch: {
         Args: { p_business_id: string; p_limit: number; p_worker: string }
         Returns: {
@@ -4987,6 +5048,18 @@ export type Database = {
           p_source: string
         }
         Returns: Json
+      }
+      record_customer_interaction: {
+        Args: {
+          p_body: string
+          p_business_id: string
+          p_channel: string
+          p_customer_id: string
+          p_direction: string
+          p_kind: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
       record_detected_signal: {
         Args: {

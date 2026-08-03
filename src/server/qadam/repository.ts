@@ -209,7 +209,7 @@ export async function getRecommendationsData() {
 
 export async function getCustomerDetail(customerId: string) {
   const ctx = await requireBusinessContext();
-  const [{ data: customer }, { data: transactions }, { data: identities }, { data: consents }, { data: accounts }, { data: notes }, { data: activities }, { data: audiences }] = await Promise.all([
+  const [{ data: customer }, { data: transactions }, { data: identities }, { data: consents }, { data: accounts }, { data: notes }, { data: activities }, { data: audiences }, { data: interactions }] = await Promise.all([
     ctx.supabase.from('customers').select('id,display_name,lifecycle_stage,first_seen_at,last_seen_at,anonymized_at').eq('business_id', ctx.businessId).eq('id', customerId).maybeSingle(),
     ctx.supabase.from('transactions').select('id,net_minor,discount_minor,currency,occurred_at,source').eq('business_id', ctx.businessId).eq('customer_id', customerId).order('occurred_at', { ascending: false }).limit(100),
     ctx.supabase.from('customer_identities').select('id,identity_type,masked_value,verified_at,is_primary').eq('business_id', ctx.businessId).eq('customer_id', customerId),
@@ -218,6 +218,10 @@ export async function getCustomerDetail(customerId: string) {
     ctx.supabase.from('customer_notes').select('id,note,author_id,created_at').eq('business_id', ctx.businessId).eq('customer_id', customerId).order('created_at', { ascending: false }),
     ctx.supabase.from('activity_logs').select('id,action,resource_type,resource_id,metadata,occurred_at').eq('business_id', ctx.businessId).or(`resource_id.eq.${customerId},metadata->>customer_id.eq.${customerId}`).order('occurred_at', { ascending: false }).limit(50),
     ctx.supabase.from('campaign_audiences').select('campaign_id,inclusion_status,exclusion_reason,consent_scope,consent_status,evaluated_at').eq('business_id', ctx.businessId).eq('customer_id', customerId).order('evaluated_at', { ascending: false }),
+    // What the guest did outside the till: joined, asked, gave or withdrew
+    // consent, took a reward. Half the relationship runs through Telegram now,
+    // and until this the owner could not see any of it.
+    ctx.supabase.from('customer_interactions').select('id,channel,direction,kind,body,metadata,occurred_at').eq('business_id', ctx.businessId).eq('customer_id', customerId).order('occurred_at', { ascending: false }).limit(30),
   ]);
   if (!customer) throw new Error('CUSTOMER_NOT_FOUND');
   const purchases = transactions ?? [];
@@ -238,6 +242,7 @@ export async function getCustomerDetail(customerId: string) {
     notes: notes ?? [],
     activities: activities ?? [],
     audiences: audiences ?? [],
+    interactions: interactions ?? [],
     metrics: {
       visits: purchases.length,
       totalMinor,
