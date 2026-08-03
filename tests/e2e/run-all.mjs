@@ -29,7 +29,14 @@ if (skipReset) {
     );
   } else {
     process.stdout.write(`Restoring project ${remoteRef} to the committed seed...\n`);
-    for (const file of ['supabase/seed/remote_demo_reset.sql', 'supabase/seed/remote_demo_seed.sql']) {
+    // Same three files as `npm run demo:restore`, in the same order. Leaving the
+    // market prices out here made the supply screen look empty after a suite
+    // run and full after a restore, from the same committed seed.
+    for (const file of [
+      'supabase/seed/remote_demo_reset.sql',
+      'supabase/seed/remote_demo_seed.sql',
+      'supabase/seed/remote_demo_market_offers.sql',
+    ]) {
       execFileSync(process.execPath, ['scripts/apply-remote-sql.mjs', remoteRef, file], { stdio: 'inherit' });
     }
   }
