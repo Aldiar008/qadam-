@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { searchMarketForItem } from '@/server/qadam/supply-search';
 import { readTelegramSession } from '@/server/telegram/session';
 
 /**
@@ -253,4 +254,35 @@ export async function markSupplyFromMiniApp(form: FormData) {
 
   revalidatePath('/tg/owner/supply');
   redirect(`/tg/owner/supply?done=${encodeURIComponent(needed ? 'Отметили: закончилось.' : 'Отметили: закупили.')}`);
+}
+
+/**
+ * «Найти дешевле» с телефона.
+ *
+ * The moment the owner sees an empty shelf is the moment to look, and that
+ * moment happens in the storeroom, not at a desk. Same code as the cabinet:
+ * prices come from Kaspi with their links and stay «не проверено».
+ */
+export async function searchMarketFromMiniApp(form: FormData) {
+  const session = await readTelegramSession();
+  if (!session?.ownerUserId) redirect('/tg');
+
+  const itemId = String(form.get('id') ?? '').trim();
+  if (!itemId) redirect('/tg/owner/supply');
+
+  const db = createAdminClient();
+  const [{ data: business }, { data: location }] = await Promise.all([
+    db.from('businesses').select('mode').eq('id', session.businessId).maybeSingle(),
+    db.from('business_locations').select('city').eq('business_id', session.businessId).eq('is_active', true).order('created_at').limit(1).maybeSingle(),
+  ]);
+
+  const outcome = await searchMarketForItem(db, {
+    businessId: session.businessId,
+    itemId,
+    isMock: business?.mode === 'demo',
+    city: location?.city ?? undefined,
+  });
+
+  revalidatePath('/tg/owner/supply');
+  redirect(`/tg/owner/supply?${outcome.status === 'ok' ? 'done' : 'error'}=${encodeURIComponent(outcome.message)}`);
 }

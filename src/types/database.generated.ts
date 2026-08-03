@@ -2682,6 +2682,59 @@ export type Database = {
           },
         ]
       }
+      market_salary_snapshots: {
+        Row: {
+          area_name: string
+          business_id: string
+          currency: string
+          fetched_at: string
+          id: string
+          is_mock: boolean
+          median_minor: number | null
+          p25_minor: number | null
+          p75_minor: number | null
+          role_query: string
+          sample_size: number
+          source: string
+        }
+        Insert: {
+          area_name?: string
+          business_id: string
+          currency?: string
+          fetched_at?: string
+          id?: string
+          is_mock?: boolean
+          median_minor?: number | null
+          p25_minor?: number | null
+          p75_minor?: number | null
+          role_query: string
+          sample_size: number
+          source?: string
+        }
+        Update: {
+          area_name?: string
+          business_id?: string
+          currency?: string
+          fetched_at?: string
+          id?: string
+          is_mock?: boolean
+          median_minor?: number | null
+          p25_minor?: number | null
+          p75_minor?: number | null
+          role_query?: string
+          sample_size?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_salary_snapshots_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nearby_offer_events: {
         Row: {
           business_id: string
@@ -4210,6 +4263,7 @@ export type Database = {
           name_ru: string
           needed: boolean
           notes: string | null
+          search_query: string | null
           unit: string
           updated_at: string
         }
@@ -4224,6 +4278,7 @@ export type Database = {
           name_ru: string
           needed?: boolean
           notes?: string | null
+          search_query?: string | null
           unit?: string
           updated_at?: string
         }
@@ -4238,6 +4293,7 @@ export type Database = {
           name_ru?: string
           needed?: boolean
           notes?: string | null
+          search_query?: string | null
           unit?: string
           updated_at?: string
         }
@@ -4255,6 +4311,7 @@ export type Database = {
         Row: {
           business_id: string
           created_at: string
+          external_id: string | null
           found_at: string
           id: string
           is_mock: boolean
@@ -4269,6 +4326,7 @@ export type Database = {
         Insert: {
           business_id: string
           created_at?: string
+          external_id?: string | null
           found_at?: string
           id?: string
           is_mock?: boolean
@@ -4283,6 +4341,7 @@ export type Database = {
         Update: {
           business_id?: string
           created_at?: string
+          external_id?: string | null
           found_at?: string
           id?: string
           is_mock?: boolean
@@ -4304,6 +4363,63 @@ export type Database = {
           },
           {
             foreignKeyName: "supply_offers_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supply_search_runs: {
+        Row: {
+          business_id: string
+          error: string | null
+          http_status: number | null
+          id: string
+          is_mock: boolean
+          offers_found: number
+          query: string
+          ran_at: string
+          source: string
+          status: string
+          supply_item_id: string | null
+        }
+        Insert: {
+          business_id: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_mock?: boolean
+          offers_found?: number
+          query: string
+          ran_at?: string
+          source: string
+          status: string
+          supply_item_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_mock?: boolean
+          offers_found?: number
+          query?: string
+          ran_at?: string
+          source?: string
+          status?: string
+          supply_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supply_search_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_search_runs_supply_item_id_fkey"
             columns: ["supply_item_id"]
             isOneToOne: false
             referencedRelation: "supply_items"

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readTelegramSession } from '@/server/telegram/session';
-import { markSupplyFromMiniApp } from '../../actions';
+import { markSupplyFromMiniApp, searchMarketFromMiniApp } from '../../actions';
 import { money } from '@/lib/telegram/card';
 
 export const dynamic = 'force-dynamic';
@@ -96,13 +96,21 @@ export default async function OwnerSupplyPage({ searchParams }: { searchParams: 
               )}
             </div>
 
-            <form action={markSupplyFromMiniApp} className="mt-3">
-              <input type="hidden" name="id" value={row.id} />
-              <input type="hidden" name="needed" value={row.needed ? 'no' : 'yes'} />
-              <button className="min-h-11 w-full rounded-xl border border-border px-4 text-sm font-bold">
-                {row.needed ? 'Закупили' : 'Закончилось'}
-              </button>
-            </form>
+            <div className="mt-3 grid gap-2">
+              <form action={searchMarketFromMiniApp}>
+                <input type="hidden" name="id" value={row.id} />
+                <button className="min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+                  Найти дешевле на Kaspi
+                </button>
+              </form>
+              <form action={markSupplyFromMiniApp}>
+                <input type="hidden" name="id" value={row.id} />
+                <input type="hidden" name="needed" value={row.needed ? 'no' : 'yes'} />
+                <button className="min-h-11 w-full rounded-xl border border-border px-4 text-sm font-bold">
+                  {row.needed ? 'Закупили' : 'Закончилось'}
+                </button>
+              </form>
+            </div>
           </section>
         ))
       )}

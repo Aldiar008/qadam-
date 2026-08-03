@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { canMarket, requireBusinessContext } from '@/server/qadam/repository';
 import { describeDbError } from '@/server/qadam/errors';
+import { refreshSalarySnapshot, searchMarketForItem } from '@/server/qadam/supply-search';
 
 /**
  * Закупки: что покупаем, почём сейчас и где дешевле.
@@ -41,6 +42,9 @@ export async function saveSupplyItem(form: FormData) {
     current_supplier: text(form, 'supplier') || null,
     monthly_quantity: positive(form, 'monthlyQuantity'),
     needed: form.get('needed') === 'on',
+    // What to type into a marketplace search. «Стаканы 400 мл» is a name in the
+    // storeroom; «стаканы бумажные 400 мл» is what finds them in a shop.
+    search_query: text(form, 'searchQuery') || null,
     is_mock: ctx.business.mode === 'demo',
   };
 
@@ -110,6 +114,59 @@ export async function verifySupplyOffer(form: FormData) {
 
   revalidatePath('/app/supply');
   back('?verified=1');
+}
+
+/**
+ * «Найти дешевле» — читает цены с Kaspi и записывает их как предложения.
+ *
+ * Nothing found this way is marked verified: the row says «не проверено» and
+ * carries the link, because an owner ordering against a price nobody opened is
+ * the failure this whole module is shaped to avoid. The attempt is written down
+ * even when the marketplace refuses, so the screen can tell fresh prices from
+ * prices that merely have not been replaced.
+ */
+export async function searchMarketPrices(form: FormData) {
+  const ctx = await requireBusinessContext();
+  if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
+  const itemId = text(form, 'itemId');
+  if (!itemId) back('?error=' + encodeURIComponent('Не указана позиция.'));
+
+  const { data: location } = await ctx.supabase
+    .from('business_locations').select('city')
+    .eq('business_id', ctx.businessId).eq('is_active', true).order('created_at').limit(1).maybeSingle();
+
+  const outcome = await searchMarketForItem(ctx.supabase, {
+    businessId: ctx.businessId,
+    itemId,
+    isMock: ctx.business.mode === 'demo',
+    city: location?.city ?? undefined,
+    force: text(form, 'force') === 'yes',
+  });
+
+  revalidatePath('/app/supply');
+  back(`?${outcome.status === 'ok' ? 'found' : 'notice'}=${encodeURIComponent(outcome.message)}`);
+}
+
+/** Сколько сейчас платят по роли — по опубликованным вакансиям hh.kz. */
+export async function refreshMarketSalary(form: FormData) {
+  const ctx = await requireBusinessContext();
+  if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
+  const role = text(form, 'role');
+  if (role.length < 2) back('?error=' + encodeURIComponent('Укажите должность.'));
+
+  const { data: location } = await ctx.supabase
+    .from('business_locations').select('city')
+    .eq('business_id', ctx.businessId).eq('is_active', true).order('created_at').limit(1).maybeSingle();
+
+  const outcome = await refreshSalarySnapshot(ctx.supabase, {
+    businessId: ctx.businessId,
+    role,
+    isMock: ctx.business.mode === 'demo',
+    city: location?.city ?? undefined,
+  });
+
+  revalidatePath('/app/supply');
+  back(`?${outcome.status === 'ok' ? 'found' : 'notice'}=${encodeURIComponent(outcome.message)}`);
 }
 
 export async function removeSupplyOffer(form: FormData) {

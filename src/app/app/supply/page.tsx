@@ -1,6 +1,14 @@
-import { AlertTriangle, ExternalLink, PackageSearch } from 'lucide-react';
+import { AlertTriangle, ExternalLink, PackageSearch, Search } from 'lucide-react';
 import { canMarket, requireBusinessContext } from '@/server/qadam/repository';
-import { addSupplyOffer, removeSupplyOffer, saveSupplyItem, toggleSupplyNeeded, verifySupplyOffer } from './actions';
+import {
+  addSupplyOffer,
+  refreshMarketSalary,
+  removeSupplyOffer,
+  saveSupplyItem,
+  searchMarketPrices,
+  toggleSupplyNeeded,
+  verifySupplyOffer,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,19 +34,45 @@ interface Saving {
 
 const field = 'min-h-11 w-full rounded-xl border border-border bg-surface-muted px-3 text-sm outline-none focus:ring-2 focus:ring-primary';
 
-export default async function SupplyPage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; offer?: string; needed?: string; verified?: string }> }) {
+const RUN_STATUS: Record<string, string> = {
+  ok: 'нашёл предложений',
+  empty: 'ничего не нашёл',
+  blocked: 'площадка отклонила запрос',
+  unavailable: 'площадка не ответила',
+  disabled: 'источник выключен настройкой',
+};
+
+const when = (iso: string) => new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+export default async function SupplyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; saved?: string; offer?: string; needed?: string; verified?: string; found?: string; notice?: string }>;
+}) {
   const params = await searchParams;
   const ctx = await requireBusinessContext();
   const canEdit = canMarket(ctx.role);
 
-  const [{ data: savings }, { data: offers }] = await Promise.all([
+  const [{ data: savings }, { data: offers }, { data: runs }, { data: salaries }] = await Promise.all([
     ctx.supabase.rpc('supply_savings', { p_business_id: ctx.businessId }),
     ctx.supabase.from('supply_offers')
       .select('id,supply_item_id,supplier,price_minor,pack_size,url,source,verified,found_at')
       .eq('business_id', ctx.businessId).order('price_minor'),
+    ctx.supabase.from('supply_search_runs')
+      .select('id,supply_item_id,source,status,offers_found,error,ran_at')
+      .eq('business_id', ctx.businessId).order('ran_at', { ascending: false }).limit(60),
+    ctx.supabase.from('market_salary_snapshots')
+      .select('id,role_query,area_name,sample_size,median_minor,p25_minor,p75_minor,fetched_at')
+      .eq('business_id', ctx.businessId).order('fetched_at', { ascending: false }).limit(6),
   ]);
 
   const rows = (savings ?? []) as unknown as Saving[];
+  // Only the newest attempt per item: the history matters, but on this screen
+  // the question is «когда в последний раз смотрели и чем это кончилось».
+  const lastRun = new Map<string, NonNullable<typeof runs>[number]>();
+  for (const run of runs ?? []) {
+    if (run.supply_item_id && !lastRun.has(run.supply_item_id)) lastRun.set(run.supply_item_id, run);
+  }
   const offersByItem = new Map<string, typeof offers>();
   for (const offer of offers ?? []) {
     const list = offersByItem.get(offer.supply_item_id) ?? [];
@@ -69,6 +103,13 @@ export default async function SupplyPage({ searchParams }: { searchParams: Promi
       )}
       {(params.saved || params.offer || params.verified) && (
         <p role="status" className="rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800">Сохранено.</p>
+      )}
+      {params.found && (
+        <p role="status" className="rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-800">{decodeURIComponent(params.found)}</p>
+      )}
+      {/* Отказ площадки — тоже результат, и он должен быть виден целиком. */}
+      {params.notice && (
+        <p role="status" className="rounded-2xl bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-900">{decodeURIComponent(params.notice)}</p>
       )}
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -109,6 +150,9 @@ export default async function SupplyPage({ searchParams }: { searchParams: Promi
             <label className="grid gap-1.5 text-sm font-semibold">Расход в месяц
               <input name="monthlyQuantity" type="number" min="0" placeholder="штук в месяц" className={field} />
             </label>
+            <label className="grid gap-1.5 text-sm font-semibold sm:col-span-2">Как искать в магазине
+              <input name="searchQuery" placeholder="стаканы бумажные 400 мл — если название на складе своё" className={field} />
+            </label>
           </div>
           <label className="mt-3 flex items-center gap-2 text-sm">
             <input type="checkbox" name="needed" /> Закончилось — нужно закупить
@@ -144,13 +188,21 @@ export default async function SupplyPage({ searchParams }: { searchParams: Promi
                     </p>
                   </div>
                   {canEdit && (
-                    <form action={toggleSupplyNeeded}>
-                      <input type="hidden" name="id" value={row.id} />
-                      <input type="hidden" name="needed" value={row.needed ? 'no' : 'yes'} />
-                      <button className="min-h-11 rounded-xl border border-border px-4 text-sm font-bold">
-                        {row.needed ? 'Закупили' : 'Закончилось'}
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap gap-2">
+                      <form action={searchMarketPrices}>
+                        <input type="hidden" name="itemId" value={row.id} />
+                        <button className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+                          <Search className="size-4" aria-hidden="true" /> Найти дешевле
+                        </button>
+                      </form>
+                      <form action={toggleSupplyNeeded}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <input type="hidden" name="needed" value={row.needed ? 'no' : 'yes'} />
+                        <button className="min-h-11 rounded-xl border border-border px-4 text-sm font-bold">
+                          {row.needed ? 'Закупили' : 'Закончилось'}
+                        </button>
+                      </form>
+                    </div>
                   )}
                 </div>
 
@@ -173,9 +225,24 @@ export default async function SupplyPage({ searchParams }: { searchParams: Promi
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Предложений пока нет. Внесите цену поставщика — сравнение появится сразу.
+                      Предложений пока нет. Нажмите «Найти дешевле» — цены придут с Kaspi со ссылками,
+                      или внесите прайс поставщика руками.
                     </p>
                   )}
+
+                  {/* Когда в последний раз смотрели на рынок и чем это кончилось.
+                      Без этой строки вчерашние цены выглядят как сегодняшние. */}
+                  {(() => {
+                    const run = lastRun.get(row.id);
+                    if (!run) return null;
+                    return (
+                      <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                        Поиск на Kaspi: {RUN_STATUS[run.status] ?? run.status}
+                        {run.status === 'ok' ? ` (${run.offers_found})` : ''} · {when(run.ran_at)}
+                        {run.error ? ` · ${run.error}` : ''}
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 {list.length > 0 && (
@@ -230,10 +297,53 @@ export default async function SupplyPage({ searchParams }: { searchParams: Promi
         </div>
       )}
 
+      {/* Вторая половина расходов заведения — люди. */}
+      <section className="rounded-3xl border border-border bg-surface p-6">
+        <h2 className="text-xl font-bold">Сколько стоит нанять</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          По опубликованным вакансиям hh.kz. Рядом с медианой всегда стоит размер выборки: медиана по
+          четырём объявлениям — это четыре объявления, а не «рынок».
+        </p>
+
+        {canEdit && (
+          <form action={refreshMarketSalary} className="mt-4 flex flex-wrap items-end gap-2">
+            <label className="grid gap-1.5 text-sm font-semibold">
+              Должность
+              <input name="role" required defaultValue="бариста" placeholder="бариста, повар, администратор" className={`${field} sm:w-72`} />
+            </label>
+            <button className="min-h-11 rounded-xl border border-border px-5 text-sm font-bold">Посмотреть вилку</button>
+          </form>
+        )}
+
+        {(salaries ?? []).length > 0 ? (
+          <ul className="mt-4 grid gap-2">
+            {(salaries ?? []).map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3 text-sm">
+                <span>
+                  <strong>{row.role_query}</strong>
+                  <span className="ml-2 text-xs text-muted-foreground">{row.area_name} · {when(row.fetched_at)}</span>
+                </span>
+                <span className="font-mono text-xs">
+                  {row.median_minor === null
+                    ? 'зарплата нигде не указана'
+                    : <>медиана {money(row.median_minor)} · {money(row.p25_minor)} — {money(row.p75_minor)}</>}
+                  <span className="ml-2 text-muted-foreground">выборка {row.sample_size}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Данных пока нет. hh.kz отвечает не на каждый запрос — если площадка откажет, здесь появится
+            именно это, а не выдуманная вилка.
+          </p>
+        )}
+      </section>
+
       <p className="pb-4 text-xs leading-5 text-muted-foreground">
-        Автоматический поиск цен по маркетплейсам пока не подключён — у площадок нет открытого API,
-        а цена, «найденная» без ссылки, это выдумка, по которой владелец сделает заказ. Пока сюда
-        вносятся прайсы поставщиков; каждое предложение хранит источник, дату и признак «проверено».
+        Цены с Kaspi приходят со ссылкой на карточку и помечаются «не проверено», пока вы не откроете
+        ссылку и не подтвердите. Сравнение всегда за единицу: тысяча стаканов за 14 500 ₸ дешевле
+        пятидесяти за 900 ₸, хотя на ценнике число больше. Ни одна цена здесь не берётся из модели.
       </p>
     </div>
   );
