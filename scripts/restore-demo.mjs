@@ -30,6 +30,10 @@ if (!process.env.SUPABASE_ACCESS_TOKEN) {
 const steps = [
   ['supabase/seed/remote_demo_reset.sql', 'сброс'],
   ['supabase/seed/remote_demo_seed.sql', 'seed'],
+  // Настоящие цены с Kaspi, собранные scripts/fetch-market-offers.mjs. Не часть
+  // основного seed, потому что это снимок внешнего мира с датой: пересобирать
+  // его надо тем же скриптом, а не править руками.
+  ['supabase/seed/remote_demo_market_offers.sql', 'цены с рынка'],
 ];
 
 console.log(`Восстанавливаю стенд ${ref}. Пока идёт seed, демо-вход недоступен — это несколько секунд.`);
