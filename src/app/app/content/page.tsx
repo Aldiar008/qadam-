@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, WandSparkles } from 'lucide-react';
 import { canMarket, getContentData } from '@/server/qadam/repository';
-import { generateCampaignContent, updateContentItem } from '../actions';
+import { generateCampaignContent, generateSocialContent, updateContentItem } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +11,11 @@ const kindLabels: Record<string, string> = {
   story: 'Stories',
   direct_message: 'Сообщение в мессенджер',
   video_script: 'Сценарий 15-сек видео',
+  reel_script: 'Сценарий Reels',
+  tiktok_script: 'Сценарий TikTok',
+  photo_brief: 'Бриф на фото',
+  story_series: 'Серия сторис',
+  push_notice: 'Текст уведомления',
 };
 
 const errorLabels: Record<string, string> = {
@@ -21,7 +26,7 @@ const errorLabels: Record<string, string> = {
 export default async function ContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign?: string; error?: string; generated?: string; source?: string }>;
+  searchParams: Promise<{ campaign?: string; error?: string; generated?: string; source?: string; social?: string }>;
 }) {
   const params = await searchParams;
   const data = await getContentData({ campaign: params.campaign });
@@ -49,7 +54,16 @@ export default async function ContentPage({
               </select>
             </label>
             <button className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
-              <WandSparkles className="size-4" /> Сгенерировать
+              <WandSparkles className="size-4" /> Тексты кампании
+            </button>
+          </form>
+        )}
+        {/* Материалы, которые владелец сам писать не станет: сценарии съёмки,
+            бриф на фото и текст уведомления — из меню и действующего оффера. */}
+        {canEdit && (
+          <form action={generateSocialContent}>
+            <button className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-bold">
+              <WandSparkles className="size-4" /> Reels, TikTok и фото
             </button>
           </form>
         )}
@@ -59,6 +73,13 @@ export default async function ContentPage({
         <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm font-semibold text-rose-800">
           <AlertTriangle className="mr-2 inline size-4" />
           {errorLabels[params.error] ?? decodeURIComponent(params.error)}
+        </div>
+      )}
+      {params.social && (
+        <div role="status" className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm font-semibold text-emerald-800">
+          Материалов для соцсетей: {params.social}
+          {params.source === 'provider' ? ' — написаны моделью' : ' — собраны встроенным шаблоном'}. Ищите их ниже
+          в списке: сценарии Reels и TikTok, бриф на фото, серия сторис и текст уведомления.
         </div>
       )}
       {params.generated && (

@@ -18,7 +18,16 @@ import {
   type CampaignGenerationInput,
   type CustomerBriefInput,
 } from './contract.ts';
-import { CHANNEL_LIMITS, CONTENT_PROMPT_VERSION, CONTENT_SCHEMA_VERSION } from './content-pack.ts';
+import {
+  CHANNEL_LIMITS,
+  CONTENT_PROMPT_VERSION,
+  CONTENT_SCHEMA_VERSION,
+  SOCIAL_KINDS,
+  SOCIAL_LIMITS,
+  SOCIAL_PROMPT_VERSION,
+  SOCIAL_SCHEMA_VERSION,
+  type SocialPackInput,
+} from './content-pack.ts';
 import { sanitiseForPrompt } from './redaction.ts';
 
 export interface BuiltPrompt {
@@ -289,6 +298,71 @@ ${schemaBlock(input.locales)}`;
       user,
       maxOutputTokens: 4000,
       temperature: 0.4,
+    },
+    injectionFlags: Object.freeze([...flags]),
+    redactionHits: Object.freeze(hits),
+    redactedPayload,
+  };
+}
+
+const SOCIAL_SYSTEM_PROMPT = `Ты — сммщик небольшого офлайн-бизнеса в Казахстане.
+
+Твоя задача: подготовить материалы, которые владелец сам писать не станет, — сценарий Reels, сценарий TikTok, бриф на фото, серию сторис и текст уведомления.
+
+Жёсткие правила:
+1. Опирайся только на факты из блока <venue_facts>: меню, цены, действующее предложение, награда программы лояльности.
+2. Не выдумывай цен, скидок, сроков и условий, которых там нет.
+3. Не обещай медицинских, финансовых или юридических результатов и не таргетируй по национальности, религии, здоровью.
+4. Сценарий — это план съёмки: тайминг, что в кадре, что на экране. Не «сделайте красиво», а конкретные кадры, которые можно снять на телефон за десять минут.
+5. В "needs" перечисли, что нужно подготовить до съёмки (реквизит, место, время суток).
+6. Русский и казахский пишутся отдельно, каждый на своём языке.
+
+Отвечай ТОЛЬКО одним JSON-объектом без пояснений и без markdown-обрамления.`;
+
+export function buildSocialPackPrompt(input: SocialPackInput): BuiltPrompt {
+  const { clean, flags, hits } = sanitiser();
+
+  const payload = {
+    venue: clean(input.businessName, 80),
+    businessType: clean(input.businessType, 60),
+    city: clean(input.city, 60),
+    brandVoice: clean(input.brandVoice, 300),
+    offer: clean(input.offer, 200),
+    reward: input.reward ? clean(input.reward, 100) : null,
+    quietWindow: clean(input.quietWindow, 40),
+    menu: input.menu.slice(0, 12).map((item) => ({ name: clean(item.name, 60), priceMinor: item.priceMinor })),
+    locales: input.locales,
+  };
+
+  const redactedPayload = JSON.stringify(payload);
+  const limits = Object.entries(SOCIAL_LIMITS).map(([kind, limit]) => `${kind} ≤ ${limit}`).join(', ');
+  const user = `<venue_facts>
+${redactedPayload}
+</venue_facts>
+
+Формат ответа (строго):
+{
+  "schemaVersion": "${SOCIAL_SCHEMA_VERSION}",
+  "assets": [
+    { "kind": "reel_script|tiktok_script|photo_brief|story_series|push_notice",
+      "locale": "ru|kk", "title": "...", "body": "...", "cta": "...",
+      "needs": ["<что подготовить до съёмки>"] }
+  ]
+}
+
+Нужны все пять типов для каждого языка из locales — ровно ${SOCIAL_KINDS.length * input.locales.length} материалов.
+Лимиты длины тела: ${limits}.
+В сценариях указывай тайминг в секундах и что именно в кадре.`;
+
+  return {
+    request: {
+      purpose: 'automation_content',
+      schemaVersion: SOCIAL_SCHEMA_VERSION,
+      promptVersion: SOCIAL_PROMPT_VERSION,
+      system: SOCIAL_SYSTEM_PROMPT,
+      user,
+      maxOutputTokens: 6000,
+      temperature: 0.7,
     },
     injectionFlags: Object.freeze([...flags]),
     redactionHits: Object.freeze(hits),

@@ -9,6 +9,7 @@
  * Output is a pure function of the input, so demo copy stays stable between runs.
  */
 
+import type { SocialAsset, SocialPackInput } from './content-pack.ts';
 import {
   BRIEF_SCHEMA_VERSION,
   CAMPAIGN_SCHEMA_VERSION,
@@ -246,4 +247,68 @@ export function composeDeterministicBrief(input: CustomerBriefInput): CustomerBr
     nextStep,
     cautions: Object.freeze(['Это разбор по имеющимся данным, а не вывод о причинах поведения гостя.']),
   });
+}
+
+/**
+ * Материалы для соцсетей, собранные без модели.
+ *
+ * Same discipline as everywhere else: no provider is a supported state. The
+ * scripts are thinner than a model's, but they are shootable — a timing, a
+ * shot list and a caption — which is more than a café owner had before.
+ */
+export function composeDeterministicSocialPack(input: SocialPackInput): SocialAsset[] {
+  const money = (minor: number) => `${Number(minor).toLocaleString('ru-RU')} ₸`;
+  const hero = input.menu[Math.min(1, Math.max(0, input.menu.length - 1))] ?? { name: 'фирменный напиток', priceMinor: 0 };
+  const priceLine = hero.priceMinor ? ` — ${money(hero.priceMinor)}` : '';
+  const assets: SocialAsset[] = [];
+
+  const push = (kind: SocialAsset['kind'], locale: SocialAsset['locale'], title: string, body: string, cta: string, needs: string[]) => {
+    assets.push({ kind, locale, title, body, cta, needs: Object.freeze(needs) });
+  };
+
+  for (const locale of input.locales) {
+    const ru = locale === 'ru';
+
+    push('reel_script', locale,
+      ru ? `Reels: ${input.offer}` : `Reels: ${input.offer}`,
+      ru
+        ? `[0–3 с] Крупный план: ${hero.name}${priceLine}, пар над чашкой.\n[3–7 с] Руки бариста готовят заказ, на экране текст: «${input.offer}».\n[7–12 с] Гость забирает заказ и улыбается; в кадре вывеска ${input.businessName}.\n[12–15 с] Финальный кадр с текстом: «${input.offer}». Голоса не нужно, музыка спокойная.`
+        : `[0–3 с] Ірі план: ${hero.name}${priceLine}.\n[3–7 с] Бариста тапсырысты дайындайды, экранда: «${input.offer}».\n[7–12 с] Қонақ тапсырысын алады, кадрда ${input.businessName} маңдайшасы.\n[12–15 с] Соңғы кадр: «${input.offer}».`,
+      ru ? 'Зайти на этой неделе' : 'Осы аптада келу',
+      ru ? ['Чистая барная стойка', 'Съёмка при дневном свете', 'Один гость-доброволец'] : ['Таза бар', 'Күндізгі жарық', 'Бір қонақ']);
+
+    push('tiktok_script', locale,
+      ru ? 'TikTok: три причины зайти' : 'TikTok: келуге үш себеп',
+      ru
+        ? `Хук (0–2 с): «三 причины зайти к нам на этой неделе» — заменить на текст на экране.\n1 (2–6 с): ${hero.name}${priceLine}.\n2 (6–10 с): ${input.offer}.\n3 (10–14 с): ${input.reward ?? 'карта лояльности: штампы за визиты'}.\nФинал (14–15 с): адрес и время работы на экране.`
+        : `Хук (0–2 с): «Осы аптада келуге үш себеп».\n1 (2–6 с): ${hero.name}${priceLine}.\n2 (6–10 с): ${input.offer}.\n3 (10–14 с): ${input.reward ?? 'адалдық картасы'}.\nСоңы: мекенжай мен жұмыс уақыты.`,
+      ru ? 'Смотреть условия' : 'Шарттарын көру',
+      ru ? ['Три коротких кадра', 'Текст на экране крупно'] : ['Үш қысқа кадр', 'Экранда ірі мәтін']);
+
+    push('photo_brief', locale,
+      ru ? 'Фото: витрина и напиток' : 'Фото: витрина мен сусын',
+      ru
+        ? `Кадр 1: ${hero.name} на деревянной стойке, естественный свет сбоку, фон размыт.\nКадр 2: витрина целиком, видно вывеску.\nКадр 3: руки гостя с картой лояльности.\nПодпись: «${input.offer}». Снимать в ${input.quietWindow} — в это время меньше людей в кадре.`
+        : `1-кадр: ${hero.name} ағаш үстелде, табиғи жарық.\n2-кадр: витрина толық.\n3-кадр: қонақтың қолындағы адалдық картасы.\nҚолтаңба: «${input.offer}».`,
+      ru ? 'Забрать предложение' : 'Ұсынысты алу',
+      ru ? ['Протереть стойку', 'Снимать до 12:00 или в ' + input.quietWindow] : ['Үстелді сүрту', input.quietWindow + ' аралығында түсіру']);
+
+    push('story_series', locale,
+      ru ? 'Сторис: три кадра' : 'Сторис: үш кадр',
+      ru
+        ? `1. «Мы на месте» — короткий кадр витрины, текст: ${input.businessName}, ${input.city}.\n2. «Что сегодня» — ${input.offer}.\n3. «Как получить» — покажите карту лояльности${input.reward ? ` и награду: ${input.reward}` : ''}.`
+        : `1. «Біз осындамыз» — витрина, ${input.businessName}, ${input.city}.\n2. «Бүгін не бар» — ${input.offer}.\n3. «Қалай алуға болады» — адалдық картасы${input.reward ? `, сыйлық: ${input.reward}` : ''}.`,
+      ru ? 'Смахните вверх' : 'Жоғары сырғытыңыз',
+      ru ? ['Три вертикальных кадра'] : ['Үш тік кадр']);
+
+    push('push_notice', locale,
+      ru ? 'Уведомление гостям' : 'Қонақтарға хабарлама',
+      ru
+        ? `${input.businessName}: ${input.offer}. ${input.reward ? `На карте копятся штампы — ${input.reward}. ` : ''}Ждём вас.`
+        : `${input.businessName}: ${input.offer}. ${input.reward ? `Картада мөрлер жиналады — ${input.reward}. ` : ''}Күтеміз.`,
+      ru ? 'Открыть карту' : 'Картаны ашу',
+      ru ? ['Отправляется только тем, кто дал согласие'] : ['Тек келісім бергендерге']);
+  }
+
+  return assets;
 }

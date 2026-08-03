@@ -131,6 +131,98 @@ export function buildContentPack(input: ContentPackInput): ContentAsset[] {
 export const CONTENT_SCHEMA_VERSION = 'content-pack.v1';
 export const CONTENT_PROMPT_VERSION = 'content-pack-prompt.v1';
 
+export const SOCIAL_SCHEMA_VERSION = 'social-pack.v1';
+export const SOCIAL_PROMPT_VERSION = 'social-pack-prompt.v1';
+
+/**
+ * Материалы, которые владелец не станет писать сам.
+ *
+ * A café owner does not sit down to write a Reels script. This is the part of
+ * «автоматизация» that was missing entirely: the product could plan a campaign
+ * and could not produce the thing that goes on Instagram on Monday morning.
+ *
+ * Deliberately not sendable. These are shooting briefs and captions the owner
+ * publishes by hand; the delivery pipeline only accepts direct messages, and
+ * nothing here can slip into it.
+ */
+export type SocialKind = 'reel_script' | 'tiktok_script' | 'photo_brief' | 'story_series' | 'push_notice';
+
+export const SOCIAL_KINDS: readonly SocialKind[] = ['reel_script', 'tiktok_script', 'photo_brief', 'story_series', 'push_notice'];
+
+export const SOCIAL_LIMITS: Record<SocialKind, number> = {
+  reel_script: 1400,
+  tiktok_script: 1200,
+  photo_brief: 900,
+  story_series: 900,
+  push_notice: 300,
+};
+
+export interface SocialAsset {
+  kind: SocialKind;
+  locale: ContentLocale;
+  title: string;
+  body: string;
+  cta: string;
+  /** What has to exist in the shot or the frame before this can be made. */
+  needs: readonly string[];
+}
+
+export interface SocialPackInput {
+  businessName: string;
+  businessType: string;
+  city: string;
+  brandVoice: string;
+  /** The offer the venue is actually running, or the loyalty programme. */
+  offer: string;
+  menu: readonly { name: string; priceMinor: number }[];
+  reward: string | null;
+  quietWindow: string;
+  locales: readonly ContentLocale[];
+}
+
+export function parseSocialPack(raw: unknown, input: SocialPackInput): SocialAsset[] {
+  const body = (raw ?? {}) as Record<string, unknown>;
+  if (String(body.schemaVersion ?? '') !== SOCIAL_SCHEMA_VERSION) {
+    throw new ContentSchemaError(`pack.schemaVersion must be ${SOCIAL_SCHEMA_VERSION}`);
+  }
+  if (!Array.isArray(body.assets)) throw new ContentSchemaError('pack.assets must be an array');
+
+  const assets: SocialAsset[] = body.assets.map((entry, index) => {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const path = `pack.assets[${index}]`;
+    const kind = String(item.kind ?? '') as SocialKind;
+    if (!SOCIAL_KINDS.includes(kind)) throw new ContentSchemaError(`${path}.kind must be one of ${SOCIAL_KINDS.join(', ')}`);
+    const locale = String(item.locale ?? 'ru') as ContentLocale;
+    if (locale !== 'ru' && locale !== 'kk') throw new ContentSchemaError(`${path}.locale must be ru or kk`);
+
+    const text = String(item.body ?? '').trim();
+    if (!text) throw new ContentSchemaError(`${path}.body must not be empty`);
+    if (text.length > SOCIAL_LIMITS[kind]) throw new ContentSchemaError(`${path}.body exceeds the ${kind} limit`);
+
+    const title = String(item.title ?? '').replace(/\s+/g, ' ').trim();
+    if (!title) throw new ContentSchemaError(`${path}.title must not be empty`);
+
+    return {
+      kind, locale, title: title.slice(0, 120), body: text,
+      cta: String(item.cta ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Зайти на этой неделе',
+      needs: Array.isArray(item.needs)
+        ? Object.freeze(item.needs.map((need) => String(need).trim().slice(0, 120)).filter(Boolean).slice(0, 5))
+        : Object.freeze([]),
+    };
+  });
+
+  // Every kind, in the language the owner asked for. A pack missing the Reels
+  // script is the one thing they came for.
+  for (const locale of input.locales) {
+    for (const kind of SOCIAL_KINDS) {
+      if (!assets.some((asset) => asset.kind === kind && asset.locale === locale)) {
+        throw new ContentSchemaError(`pack is missing ${locale}:${kind}`);
+      }
+    }
+  }
+  return assets;
+}
+
 /** What every pack must contain, in both languages. */
 export const EXPECTED_ASSETS: readonly [ContentKind, number][] = [
   ['post', 1], ['short_post', 1], ['story', 3], ['video_script', 1], ['direct_message', 1],
