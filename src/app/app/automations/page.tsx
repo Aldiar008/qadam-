@@ -15,6 +15,7 @@ import {
 } from './actions';
 
 import { AdminKeyCard } from '@/components/app/AdminKeyCard';
+import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,10 @@ export default async function AutomationsPage({
           </form>
         )}
       </header>
+
+      {/* Единственная автоматизация, которая работает без подтверждения владельца:
+          она ничего не отправляет гостям, а переписывает материалы для соцсетей. */}
+      <ContentRefreshCard />
 
       {params.error && (
         <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm font-semibold text-rose-800">

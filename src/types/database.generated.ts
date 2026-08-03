@@ -1521,6 +1521,47 @@ export type Database = {
           },
         ]
       }
+      content_refresh_state: {
+        Row: {
+          business_id: string
+          interval_hours: number
+          is_mock: boolean
+          last_asset_count: number
+          last_refreshed_at: string | null
+          last_source: string | null
+          next_refresh_at: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          interval_hours?: number
+          is_mock?: boolean
+          last_asset_count?: number
+          last_refreshed_at?: string | null
+          last_source?: string | null
+          next_refresh_at?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          interval_hours?: number
+          is_mock?: boolean
+          last_asset_count?: number
+          last_refreshed_at?: string | null
+          last_source?: string | null
+          next_refresh_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_refresh_state_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_consents: {
         Row: {
           business_id: string
@@ -4864,6 +4905,12 @@ export type Database = {
           business_name: string
         }[]
       }
+      businesses_due_for_content: {
+        Args: { p_limit?: number }
+        Returns: {
+          business_id: string
+        }[]
+      }
       claim_outbox_batch: {
         Args: { p_business_id: string; p_limit: number; p_worker: string }
         Returns: {
@@ -5050,6 +5097,10 @@ export type Database = {
         Returns: Json
       }
       mark_admin_reauth: { Args: never; Returns: Json }
+      mark_content_refreshed: {
+        Args: { p_asset_count: number; p_business_id: string; p_source: string }
+        Returns: string
+      }
       my_admin_key: { Args: never; Returns: Json }
       owner_businesses_for_chat: {
         Args: { p_chat_id: string }

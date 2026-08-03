@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, WandSparkles } from 'lucide-react';
 import { canMarket, getContentData } from '@/server/qadam/repository';
+import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
 import { generateCampaignContent, generateSocialContent, updateContentItem } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,8 @@ export default async function ContentPage({
           </form>
         )}
       </header>
+
+      <ContentRefreshCard />
 
       {params.error && (
         <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm font-semibold text-rose-800">

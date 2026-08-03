@@ -7,7 +7,8 @@ import { canManage, canMarket, countSegmentAudience, requireBusinessContext } fr
 import { describeDbError } from '@/server/qadam/errors';
 import { checkPackCompleteness } from '@/ai/content-pack.ts';
 import { generateCustomerBrief } from '@/server/ai/customer-brief-service';
-import { generateContentPack, generateSocialPack } from '@/server/ai/content-service';
+import { generateContentPack } from '@/server/ai/content-service';
+import { refreshSocialPack } from '@/server/qadam/content-refresh';
 import { quietWindowFromMetricKey } from '@/server/ai/campaign-ai-service';
 import type { SegmentRule } from '@/lib/segment-rules';
 import type { Json } from '@/types/database.generated';
@@ -488,42 +489,23 @@ export async function generateSocialContent() {
   if (!canMarket(ctx.role)) throw new Error('FORBIDDEN');
 
   const { data: businessType } = await ctx.supabase.from('business_types').select('name_ru').limit(1).maybeSingle();
-  const pack = await generateSocialPack(ctx.supabase, {
-    businessId: ctx.businessId,
-    businessType: businessType?.name_ru ?? 'Локальный бизнес',
-  });
 
-  // Regenerating replaces its own drafts rather than piling up another ten.
-  const kinds = ['reel_script', 'tiktok_script', 'photo_brief', 'story_series', 'push_notice'];
-  await ctx.supabase.from('content_items').delete()
-    .eq('business_id', ctx.businessId).is('campaign_id', null).eq('status', 'draft').in('content_kind', kinds);
-
-  const { error } = await ctx.supabase.from('content_items').insert(pack.assets.map((asset, index) => ({
-    business_id: ctx.businessId,
-    campaign_id: null,
-    content_kind: asset.kind,
-    channel: asset.kind === 'push_notice' ? 'telegram' : 'instagram',
-    locale: asset.locale,
-    ordinal: index + 1,
-    body: `${asset.title}\n\n${asset.body}${asset.needs.length ? `\n\nПодготовить: ${asset.needs.join('; ')}` : ''}`,
-    alt_text: asset.title,
-    cta: asset.cta,
-    status: 'draft',
-    source: pack.source === 'provider' ? 'provider' : 'template',
-    generation_run_id: pack.runId,
-    is_mock: ctx.business.mode === 'demo',
-  })));
-  if (error) redirect(`/app/content?error=${encodeURIComponent(describeDbError(error))}`);
-
-  await ctx.supabase.from('activity_logs').insert({
-    business_id: ctx.businessId, actor_id: ctx.userId, action: 'content.social_generated',
-    resource_type: 'business', resource_id: ctx.businessId,
-    metadata: { items: pack.assets.length, source: pack.source, run_id: pack.runId },
-    is_mock: ctx.business.mode === 'demo',
-  });
+  // The same routine the scheduler runs twice a day. Pressing the button early
+  // is an early refresh, not an extra one: the countdown restarts from here.
+  let outcome: Awaited<ReturnType<typeof refreshSocialPack>>;
+  try {
+    outcome = await refreshSocialPack(ctx.supabase, {
+      businessId: ctx.businessId,
+      businessType: businessType?.name_ru ?? 'Локальный бизнес',
+      isMock: ctx.business.mode === 'demo',
+      actorId: ctx.userId,
+    });
+  } catch (cause) {
+    redirect(`/app/content?error=${encodeURIComponent(cause instanceof Error ? cause.message : String(cause))}`);
+  }
 
   revalidatePath('/app/content');
-  redirect(`/app/content?social=${pack.assets.length}&source=${pack.source}`);
+  redirect(`/app/content?social=${outcome.assets}&source=${outcome.source}`);
 }
 
 export async function saveBusinessLimits(form: FormData) {

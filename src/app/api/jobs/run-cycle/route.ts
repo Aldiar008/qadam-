@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runDueAutomations, runOutboxBatch } from '@/server/execution/worker';
+import { refreshDueContent } from '@/server/qadam/content-refresh';
 import { detectAndRecord } from '@/server/qadam/signal-detection';
 import { sendOwnerDigest } from '@/server/qadam/owner-assistant';
 
@@ -110,6 +111,18 @@ export async function POST(request: Request) {
     }
 
     const automations = await runDueAutomations(db, businessId, cycleKey, 'scheduler');
+
+    // Материалы для соцсетей раз в полдня. The database decides whether this
+    // venue is due, so the five-minute cycle asks cheaply and almost always
+    // gets an empty list back — no model is called on a cycle that is not due.
+    let content: unknown;
+    try {
+      const outcome = await refreshDueContent(db, { businessId });
+      content = outcome.refreshed.length || outcome.failed.length ? outcome : { due: false };
+    } catch (error) {
+      content = { error: error instanceof Error ? error.message : String(error) };
+    }
+
     const outbox = await runOutboxBatch(db, businessId, `job:${cycleKey}`, Math.min(50, Number(body.limit ?? 20)));
 
     // The assistant writes last, so it reports the state after this cycle
@@ -124,7 +137,7 @@ export async function POST(request: Request) {
       }
     }
 
-    report.push({ businessId, signal, automations: automations.ran, outbox, digest });
+    report.push({ businessId, signal, automations: automations.ran, content, outbox, digest });
   }
 
   return NextResponse.json({ cycleKey, businesses: report.length, report }, { status: 200 });
