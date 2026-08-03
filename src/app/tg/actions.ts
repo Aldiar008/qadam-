@@ -53,6 +53,7 @@ export async function setMarketingConsentFromCard(form: FormData) {
   const session = await readTelegramSession();
   if (!session?.customerId) redirect('/tg');
 
+  const returnTo = String(form.get('back') ?? '/tg/card');
   const granted = String(form.get('granted') ?? '') === 'yes';
   const db = createAdminClient();
   const { error } = await db.rpc('record_channel_consent', {
@@ -64,10 +65,18 @@ export async function setMarketingConsentFromCard(form: FormData) {
     p_evidence: { chat_masked: `tg:***${session.chatId.slice(-4)}` },
   });
 
-  if (error) back(`error=${encodeURIComponent('Решение не записалось. Попробуйте ещё раз.')}`);
+  if (error) redirect(`${returnTo}?error=${encodeURIComponent('Решение не записалось. Попробуйте ещё раз.')}`);
+
+  await db.rpc('record_customer_interaction', {
+    p_business_id: session.businessId, p_customer_id: session.customerId,
+    p_channel: 'telegram', p_direction: 'inbound', p_kind: 'consent',
+    p_body: granted ? 'Гость разрешил присылать предложения' : 'Гость отозвал согласие на рассылку',
+    p_metadata: { granted, surface: 'mini_app' },
+  });
 
   revalidatePath('/tg/card');
-  back(`done=${encodeURIComponent(granted
+  revalidatePath('/tg/offers');
+  redirect(`${returnTo}?done=${encodeURIComponent(granted
     ? 'Записали: будем присылать предложения этого заведения.'
     : 'Записали: предложения присылать не будем. Карта и штампы остаются при вас.')}`);
 }
@@ -101,4 +110,147 @@ export async function launchFromMiniApp(form: FormData) {
   redirect(`/tg/owner?done=${encodeURIComponent(result.duplicate
     ? 'Эта кампания уже была запущена — второй раз она не уйдёт.'
     : 'Кампания подтверждена и поставлена в очередь. Перед каждой отправкой заново проверяются согласие, тихие часы и лимиты.')}`);
+}
+
+/**
+ * Гость пишет заведению.
+ *
+ * Nothing here reaches a model. The bot answers questions with answers in the
+ * data; a complaint has none, and a machine replying to «у меня проблема» with
+ * a cheerful fact about opening hours is worse than silence. This is recorded
+ * for the owner, and it pings their chat so it is not found next week.
+ */
+export async function sendMessageToVenue(form: FormData) {
+  const session = await readTelegramSession();
+  if (!session?.customerId) redirect('/tg');
+
+  const body = String(form.get('body') ?? '').trim().slice(0, 1500);
+  if (body.length < 3) redirect(`/tg/chat?error=${encodeURIComponent('Напишите чуть подробнее.')}`);
+
+  const db = createAdminClient();
+  const { error } = await db.rpc('record_customer_interaction', {
+    p_business_id: session.businessId,
+    p_customer_id: session.customerId,
+    p_channel: 'telegram',
+    p_direction: 'inbound',
+    p_kind: 'question',
+    p_body: body,
+    p_metadata: { surface: 'mini_app', needs_human: true },
+  });
+  if (error) redirect(`/tg/chat?error=${encodeURIComponent('Сообщение не сохранилось. Попробуйте ещё раз.')}`);
+
+  await db.from('notifications').insert({
+    business_id: session.businessId,
+    user_id: null,
+    notification_type: 'guest_message',
+    category: 'approval',
+    title: `Сообщение от гостя: ${session.name}`,
+    body: body.slice(0, 300),
+    action_url: '/app/customers/' + session.customerId,
+    is_mock: false,
+  });
+
+  // The owner's chat, if it is linked: a message a guest wrote is worth an
+  // interruption, unlike most of what a product sends.
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (token) {
+    const { data: chats } = await db.rpc('owner_chats', { p_business_id: session.businessId });
+    for (const row of (chats ?? []) as { chat_id: string }[]) {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: row.chat_id,
+          text: `Гость ${session.name} написал вам:
+
+«${body}»
+
+Ответить можно в кабинете, в карточке гостя.`,
+          disable_web_page_preview: true,
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  revalidatePath('/tg/chat');
+  redirect('/tg/chat?sent=1');
+}
+
+/** Пересобрать предложения прямо из приложения. */
+export async function refreshRecommendationsFromMiniApp() {
+  const session = await readTelegramSession();
+  if (!session?.ownerUserId) redirect('/tg');
+
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('recommend_from_signals', { p_business_id: session.businessId });
+  if (error) redirect(`/tg/owner?error=${encodeURIComponent('Не получилось пересобрать: ' + error.message)}`);
+
+  const result = (data ?? {}) as { created?: number; refreshed?: number };
+  revalidatePath('/tg/owner');
+  redirect(`/tg/owner?done=${encodeURIComponent(`Пересобрано. Новых: ${result.created ?? 0}, обновлено: ${result.refreshed ?? 0}.`)}`);
+}
+
+/**
+ * Владелец отвечает гостю прямо из приложения.
+ *
+ * The reply is written to the same thread the guest reads in their own app and
+ * pushed to their chat, so an answer given at midnight is not waiting to be
+ * discovered. It is marked as coming from a person, because the guest asked for
+ * a person.
+ */
+export async function answerGuestAsOwner(form: FormData) {
+  const session = await readTelegramSession();
+  if (!session?.ownerUserId) redirect('/tg');
+
+  const customerId = String(form.get('customerId') ?? '').trim();
+  const body = String(form.get('body') ?? '').trim().slice(0, 1500);
+  if (!customerId || body.length < 2) redirect(`/tg/owner/inbox?error=${encodeURIComponent('Пустой ответ не отправляется.')}`);
+
+  const db = createAdminClient();
+  const { error } = await db.rpc('record_customer_interaction', {
+    p_business_id: session.businessId,
+    p_customer_id: customerId,
+    p_channel: 'telegram',
+    p_direction: 'outbound',
+    p_kind: 'answer',
+    p_body: body,
+    p_metadata: { source: 'owner', surface: 'mini_app' },
+  });
+  if (error) redirect(`/tg/owner/inbox?error=${encodeURIComponent('Ответ не сохранился.')}`);
+
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (token) {
+    const { data: address } = await db.rpc('resolve_channel_address', {
+      p_business_id: session.businessId, p_channel: 'telegram', p_customer_id: customerId,
+    });
+    if (address) {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ chat_id: String(address), text: body, disable_web_page_preview: true }),
+      }).catch(() => {});
+    }
+  }
+
+  revalidatePath('/tg/owner/inbox');
+  redirect('/tg/owner/inbox?sent=1');
+}
+
+/** Отметить, что позиция закончилась или закуплена — прямо со склада. */
+export async function markSupplyFromMiniApp(form: FormData) {
+  const session = await readTelegramSession();
+  if (!session?.ownerUserId) redirect('/tg');
+
+  const id = String(form.get('id') ?? '').trim();
+  const needed = String(form.get('needed') ?? '') === 'yes';
+  if (!id) redirect('/tg/owner/supply');
+
+  const db = createAdminClient();
+  const { error } = await db.from('supply_items')
+    .update({ needed, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('business_id', session.businessId);
+  if (error) redirect(`/tg/owner/supply?error=${encodeURIComponent('Не сохранилось. Попробуйте ещё раз.')}`);
+
+  revalidatePath('/tg/owner/supply');
+  redirect(`/tg/owner/supply?done=${encodeURIComponent(needed ? 'Отметили: закончилось.' : 'Отметили: закупили.')}`);
 }

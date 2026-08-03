@@ -4857,6 +4857,13 @@ export type Database = {
         Args: { p_business_id: string; p_customer_id?: string }
         Returns: Json
       }
+      business_for_admin_key: {
+        Args: { p_key: string }
+        Returns: {
+          business_id: string
+          business_name: string
+        }[]
+      }
       claim_outbox_batch: {
         Args: { p_business_id: string; p_limit: number; p_worker: string }
         Returns: {
@@ -5043,6 +5050,7 @@ export type Database = {
         Returns: Json
       }
       mark_admin_reauth: { Args: never; Returns: Json }
+      my_admin_key: { Args: never; Returns: Json }
       owner_businesses_for_chat: {
         Args: { p_chat_id: string }
         Returns: {
@@ -5056,6 +5064,7 @@ export type Database = {
           chat_id: string
         }[]
       }
+      owner_console: { Args: { p_business_id: string }; Returns: Json }
       owner_digest: { Args: { p_business_id: string }; Returns: Json }
       platform_overview: {
         Args: {

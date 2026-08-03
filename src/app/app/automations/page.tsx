@@ -14,6 +14,8 @@ import {
   transitionAutomationRule,
 } from './actions';
 
+import { AdminKeyCard } from '@/components/app/AdminKeyCard';
+
 export const dynamic = 'force-dynamic';
 
 const statusLabels: Record<string, string> = {
@@ -102,6 +104,17 @@ export default async function AutomationsPage({
             </button>
           </form>
         )}
+      </section>
+
+      {/* Hourly admin key -------------------------------------------------- */}
+      <section className="rounded-3xl border border-primary/30 bg-primary/5 p-6">
+        <h2 className="text-lg font-bold">Ключ для входа в приложение</h2>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Откройте <a href={`https://t.me/${telegramBot}`} target="_blank" rel="noreferrer noopener" className="font-bold text-primary underline">бота</a>,
+          нажмите «Запустить», выберите «Я владелец» и введите этот ключ. Он меняется каждый час —
+          записанный вчера не подойдёт, и это единственный способ войти в консоль с чужого телефона.
+        </p>
+        <AdminKeyCard />
       </section>
 
       {/* Emergency stop --------------------------------------------------- */}
