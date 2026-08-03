@@ -160,6 +160,8 @@ npm start
 
 | Файл | О чём |
 |---|---|
+| [TOURNAMENT_COMPLIANCE](docs/qadam/TOURNAMENT_COMPLIANCE.md) | сверка с положением турнира: где каждый обязательный пункт и чем доказан |
+| [PITCH](docs/qadam/PITCH.md) | питч на восемь слайдов: проблема, решение, ценность, план развития |
 | [FINAL_ACCEPTANCE](docs/qadam/FINAL_ACCEPTANCE.md) | итог 676 проверок, гейты, demo 4:30, воспроизведение |
 | [PRODUCTION_READINESS](docs/qadam/PRODUCTION_READINESS.md) | что готово, что блокирует, что нужно сделать до запуска |
 | [KNOWN_LIMITATIONS](docs/qadam/KNOWN_LIMITATIONS.md) | 23 ограничения: заблокированные, частичные, непроверенные |
