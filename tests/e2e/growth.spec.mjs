@@ -7,7 +7,7 @@
 // is against the database row behind it, or against a refusal the page states
 // plainly. The market search is allowed to be refused by the marketplace: what
 // is not allowed is for the page to hide that it was.
-import { BASE, db, gotoReady, login, openBrowser, reporter, shot, submit } from './harness.mjs';
+import { db, gotoReady, login, openBrowser, reporter, shot, submit } from './harness.mjs';
 
 const BIZ = '10000000-0000-4000-8000-000000000001';
 const r = reporter('growth');
