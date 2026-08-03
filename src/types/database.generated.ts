@@ -4157,6 +4157,119 @@ export type Database = {
           },
         ]
       }
+      supply_items: {
+        Row: {
+          business_id: string
+          created_at: string
+          current_price_minor: number | null
+          current_supplier: string | null
+          id: string
+          is_mock: boolean
+          monthly_quantity: number | null
+          name_ru: string
+          needed: boolean
+          notes: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          current_price_minor?: number | null
+          current_supplier?: string | null
+          id?: string
+          is_mock?: boolean
+          monthly_quantity?: number | null
+          name_ru: string
+          needed?: boolean
+          notes?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          current_price_minor?: number | null
+          current_supplier?: string | null
+          id?: string
+          is_mock?: boolean
+          monthly_quantity?: number | null
+          name_ru?: string
+          needed?: boolean
+          notes?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supply_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supply_offers: {
+        Row: {
+          business_id: string
+          created_at: string
+          found_at: string
+          id: string
+          is_mock: boolean
+          pack_size: number
+          price_minor: number
+          source: string
+          supplier: string
+          supply_item_id: string
+          url: string | null
+          verified: boolean
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          found_at?: string
+          id?: string
+          is_mock?: boolean
+          pack_size?: number
+          price_minor: number
+          source?: string
+          supplier: string
+          supply_item_id: string
+          url?: string | null
+          verified?: boolean
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          found_at?: string
+          id?: string
+          is_mock?: boolean
+          pack_size?: number
+          price_minor?: number
+          source?: string
+          supplier?: string
+          supply_item_id?: string
+          url?: string | null
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supply_offers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_offers_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppression_entries: {
         Row: {
           business_id: string
@@ -5144,6 +5257,7 @@ export type Database = {
         Args: { p_error: string; p_event_id: string; p_success: boolean }
         Returns: Json
       }
+      supply_savings: { Args: { p_business_id: string }; Returns: Json }
       transfer_ownership: {
         Args: { p_business_id: string; p_to_user: string }
         Returns: Json

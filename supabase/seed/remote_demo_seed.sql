@@ -412,6 +412,36 @@ from (values ('signal_today'),('campaign_studio'),('qr_loyalty'),('telegram_bot'
 where exists(select 1 from public.tools where code=t.code)
 on conflict(id) do nothing;
 
+-- Закупки: что кофейня покупает регулярно и какие цены у поставщиков.
+-- Стаканы отмечены как закончившиеся — именно с этого начинается сценарий.
+insert into public.supply_items(id,business_id,name_ru,unit,current_price_minor,current_supplier,monthly_quantity,needed,is_mock)
+select private.deterministic_uuid('supply-'||t.code),'10000000-0000-4000-8000-000000000001',
+ t.name,t.unit,t.price,t.supplier,t.qty,t.needed,true
+from (values
+ ('cups','Стаканы 400 мл с крышкой','шт',62,'Алма Пак',1800,true),
+ ('beans','Зерно арабика 1 кг','кг',5400,'Coffee Trade KZ',24,false),
+ ('milk','Молоко 3,2% 1 л','л',480,'Молочный дом',260,true),
+ ('napkins','Салфетки барные','упак',390,'Алма Пак',40,false),
+ ('syrup','Сироп карамель 1 л','шт',3200,'Barista Supply',8,false)
+) as t(code,name,unit,price,supplier,qty,needed)
+on conflict(business_id,name_ru) do update set current_price_minor=excluded.current_price_minor,
+ current_supplier=excluded.current_supplier,monthly_quantity=excluded.monthly_quantity,needed=excluded.needed,is_mock=true;
+
+insert into public.supply_offers(id,business_id,supply_item_id,supplier,price_minor,pack_size,url,source,verified,found_at,is_mock)
+select private.deterministic_uuid('supply-offer-'||o.code),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('supply-'||o.item),o.supplier,o.price,o.pack,o.url,o.source,o.verified,now()-((o.days||' days')::interval),true
+from (values
+ ('cups-a','cups','Алма Пак',6200,100,null,'owner',true,20),
+ ('cups-b','cups','PackLine Almaty',5400,100,'https://example.kz/packline/cups-400','owner',true,3),
+ ('cups-c','cups','Оптовик Барыс',11600,200,'https://example.kz/barys/cups','owner',false,1),
+ ('beans-a','beans','Coffee Trade KZ',5400,1,null,'owner',true,30),
+ ('beans-b','beans','Kaffa Roasters',4950,1,'https://example.kz/kaffa/arabica','owner',true,5),
+ ('milk-a','milk','Молочный дом',480,1,null,'owner',true,25),
+ ('milk-b','milk','Dairy Opt',5100,12,'https://example.kz/dairyopt/milk','owner',false,2),
+ ('syrup-a','syrup','Barista Supply',3200,1,null,'owner',true,40)
+) as o(code,item,supplier,price,pack,url,source,verified,days)
+on conflict(id) do nothing;
+
 insert into public.templates(id,code,name,status,current_version,is_mock)
 select private.deterministic_uuid('template-'||g),'template_'||g,(array['Win-back threshold gift','Quiet hours','First to second visit'])[g],
  'published',1,true from generate_series(1,3) g on conflict(code) do update set status='published',is_mock=true;

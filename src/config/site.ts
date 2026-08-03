@@ -32,6 +32,7 @@ export const siteConfig = {
     { titleRu: 'Автоматизации', titleKk: 'Автоматтандыру', href: '/app/automations', icon: 'Sliders' },
     { titleRu: 'Уведомления', titleKk: 'Хабарламалар', href: '/app/notifications', icon: 'Bell' },
     { titleRu: 'Команда', titleKk: 'Команда', href: '/app/team', icon: 'Users' },
+    { titleRu: 'Закупки', titleKk: 'Сатып алу', href: '/app/supply', icon: 'PackageSearch' },
     { titleRu: 'Инструменты', titleKk: 'Құралдар', href: '/app/tools', icon: 'Wrench' },
     { titleRu: 'Тариф', titleKk: 'Тариф', href: '/app/plan', icon: 'CreditCard' },
     { titleRu: 'Настройки', titleKk: 'Баптаулар', href: '/app/settings', icon: 'Settings' },
