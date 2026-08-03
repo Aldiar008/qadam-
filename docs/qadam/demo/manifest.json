@@ -21,7 +21,7 @@
       "file": "docs/qadam/demo/03-qr-loyalty.png",
       "url": "https://qadam-growth-os.vercel.app/q/tamyr-stol-demo",
       "note": "QR-лояльность: вступление и раздельные согласия",
-      "textLength": 18569
+      "textLength": 23123
     },
     {
       "frame": 4,
@@ -35,77 +35,77 @@
       "file": "docs/qadam/demo/05-today.png",
       "url": "https://qadam-growth-os.vercel.app/app/today",
       "note": "Сегодня: один сигнал, объяснение и одно действие",
-      "textLength": 10379
+      "textLength": 10834
     },
     {
       "frame": 6,
       "file": "docs/qadam/demo/06-customers.png",
       "url": "https://qadam-growth-os.vercel.app/app/customers",
       "note": "Клиентская база: сегменты и согласия",
-      "textLength": 58105
+      "textLength": 58705
     },
     {
       "frame": 7,
       "file": "docs/qadam/demo/07-segments.png",
       "url": "https://qadam-growth-os.vercel.app/app/segments",
       "note": "Сегменты: кто именно попадёт в кампанию",
-      "textLength": 28787
+      "textLength": 29387
     },
     {
       "frame": 8,
       "file": "docs/qadam/demo/08-studio-offer.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=3",
       "note": "Студия: выбор механики",
-      "textLength": 25950
+      "textLength": 26550
     },
     {
       "frame": 9,
       "file": "docs/qadam/demo/09-simulator.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=5",
       "note": "Симулятор и Margin Shield: три сценария и решение",
-      "textLength": 50871
+      "textLength": 51471
     },
     {
       "frame": 10,
       "file": "docs/qadam/demo/10-growth-contract.png",
       "url": "https://qadam-growth-os.vercel.app/app/campaigns/studio?step=6",
       "note": "Growth Contract: что именно будет сделано и для кого",
-      "textLength": 20852
+      "textLength": 21452
     },
     {
       "frame": 11,
       "file": "docs/qadam/demo/11-content.png",
       "url": "https://qadam-growth-os.vercel.app/app/content",
       "note": "Контент-студия: материалы на двух языках",
-      "textLength": 27289
+      "textLength": 29112
     },
     {
       "frame": 12,
       "file": "docs/qadam/demo/12-impact.png",
       "url": "https://qadam-growth-os.vercel.app/app/analytics",
       "note": "Impact Ledger: прогноз отдельно от факта",
-      "textLength": 42880
+      "textLength": 43480
     },
     {
       "frame": 13,
       "file": "docs/qadam/demo/13-automations.png",
       "url": "https://qadam-growth-os.vercel.app/app/automations",
       "note": "Автоматизации, аварийная остановка и ассистент в Telegram",
-      "textLength": 79510
+      "textLength": 86459
     },
     {
       "frame": 14,
       "file": "docs/qadam/demo/14-loyalty.png",
       "url": "https://qadam-growth-os.vercel.app/app/loyalty",
       "note": "Лояльность: программа, награды и погашения",
-      "textLength": 34828
+      "textLength": 35428
     },
     {
       "frame": 15,
       "file": "docs/qadam/demo/15-plan.png",
       "url": "https://qadam-growth-os.vercel.app/app/plan",
       "note": "Тариф и лимиты: данные, а не условия в коде",
-      "textLength": 30470
+      "textLength": 31070
     },
     {
       "frame": 16,
