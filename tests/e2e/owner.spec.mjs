@@ -108,13 +108,14 @@ try {
   r.check('favourite is stored in the database, not in localStorage', `${beforeFav} -> ${afterFav}`, (v) => Number(v.split(' -> ')[1]) > Number(v.split(' -> ')[0]));
   // `:has-text` is a case-insensitive substring match, so it would also select
   // «Деактивировать». Exact text keeps the check honest.
-  await submit(page, 'button:text-is("Активировать") >> nth=0');
+  // Кнопка называется тем, что делает: она закрепляет инструмент на «Сегодня».
+  await submit(page, 'button:text-is("Закрепить на «Сегодня»") >> nth=0');
   const afterActive = db(`select count(*) from public.business_tools where business_id='${BIZ}' and status='active'`);
   r.check('activation is a persisted row', `${beforeActive} -> ${afterActive}`, (v) => Number(v.split(' -> ')[1]) > Number(v.split(' -> ')[0]));
   await gotoReady(page, '/app/tools');
   r.check('favourite survives a reload', db(`select count(*) from public.favorite_tools where business_id='${BIZ}'`), afterFav);
   r.check('activation survives a reload', db(`select count(*) from public.business_tools where business_id='${BIZ}' and status='active'`), afterActive);
-  r.check('the reloaded page marks the tool active', await page.textContent('main'), 'Активен');
+  r.check('the reloaded page marks the tool active', await page.textContent('main'), 'На «Сегодня»');
   await shot(page, 'owner-03-catalogue');
 
   // ---------------------------------------------------------------- 4
@@ -206,8 +207,13 @@ try {
   // ---------------------------------------------------------------- 9
   process.stdout.write('\nOWNER-9  Bilingual content, generated or deterministic\n');
   await gotoReady(page, `/app/content`);
-  const genBtn = await page.$('button:has-text("Сген"), button:has-text("Собрать"), button:has-text("Создать")');
-  if (genBtn) await submit(page, 'button:has-text("Сген"), button:has-text("Собрать"), button:has-text("Создать")');
+  // Кнопка называется тем, что делает: «Тексты кампании» рядом с «Reels, TikTok
+  // и фото». Прежний поиск по «Сген» молча ничего не находил, и следующие
+  // проверки проходили на данных из seed, а не на сгенерированных.
+  const generateContent = 'form:has(select[name=campaignId]) button';
+  const genBtn = await page.$(generateContent);
+  r.check('the content studio offers generation for a campaign', genBtn ? 'offered' : 'absent', 'offered');
+  if (genBtn) await submit(page, generateContent);
   const packCount = db(`select count(*) from public.content_items where business_id='${BIZ}'`);
   r.check('content assets exist', packCount, (v) => Number(v) > 0);
   r.check('both locales are produced', db(`select string_agg(distinct locale, ',' order by locale) from public.content_items where business_id='${BIZ}'`), (v) => v.includes('ru') && v.includes('kk'));

@@ -95,11 +95,18 @@ try {
     // ---------------------------------------------------------------- 3
     process.stdout.write('\nMINI-3  Consent is taken and given back from the card\n');
     const consentBefore = db(`select coalesce((select status from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram' order by created_at desc limit 1),'none')`);
+    const consentRowsBefore = Number(db(`select count(*) from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram'`));
     await page.click('form:has(input[name="granted"]) button');
     await page.waitForLoadState('networkidle').catch(() => {});
     const consentAfter = db(`select status from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram' order by created_at desc limit 1`);
     r.check('pressing the consent button records a new decision', `${consentBefore} -> ${consentAfter}`, (v) => v.split(' -> ')[0] !== v.split(' -> ')[1]);
-    r.check('the decision is stored as evidence, not as a flag', db(`select count(*) from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram'`), (v) => Number(v) >= 2);
+    // Согласие хранится журналом, а не полем: после переключения строк должно
+    // стать больше, чем было. Требовать «не меньше двух» — значит требовать,
+    // чтобы у гостя уже была история, которой у нового гостя нет.
+    r.check('the decision is stored as evidence, not as a flag', `${consentRowsBefore} -> ${db(`select count(*) from public.customer_consents where customer_id='${customerId}' and scope='marketing.telegram'`)}`, (v) => {
+      const [before, after] = v.split(' -> ').map(Number);
+      return after > before;
+    });
 
     // ---------------------------------------------------------------- 4
     process.stdout.write('\nMINI-4  Redeeming spends the stamps once\n');

@@ -73,7 +73,8 @@ try {
   await gp.check('input[name=loyaltyConsent]');
   await gp.check('input[name=marketingConsent]');
   await submit(gp, 'button:has-text("Присоединиться")');
-  r.check('the join is confirmed on screen', await gp.textContent('main'), 'Готово');
+  // Страница больше не отвечает одним «Готово»: гость видит свою карту.
+  r.check('the join is confirmed on screen', await gp.textContent('main'), 'Карта заведена');
   const customerId = db(`select ci.customer_id from public.customer_identities ci
       join public.customers c on c.id = ci.customer_id
       where ci.business_id='${BIZ}' order by c.created_at desc limit 1`);
@@ -90,7 +91,7 @@ try {
   // ---------------------------------------------------------------- 4 and 5
   process.stdout.write('\nCUSTOMER-4  Earning and seeing a balance\n');
   const balanceText = await gp.textContent('main');
-  r.check('the balance is shown back to the guest', balanceText, 'Balance');
+  r.check('the balance is shown back to the guest', balanceText, 'штампов');
   r.check('the ledger records the earn', db(`select count(*) from public.loyalty_ledger l join public.loyalty_accounts a on a.id=l.loyalty_account_id where a.customer_id='${customerId}'`), (v) => Number(v) > 0);
   const balance = db(`select coalesce(stamps_balance,0)||'/'||coalesce(points_balance,0) from public.loyalty_accounts where customer_id='${customerId}' limit 1`);
   r.check('the account carries a real balance', balance, (v) => /\d+\/\d+/.test(v));
@@ -107,7 +108,7 @@ try {
   const ledgerAfter = db(`select count(*) from public.loyalty_ledger l join public.loyalty_accounts a on a.id=l.loyalty_account_id where a.customer_id='${customerId}'`);
   r.check('the same person does not become two customers', db(`select count(*) from public.customer_identities where business_id='${BIZ}' and lookup_hash = (select lookup_hash from public.customer_identities where customer_id='${customerId}' limit 1)`), '1');
   r.check('a rapid repeat is refused or deduplicated', `${ledgerBefore} -> ${ledgerAfter}`, (v) => Number(v.split(' -> ')[1]) - Number(v.split(' -> ')[0]) <= 1);
-  r.check('the repeat is explained rather than silently ignored', await gp.textContent('main'), (v) => v.includes('Повтор') || v.includes('Готово') || v.includes('часто'));
+  r.check('the repeat is explained rather than silently ignored', await gp.textContent('main'), (v) => v.includes('Повтор') || v.includes('Карта заведена') || v.includes('часто'));
   // Leaving the optional box unticked on the second visit is an answer, not a
   // no-op: the newest answer for a scope is the one that counts.
   r.check('an unticked marketing box on a repeat visit is recorded as a denial', db(`select status from public.customer_consents where customer_id='${customerId}' and scope='marketing' order by created_at desc limit 1`), 'denied');
@@ -118,13 +119,13 @@ try {
   // product itself writes, then redeem through the public form.
   db(`update public.loyalty_accounts set stamps_balance = 10, optimistic_version = optimistic_version + 1 where customer_id='${customerId}'`);
   await gp.goto(`${BASE}/q/${token}`, { waitUntil: 'domcontentloaded' });
-  await gp.click('summary:has-text("Использовать награду")');
+  await gp.click('summary:has-text("Забрать награду")');
   await gp.fill('form:has(select[name=rewardId]) input[name=identity]', guestEmail);
-  await submit(gp, 'form:has(select[name=rewardId]) button:has-text("Redeem")');
+  await submit(gp, 'form:has(select[name=rewardId]) button:has-text("Забрать")');
   r.check('the redemption is recorded in the loyalty ledger', db(`select count(*) from public.loyalty_ledger l join public.loyalty_accounts a on a.id=l.loyalty_account_id where a.customer_id='${customerId}' and l.entry_type='redeem'`), (v) => Number(v) > 0);
   r.check('the redemption names what was redeemed', db(`select source_type||' '||stamps_delta from public.loyalty_ledger l join public.loyalty_accounts a on a.id=l.loyalty_account_id where a.customer_id='${customerId}' and l.entry_type='redeem' limit 1`), (v) => v.startsWith('reward') && v.includes('-'));
   r.check('the balance was debited, not just displayed', db(`select stamps_balance from public.loyalty_accounts where customer_id='${customerId}'`), (v) => Number(v) < 10);
-  r.check('the guest is told the outcome', await gp.textContent('main'), (v) => v.includes('Готово') || v.includes('Balance'));
+  r.check('the guest is told the outcome', await gp.textContent('main'), (v) => v.includes('Награда выдана') || v.includes('штампов'));
   await shot(gp, 'customer-06-redeem');
 
   // ---------------------------------------------------------------- 7b
