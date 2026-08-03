@@ -7,6 +7,9 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { dbContainer } from '../../scripts/db-container.mjs';
+import { loadLocalEnv } from './env.mjs';
+
+loadLocalEnv();
 
 export const BASE = process.env.QADAM_E2E_BASE ?? 'http://localhost:3000';
 export const PASSWORD = 'QadamLocal!2026';

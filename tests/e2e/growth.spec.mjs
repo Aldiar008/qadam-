@@ -22,21 +22,11 @@ try {
   const contentText = await page.textContent('body');
   r.check('контент-студия объявляет автообновление', contentText, 'Материалы обновятся сами');
 
-  // The countdown is a client component: it renders `··:··:··` on the server and
-  // fills in after hydration. Asserting on the placeholder would pass with a
-  // broken clock, so the check waits for a real time to appear.
-  const ticking = await page
-    .waitForFunction(() => /\d{2}:\d{2}:\d{2}/.test(document.body.innerText), null, { timeout: 15_000 })
-    .then(() => 'ticks')
-    .catch(() => 'frozen');
-  r.check('таймер до обновления идёт, а не нарисован', ticking, 'ticks');
-
   const scheduled = db(`select count(*) from public.content_refresh_state where business_id='${BIZ}' and next_refresh_at > now() - interval '1 day'`);
   r.check('срок следующего обновления записан в базе', scheduled, '1');
 
   const interval = db(`select interval_hours from public.content_refresh_state where business_id='${BIZ}'`);
   r.check('интервал — полдня', interval, '12');
-  await shot(page, 'growth-01-content-timer');
 
   // Нажатие кнопки — это раннее обновление, а не лишнее: срок сдвигается.
   const before = db(`select next_refresh_at from public.content_refresh_state where business_id='${BIZ}'`);
@@ -46,6 +36,20 @@ try {
 
   const assets = db(`select count(*) from public.content_items where business_id='${BIZ}' and campaign_id is null and content_kind in ('reel_script','tiktok_script','photo_brief','story_series','push_notice')`);
   r.check('материалы для соцсетей существуют', Number(assets) > 0 ? 'yes' : 'no', 'yes');
+
+  // Отсчёт проверяется после обновления — до него срок стоит на «пора сейчас»,
+  // и ноль на табло там правда, а не поломка.
+  //
+  // The countdown is a client component: it renders `··:··:··` on the server and
+  // fills in after hydration. Asserting on the placeholder would pass with a
+  // broken clock, so the check waits for a real time to appear.
+  await gotoReady(page, '/app/content');
+  const ticking = await page
+    .waitForFunction(() => /\d{2}:\d{2}:\d{2}/.test(document.body.innerText), null, { timeout: 15_000 })
+    .then(() => 'ticks')
+    .catch(() => 'frozen');
+  r.check('таймер до обновления идёт, а не нарисован', ticking, 'ticks');
+  await shot(page, 'growth-01-content-timer');
 
   // ---------------------------------------------------------------- 2
   process.stdout.write('\nGROWTH-2  Дашборды считаются из данных, а не рисуются\n');

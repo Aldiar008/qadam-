@@ -25,17 +25,50 @@ export interface ContentSchedule {
   intervalHours: number;
   lastSource: 'provider' | 'deterministic_fallback' | null;
   lastAssetCount: number;
+  /** Строки расписания ещё нет — заведение стоит в очереди ближайшего цикла. */
+  pending: boolean;
 }
 
-/** Когда материалы обновятся в следующий раз. */
+/** Значение по умолчанию, ровно то же, что стоит в определении таблицы. */
+const DEFAULT_INTERVAL_HOURS = 12;
+
+/**
+ * Когда материалы обновятся в следующий раз.
+ *
+ * A business can legitimately have no row yet: it was created a minute ago, or
+ * the stand was restored from the seed. `businesses_due_for_content` already
+ * treats a missing row as due, so the next cycle creates it — within five
+ * minutes. Returning null here made the screen say «включится, когда появится
+ * позиция меню», which was simply untrue for a venue with a full menu. The
+ * pending schedule says the true thing instead.
+ */
 export async function readContentSchedule(db: SupabaseClient, businessId: string): Promise<ContentSchedule | null> {
   const { data } = await db
     .from('content_refresh_state')
     .select('last_refreshed_at,next_refresh_at,interval_hours,last_source,last_asset_count')
     .eq('business_id', businessId)
     .maybeSingle();
-  if (!data) return null;
+
+  if (!data) {
+    const { count } = await db
+      .from('catalog_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+    // Без меню обновлять действительно нечего — тогда null, и карточка объясняет.
+    if (!count) return null;
+    return {
+      lastRefreshedAt: null,
+      nextRefreshAt: new Date().toISOString(),
+      intervalHours: DEFAULT_INTERVAL_HOURS,
+      lastSource: null,
+      lastAssetCount: 0,
+      pending: true,
+    };
+  }
+
   return {
+    pending: false,
     lastRefreshedAt: data.last_refreshed_at,
     nextRefreshAt: data.next_refresh_at,
     intervalHours: data.interval_hours,

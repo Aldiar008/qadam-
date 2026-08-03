@@ -14,7 +14,10 @@ import { useEffect, useState } from 'react';
  * the server's markup and the browser's disagree by exactly the request's
  * latency, and React would replace the whole subtree to fix it.
  */
-export function ContentRefreshTimer({ nextRefreshAt, intervalHours }: { nextRefreshAt: string; intervalHours: number }) {
+export function ContentRefreshTimer(
+  { nextRefreshAt, intervalHours, pending = false }:
+  { nextRefreshAt: string; intervalHours: number; pending?: boolean },
+) {
   const [left, setLeft] = useState<number | null>(null);
 
   useEffect(() => {
@@ -34,7 +37,8 @@ export function ContentRefreshTimer({ nextRefreshAt, intervalHours }: { nextRefr
       {left === null ? (
         <span className="text-muted-foreground">··:··:··</span>
       ) : left === 0 ? (
-        <span className="text-emerald-700">обновляется…</span>
+        // «Обновляется» и «стоит в очереди» — разные вещи, и владельцу это видно.
+        <span className="text-emerald-700 text-base">{pending ? 'в ближайшем цикле' : 'обновляется…'}</span>
       ) : (
         <>
           {pad(hours ?? 0)}:{pad(minutes ?? 0)}:{pad(seconds ?? 0)}

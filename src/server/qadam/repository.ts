@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { asBusinessMode } from '@/lib/app-mode';
 import type { SegmentRule } from '@/lib/segment-rules';
 import type { Json } from '@/types/database.generated';
+import {
+  profileSummary,
+  recommendMechanics,
+  recommendTools,
+  type BusinessTypeCode,
+  type GoalCode,
+} from '@/domain/tool-recommendations';
 
 export type BusinessRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer';
 
@@ -34,7 +41,7 @@ export async function requireBusinessContext() {
   if (memberError) throw new DataUnavailableError('membership', memberError);
   if (!member) throw new Error('MEMBERSHIP_REQUIRED');
   const [{ data: business, error: businessError }, { data: location }, { data: profile }, { data: person }] = await Promise.all([
-    supabase.from('businesses').select('id,name,mode,status,currency,timezone').eq('id', member.business_id).single(),
+    supabase.from('businesses').select('id,name,mode,status,currency,timezone,business_type_id').eq('id', member.business_id).single(),
     supabase.from('business_locations').select('id,name,city,district,address_text,capacity').eq('business_id', member.business_id).eq('is_active', true).order('created_at').limit(1).maybeSingle(),
     supabase.from('business_profiles').select('average_check_minor,margin_floor_bps,monthly_marketing_budget_minor,profile_confidence').eq('business_id', member.business_id).maybeSingle(),
     supabase.from('profiles').select('display_name,preferred_locale').eq('id', userId).maybeSingle(),
@@ -100,22 +107,57 @@ export async function getTodayData() {
   };
 }
 
-export async function getToolsData(filters: { q?: string; category?: string; favorites?: boolean }) {
+export async function getToolsData(filters: { q?: string; category?: string; favorites?: boolean; suggested?: boolean }) {
   const ctx = await requireBusinessContext();
   let query = ctx.supabase.from('tools').select('id,category_id,code,name_ru,name_kk,description_ru,description_kk,route,status,is_public').eq('status', 'published').eq('is_public', true).order('name_ru');
   if (filters.q) query = query.or(`name_ru.ilike.%${filters.q.replace(/[%_,()]/g, '')}%,description_ru.ilike.%${filters.q.replace(/[%_,()]/g, '')}%`);
-  const [{ data: tools }, { data: categories }, { data: favoriteRows }, { data: activeRows }] = await Promise.all([
+  const [{ data: tools }, { data: categories }, { data: favoriteRows }, { data: activeRows }, { data: goalRow }, { data: typeRow }] = await Promise.all([
     query,
     ctx.supabase.from('tool_categories').select('id,code,name_ru,name_kk').eq('status', 'published').order('sort_order'),
     ctx.supabase.from('favorite_tools').select('tool_id').eq('business_id', ctx.businessId).eq('user_id', ctx.userId),
     ctx.supabase.from('business_tools').select('tool_id,status').eq('business_id', ctx.businessId),
+    // Профиль, который владелец задал при регистрации: тип заведения и цель.
+    // Подбор без них был бы не рекомендацией, а тем же каталогом в другом
+    // порядке, поэтому обе строки читаются здесь, а не додумываются на экране.
+    ctx.supabase.from('business_goals').select('code').eq('business_id', ctx.businessId).eq('status', 'active')
+      .order('priority').limit(1).maybeSingle(),
+    ctx.business.business_type_id
+      ? ctx.supabase.from('business_types').select('code').eq('id', ctx.business.business_type_id).maybeSingle()
+      : Promise.resolve({ data: null as { code: string } | null }),
   ]);
   const favorites = new Set((favoriteRows ?? []).map((row) => row.tool_id));
   const active = new Map((activeRows ?? []).map((row) => [row.tool_id, row.status]));
   let rows = (tools ?? []).map((tool) => ({ ...tool, favorite: favorites.has(tool.id), activationStatus: active.get(tool.id) ?? 'inactive', category: (categories ?? []).find((item) => item.id === tool.category_id) }));
+  // Подбор считается по всему опубликованному каталогу — до фильтров. Иначе
+  // «рекомендуем» менялось бы вместе с выбранной категорией, и владелец видел бы
+  // разные рекомендации на одном и том же профиле.
+  const businessType = (typeRow?.code ?? 'cafe') as BusinessTypeCode;
+  const goal = (goalRow?.code ?? 'reactivate') as GoalCode;
+  const suggestions = recommendTools({
+    businessType,
+    goal,
+    tools: rows.map((tool) => ({ code: tool.code, nameRu: tool.name_ru, route: tool.route, active: tool.activationStatus === 'active' })),
+  });
+
   if (filters.category) rows = rows.filter((tool) => tool.category?.code === filters.category);
   if (filters.favorites) rows = rows.filter((tool) => tool.favorite);
-  return { ...ctx, tools: rows, categories: categories ?? [] };
+  if (filters.suggested) {
+    const codes = new Set(suggestions.map((item) => item.code));
+    rows = rows.filter((tool) => codes.has(tool.code));
+  }
+
+  return {
+    ...ctx,
+    tools: rows,
+    categories: categories ?? [],
+    profile: {
+      businessType,
+      goal,
+      summary: profileSummary(businessType, goal),
+      tools: suggestions,
+      mechanics: recommendMechanics(businessType),
+    },
+  };
 }
 
 /**

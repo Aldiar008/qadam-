@@ -5,6 +5,9 @@
 // on the committed seed rather than on whatever a previous run left behind.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
+import { loadLocalEnv } from './env.mjs';
+
+loadLocalEnv();
 
 const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin', 'mini-app', 'growth'];
 
@@ -38,6 +41,23 @@ if (skipReset) {
       'supabase/seed/remote_demo_market_offers.sql',
     ]) {
       execFileSync(process.execPath, ['scripts/apply-remote-sql.mjs', remoteRef, file], { stdio: 'inherit' });
+    }
+
+    // Один цикл сразу после seed — ровно то, что делает `npm run demo:restore`.
+    // Seed ставит расписание материалов на «пора сейчас»; без цикла стенд стоит
+    // без пакета для соцсетей и с таймером на нуле, то есть в состоянии, в
+    // котором его никто не показывает. Прогонять приёмку по нему — мерить не то.
+    const jobSecret = process.env.QADAM_JOB_SECRET;
+    const stand = (process.env.QADAM_E2E_BASE ?? '').replace(/\/$/, '');
+    if (jobSecret && stand) {
+      const response = await fetch(`${stand}/api/jobs/run-cycle`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-qadam-job-secret': jobSecret },
+        body: JSON.stringify({ cycleKey: `e2e-${process.pid}` }),
+      }).catch((error) => ({ ok: false, status: String(error?.message ?? error) }));
+      process.stdout.write(response.ok ? 'Цикл прогнан после seed.\n' : `Цикл после seed не прогнан (${response.status}).\n`);
+    } else {
+      process.stdout.write('QADAM_JOB_SECRET не задан — цикл после seed не прогонялся.\n');
     }
   }
 } else {

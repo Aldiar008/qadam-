@@ -44,7 +44,7 @@ export function FinalCtaSection() {
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-surface-muted border border-border text-foreground font-semibold text-base hover:bg-surface transition-all flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4 text-primary" />
-                <span>{language === 'ru' ? 'Начать' : 'Бастау'}</span>
+                <span>{language === 'ru' ? 'Начать использовать платформу' : 'Платформаны бастау'}</span>
               </Link>
             </div>
           </div>

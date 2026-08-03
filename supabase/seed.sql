@@ -583,4 +583,28 @@ insert into public.nearby_offers(id,business_id,location_id,title_ru,title_kk,de
   'published','2026-07-26 10:00+00','2026-09-27 22:00+00',true)
 on conflict(id) do update set status='published',expires_at=excluded.expires_at,is_mock=true;
 
+-- Расписание автообновления материалов.
+--
+-- Сброс стенда очищает public целиком, а backfill из миграции прошёл один раз,
+-- при её применении. Без этой вставки восстановленный стенд открывался без
+-- таймера, и экран объяснял это отсутствием меню — при полном меню. Строка
+-- ставится «пора сейчас»: первый же цикл (его прогоняет scripts/restore-demo.mjs
+-- сразу после seed) соберёт пакет и сдвинет срок на двенадцать часов вперёд.
+insert into public.content_refresh_state(business_id,last_refreshed_at,next_refresh_at,interval_hours,last_asset_count,is_mock)
+select b.id, null, now(), 12, 0, b.mode = 'demo'
+from public.businesses b
+where b.status = 'active'
+  and exists (select 1 from public.catalog_items c where c.business_id = b.id and c.is_active)
+on conflict (business_id) do update set next_refresh_at = now(), interval_hours = 12;
+
+-- Цель заведения — вторая половина профиля, по которому каталог подбирает
+-- инструменты (первая — тип заведения). Онбординг пишет эту строку сам; для
+-- демо-стенда она нужна в seed, иначе подбор откатывается к умолчанию и
+-- «подобрано кофейне с целью…» перестаёт быть правдой о конкретном заведении.
+insert into public.business_goals(business_id,code,priority,status,is_mock)
+select b.id,'reactivate',1,'active',b.mode='demo'
+from public.businesses b
+where b.status='active' and not exists (
+  select 1 from public.business_goals g where g.business_id=b.id and g.status='active');
+
 commit;

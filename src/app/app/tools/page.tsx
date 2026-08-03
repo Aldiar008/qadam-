@@ -33,9 +33,14 @@ const WHERE: Record<string, { action: string; hint: string }> = {
   telegram_bot: { action: 'Открыть автоматизации', hint: 'Там код привязки чата: бот пришлёт сводку и примет подтверждение.' },
 };
 
-export default async function ToolsPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; favorites?: string }> }) {
+export default async function ToolsPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; favorites?: string; suggested?: string }> }) {
   const params = await searchParams;
-  const data = await getToolsData({ q: params.q, category: params.category, favorites: params.favorites === '1' });
+  const data = await getToolsData({
+    q: params.q,
+    category: params.category,
+    favorites: params.favorites === '1',
+    suggested: params.suggested === '1',
+  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-7">
@@ -52,6 +57,48 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
         </Link>
       </header>
 
+      {/* Подбор под профиль: тип заведения и цель, выбранные при регистрации.
+          Порядок и причина — из `src/domain/tool-recommendations.ts`; каталог
+          при этом остаётся полным, ничего не прячется. */}
+      {data.profile.tools.length > 0 && (
+        <section className="rounded-3xl border border-primary/30 bg-primary/5 p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">С чего начать именно вам</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{data.profile.summary}. Профиль меняется в настройках.</p>
+            </div>
+            <Link href="/app/tools?suggested=1" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold">
+              Показать только их
+            </Link>
+          </div>
+
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {data.profile.tools.map((tool, index) => (
+              <li key={tool.code} className="flex gap-3 rounded-2xl bg-surface p-4">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">{index + 1}</span>
+                <div className="min-w-0">
+                  <Link href={tool.route} className="text-sm font-bold underline-offset-4 hover:underline">{tool.nameRu}</Link>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{tool.reason}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <h3 className="mt-6 text-sm font-bold">Механики, которые подходят вашему типу заведения</h3>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {data.profile.mechanics.map((mechanic) => (
+              <li key={mechanic.kind} className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-sm font-bold">{mechanic.title}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{mechanic.reason}</p>
+                <Link href={`/app/campaigns/studio?step=3&mechanic=${mechanic.kind}`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold">
+                  Собрать акцию <ArrowRight className="size-4" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <form className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 sm:flex-row">
         <label className="relative flex-1">
           <span className="sr-only">Поиск инструментов</span>
@@ -63,7 +110,8 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       </form>
 
       <nav aria-label="Категории инструментов" className="flex gap-2 overflow-x-auto pb-2">
-        <Link href="/app/tools" className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (!params.category ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>Все</Link>
+        <Link href="/app/tools" className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (!params.category && params.suggested !== '1' ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>Все</Link>
+        <Link href="/app/tools?suggested=1" className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (params.suggested === '1' ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>Рекомендуемые</Link>
         {data.categories.slice(0, 5).map((category) => (
           <Link key={category.id} href={`/app/tools?category=${category.code}`} className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (params.category === category.code ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>
             {filterLabels[category.code] ?? category.name_ru}

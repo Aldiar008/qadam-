@@ -85,7 +85,7 @@ function ScenarioGrid({ evaluation }: { evaluation: VariantEvaluation }) {
 export default async function CampaignStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ step?: string; error?: string; invalid?: string; generated?: string; adopted?: string; compiled?: string; approved?: string }>;
+  searchParams: Promise<{ step?: string; error?: string; invalid?: string; generated?: string; adopted?: string; compiled?: string; approved?: string; mechanic?: string }>;
 }) {
   const params = await searchParams;
   const data = await getStudioViewData();
@@ -299,7 +299,13 @@ export default async function CampaignStudioPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
                 Механика
-                <select name="mechanic" defaultValue={draft.mechanic} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm">
+                {/* Механика может прийти из подбора в каталоге инструментов —
+                    поле просто заполнено заранее, решение всё равно за владельцем. */}
+                <select
+                  name="mechanic"
+                  defaultValue={params.mechanic && params.mechanic in MECHANIC_LABELS ? params.mechanic : draft.mechanic}
+                  className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm"
+                >
                   {Object.entries(MECHANIC_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>

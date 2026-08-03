@@ -42,13 +42,20 @@ export async function ContentRefreshCard() {
             ? <>Последний раз — {last}, материалов {schedule.lastAssetCount}
                 {schedule.lastSource === 'provider' ? ', написаны моделью' : schedule.lastSource ? ', собраны встроенным шаблоном' : ''}.
                 {' '}Утверждённые тексты не трогаются: заменяются только черновики.</>
-            : <>Первое обновление ещё не проходило. Сценарии Reels и TikTok, бриф на фото, серия сторис
-                и текст уведомления соберутся из вашего меню и действующего предложения.</>}
+            : schedule.pending
+              ? <>Первое обновление — в ближайшем цикле, он проходит каждые пять минут. Дальше раз в
+                  {' '}{schedule.intervalHours} ч. Ждать не обязательно: кнопка ниже соберёт пакет прямо сейчас.</>
+              : <>Первое обновление ещё не проходило. Сценарии Reels и TikTok, бриф на фото, серия сторис
+                  и текст уведомления соберутся из вашего меню и действующего предложения.</>}
         </p>
       </div>
       <div className="shrink-0 sm:text-right">
         <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">до обновления</p>
-        <ContentRefreshTimer nextRefreshAt={schedule.nextRefreshAt} intervalHours={schedule.intervalHours} />
+        <ContentRefreshTimer
+          nextRefreshAt={schedule.nextRefreshAt}
+          intervalHours={schedule.intervalHours}
+          pending={schedule.pending}
+        />
       </div>
     </section>
   );
