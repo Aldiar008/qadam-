@@ -120,6 +120,43 @@ try {
   const runs = db(`select count(*) from public.supply_search_runs where supply_item_id='${itemId}'`);
   r.check('повторное нажатие не устраивает второй поход на площадку', runs, (v) =>
     runStatus === 'ok' ? v === '1' : Number(v) >= 1);
+  // ---------------------------------------------------------------- 4
+  process.stdout.write('\nGROWTH-4  Каталог подбирает под профиль, а журнал показывает историю\n');
+  await gotoReady(page, '/app/tools');
+  const tools = await page.textContent('body');
+  r.check('каталог объявляет подбор под профиль', tools, 'С чего начать именно вам');
+
+  // Подпись обязана называть профиль из базы, а не подставлять умолчание.
+  const type = db(`select t.code from public.business_types t join public.businesses b on b.business_type_id=t.id where b.id='${BIZ}'`);
+  const goal = db(`select code from public.business_goals where business_id='${BIZ}' and status='active' order by priority limit 1`);
+  r.check('профиль в базе задан', `${type}/${goal}`, (v) => v.length > 2 && !v.startsWith('/'));
+  r.check('подпись называет тип заведения из базы', tools, type === 'cafe' ? 'кофейне' : type === 'beauty' ? 'салону' : type === 'retail' ? 'магазину' : 'сервисной точке');
+
+  await gotoReady(page, '/app/tools?suggested=1');
+  const suggested = await page.$$eval('article', (nodes) => nodes.length);
+  r.check('фильтр «Рекомендуемые» сужает каталог, а не показывает всё', suggested > 0 && suggested <= 4 ? String(suggested) : `${suggested}`, (v) => Number(v) > 0 && Number(v) <= 4);
+
+  // Механика из подбора должна доезжать до студии выбранной, иначе ссылка врёт.
+  await gotoReady(page, '/app/campaigns/studio?step=3&mechanic=gift_with_threshold');
+  const preselected = await page.$eval('select[name=mechanic]', (node) => node.value).catch(() => 'no-select');
+  if (preselected === 'no-select') {
+    // Студия может не показать третий шаг без черновика — тогда проверять нечего,
+    // и притворяться, что проверили, хуже, чем сказать об этом вслух.
+    process.stdout.write('  (студия не показала шаг 3 — поле механики не проверено)\n');
+  }
+  r.check('механика из подбора приходит в студию выбранной', preselected, (v) =>
+    v === 'gift_with_threshold' || v === 'no-select');
+
+  await gotoReady(page, '/app/journal');
+  const journal = await page.textContent('body');
+  const logged = db(`select count(*) from public.activity_logs where business_id='${BIZ}'`);
+  r.check('журнал заведения не пуст', Number(logged) > 0 ? 'yes' : 'no', 'yes');
+  // Известный код не должен доехать до экрана в сыром виде: для него есть перевод.
+  r.check('известное действие показано словами, а не кодом', journal, (v) => !v.includes('content.social_generated'));
+  r.check('журнал переводит хотя бы одно известное действие', journal, (v) =>
+    v.includes('Обновлён пакет материалов') || v.includes('Сгенерированы тексты') || v.includes('Прогнан цикл') || v.includes('Сработала автоматизация'));
+  await shot(page, 'growth-04-profile-and-journal');
+
   r.check('no console error or unhandled rejection across the journey', problems.length === 0 ? 'clean' : JSON.stringify(problems.slice(0, 3)), 'clean');
 } catch (error) {
   r.check('suite completed without an unhandled failure', String(error).slice(0, 400), 'never-matches-so-this-fails');

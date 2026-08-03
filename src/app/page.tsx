@@ -3,6 +3,7 @@ import { GlobalHeader } from '@/components/navigation/GlobalHeader';
 import { LocalSubnav } from '@/components/navigation/LocalSubnav';
 import { CinematicHeroSection } from '@/components/landing/CinematicHeroSection';
 import { KeyInsightSection } from '@/components/landing/KeyInsightSection';
+import { CompetitionSection } from '@/components/landing/CompetitionSection';
 import AboutSection3 from '@/components/ui/about-section';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { QrLoyaltySection } from '@/components/landing/QrLoyaltySection';
@@ -37,6 +38,7 @@ export default function HomePage() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
         <CinematicHeroSection />
         <KeyInsightSection />
+        <CompetitionSection />
         <AboutSection3 headingLevel="h2" />
         <HowItWorksSection />
         <QrLoyaltySection />
