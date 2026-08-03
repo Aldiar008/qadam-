@@ -70,7 +70,11 @@ export async function searchMarketForItem(
 
   const result = await searchKaspi(query, { city: input.city });
 
-  await db.from('supply_search_runs').insert({
+  // The attempt is written down before anything is decided about the result.
+  // If even that fails the caller is told: a search log that quietly does not
+  // record is worse than none, because the screen then dates today's prices by
+  // whenever the log last happened to work.
+  const { error: logError } = await db.from('supply_search_runs').insert({
     business_id: input.businessId,
     supply_item_id: item.id,
     source: 'kaspi',
@@ -81,6 +85,7 @@ export async function searchMarketForItem(
     error: result.error,
     is_mock: input.isMock,
   });
+  const logNote = logError ? ` Журнал поиска не записался: ${logError.message}.` : '';
 
   if (result.status !== 'ok') {
     const detail = result.error ? ` ${result.error}` : '';
@@ -88,7 +93,7 @@ export async function searchMarketForItem(
       status: result.status,
       stored: 0,
       updated: 0,
-      message: `${label(result.status)} по запросу «${query}».${detail} Ранее найденные цены остались на месте — с датой, когда их нашли.`,
+      message: `${label(result.status)} по запросу «${query}».${detail} Ранее найденные цены остались на месте — с датой, когда их нашли.${logNote}`,
     };
   }
 
@@ -145,8 +150,8 @@ export async function searchMarketForItem(
     stored,
     updated,
     message: stored || updated
-      ? `Kaspi: новых предложений ${stored}, обновлено ${updated}. Цены не подтверждены — откройте ссылку перед заказом.`
-      : 'Kaspi ответил, но ни одно предложение не прошло проверку: без цены, без ссылки или в другой валюте.',
+      ? `Kaspi: новых предложений ${stored}, обновлено ${updated}. Цены не подтверждены — откройте ссылку перед заказом.${logNote}`
+      : `Kaspi ответил, но ни одно предложение не прошло проверку: без цены, без ссылки или в другой валюте.${logNote}`,
   };
 }
 

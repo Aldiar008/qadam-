@@ -104,11 +104,18 @@ export async function refreshSocialPack(
 
   // The schedule moves only after the material is actually stored. A failed
   // generation must come back on the next cycle, not wait another twelve hours.
-  const { data: next } = await db.rpc('mark_content_refreshed', {
+  //
+  // The error is raised, not swallowed. A schedule that does not move leaves the
+  // venue due forever: the five-minute cycle would regenerate the same pack over
+  // and over, and the screen would keep saying «обновится через 12 часов». That
+  // is exactly what a missing grant did here once already, and it was invisible
+  // until the acceptance suite compared the timestamp before and after.
+  const { data: next, error: scheduleError } = await db.rpc('mark_content_refreshed', {
     p_business_id: input.businessId,
     p_source: pack.source,
     p_asset_count: pack.assets.length,
   });
+  if (scheduleError) throw new Error(`материалы сохранены, но расписание не сдвинулось: ${scheduleError.message}`);
 
   return {
     assets: pack.assets.length,
