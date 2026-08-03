@@ -114,6 +114,7 @@ export async function searchMarketForItem(
     if (seen) {
       const patch: Record<string, unknown> = {
         supplier: offer.supplier,
+        title: offer.title,
         price_minor: offer.priceMinor,
         pack_size: offer.packSize,
         url: offer.url,
@@ -133,6 +134,7 @@ export async function searchMarketForItem(
       business_id: input.businessId,
       supply_item_id: item.id,
       supplier: offer.supplier,
+      title: offer.title,
       price_minor: offer.priceMinor,
       pack_size: offer.packSize,
       url: offer.url,

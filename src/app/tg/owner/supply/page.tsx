@@ -16,7 +16,8 @@ interface Saving {
   savingMinor: number | null;
   monthlySavingMinor: number | null;
   offerCount: number;
-  best: null | { supplier: string; unitPriceMinor: number; url: string | null; verified: boolean };
+  best: null | { supplier: string; title: string | null; unitPriceMinor: number; url: string | null; verified: boolean };
+  candidate: null | { id: string; supplier: string; title: string | null; unitPriceMinor: number; url: string | null };
 }
 
 /**
@@ -75,7 +76,7 @@ export default async function OwnerSupplyPage({ searchParams }: { searchParams: 
               {row.best ? (
                 <>
                   <p>
-                    Дешевле всего: <strong>{row.best.supplier}</strong> — {money(row.best.unitPriceMinor)} за {row.unit}
+                    Дешевле всего: <strong>{row.best.title ?? row.best.supplier}</strong> — {money(row.best.unitPriceMinor)} за {row.unit}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {row.savingMinor === null
@@ -92,7 +93,22 @@ export default async function OwnerSupplyPage({ searchParams }: { searchParams: 
                   )}
                 </>
               ) : (
-                <p className="text-muted-foreground">Предложений нет — внесите цену поставщика в кабинете.</p>
+                <p className="text-muted-foreground">Подтверждённой цены дешевле вашей пока нет.</p>
+              )}
+
+              {/* Кандидат — не экономия: площадка не знает, тот ли это товар. */}
+              {row.candidate && (
+                <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+                  <p className="text-[11px] font-bold text-amber-900">Нашли на Kaspi — проверьте, то ли это</p>
+                  <p className="mt-1 text-sm leading-5">
+                    {row.candidate.title ?? row.candidate.supplier} — {money(row.candidate.unitPriceMinor)} за {row.unit}
+                  </p>
+                  {row.candidate.url && (
+                    <a href={row.candidate.url} target="_blank" rel="noreferrer noopener" className="mt-2 inline-block text-xs font-bold text-primary underline">
+                      Открыть карточку
+                    </a>
+                  )}
+                </div>
               )}
             </div>
 

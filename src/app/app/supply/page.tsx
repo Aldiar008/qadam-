@@ -26,9 +26,15 @@ interface Saving {
   offerCount: number;
   savingMinor: number | null;
   monthlySavingMinor: number | null;
+  unverifiedCount: number;
   best: null | {
-    id: string; supplier: string; unitPriceMinor: number; packSize: number;
+    id: string; supplier: string; title: string | null; unitPriceMinor: number; packSize: number;
     url: string | null; source: string; verified: boolean; foundAt: string;
+  };
+  /** Найдено автоматически и никем не проверено — в экономию не идёт. */
+  candidate: null | {
+    id: string; supplier: string; title: string | null; unitPriceMinor: number; packSize: number;
+    url: string | null; source: string; foundAt: string;
   };
 }
 
@@ -56,7 +62,7 @@ export default async function SupplyPage({
   const [{ data: savings }, { data: offers }, { data: runs }, { data: salaries }] = await Promise.all([
     ctx.supabase.rpc('supply_savings', { p_business_id: ctx.businessId }),
     ctx.supabase.from('supply_offers')
-      .select('id,supply_item_id,supplier,price_minor,pack_size,url,source,verified,found_at')
+      .select('id,supply_item_id,supplier,title,price_minor,pack_size,url,source,verified,found_at')
       .eq('business_id', ctx.businessId).order('price_minor'),
     ctx.supabase.from('supply_search_runs')
       .select('id,supply_item_id,source,status,offers_found,error,ran_at')
@@ -117,7 +123,7 @@ export default async function SupplyPage({
           ['Позиций в списке', String(rows.length), 'то, что вы регулярно покупаете'],
           ['Закончилось', String(needed.length), needed.length ? 'отмечено вами' : 'всё на месте'],
           ['Экономия в месяц', totalMonthly > 0 ? money(totalMonthly) : '—',
-            totalMonthly > 0 ? 'если перейти на лучшие предложения' : 'нужны текущая цена и объём'],
+            totalMonthly > 0 ? 'по подтверждённым ценам' : 'считается только по подтверждённым ценам'],
         ].map(([label, value, note]) => (
           <article key={label} className="rounded-2xl border border-border bg-surface p-4">
             <p className="text-xs text-muted-foreground">{label}</p>
@@ -210,24 +216,61 @@ export default async function SupplyPage({
                   {row.best ? (
                     <>
                       <p className="text-sm">
-                        Дешевле всего: <strong>{row.best.supplier}</strong> — {money(row.best.unitPriceMinor)} за {row.unit}
+                        Дешевле всего: <strong>{row.best.title ?? row.best.supplier}</strong> — {money(row.best.unitPriceMinor)} за {row.unit}
                         {row.best.packSize > 1 ? ` (упаковка ${row.best.packSize})` : ''}
                       </p>
+                      {row.best.title && <p className="mt-1 text-xs text-muted-foreground">{row.best.supplier}</p>}
                       <p className="mt-1 text-xs text-muted-foreground">
                         {row.savingMinor === null
                           ? 'Экономию не посчитать: не указано, сколько вы платите сейчас.'
                           : row.savingMinor === 0
                             ? 'Дешевле того, что у вас есть, пока не нашлось.'
                             : `Экономия ${money(row.savingMinor)} за ${row.unit}${row.monthlySavingMinor ? ` — это ${money(row.monthlySavingMinor)} в месяц` : ''}.`}
-                        {' '}
-                        {row.best.verified ? 'Цена подтверждена вами.' : 'Цена не подтверждена — откройте ссылку и проверьте.'}
+                        {' '}Цена подтверждена вами.
                       </p>
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Предложений пока нет. Нажмите «Найти дешевле» — цены придут с Kaspi со ссылками,
-                      или внесите прайс поставщика руками.
+                      Подтверждённой цены дешевле вашей пока нет. Нажмите «Найти дешевле» — предложения
+                      придут с Kaspi со ссылками, а решение остаётся за вами.
                     </p>
+                  )}
+
+                  {/* Кандидат — не экономия. Площадка не знает, тот ли это товар:
+                      по запросу «салфетки барные» она однажды вернула набор
+                      крючков по 31 ₸, и арифметика «за штуку» этого не различает.
+                      Поэтому название, ссылка и кнопка «это то же самое». */}
+                  {row.candidate && (
+                    <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+                      <p className="text-xs font-bold text-amber-900">Нашли на Kaspi — но это ещё не экономия</p>
+                      <p className="mt-1 text-sm">
+                        {row.candidate.title ?? row.candidate.supplier} — {money(row.candidate.unitPriceMinor)} за {row.unit}
+                        {/* И цена упаковки целиком: пересчёт за единицу читается
+                            неправдоподобно, пока не видно, из чего он получен. */}
+                        {row.candidate.packSize > 1
+                          ? ` (упаковка ${row.candidate.packSize} — ${money(row.candidate.unitPriceMinor * row.candidate.packSize)})`
+                          : ''}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Площадка не знает, тот ли это товар. Откройте ссылку — если это то же самое,
+                        нажмите «Это то же самое», и экономия начнёт считаться.
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {row.candidate.url && (
+                          <a href={row.candidate.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs font-bold text-primary underline">
+                            Открыть карточку <ExternalLink className="size-3" />
+                          </a>
+                        )}
+                        {canEdit && (
+                          <form action={verifySupplyOffer}>
+                            <input type="hidden" name="offerId" value={row.candidate.id} />
+                            <button className="min-h-9 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground">
+                              Это то же самое
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
                   )}
 
                   {/* Когда в последний раз смотрели на рынок и чем это кончилось.
@@ -250,7 +293,7 @@ export default async function SupplyPage({
                     {list.map((offer) => (
                       <li key={offer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-sm">
                         <span className="flex flex-wrap items-center gap-2">
-                          <strong>{offer.supplier}</strong>
+                          <strong>{offer.title ?? offer.supplier}</strong>
                           <span className="font-mono">{money(Math.round(Number(offer.price_minor) / Math.max(1, offer.pack_size)))} / {row.unit}</span>
                           {offer.pack_size > 1 && <span className="text-xs text-muted-foreground">упаковка {offer.pack_size} · {money(offer.price_minor)}</span>}
                           <span className={'rounded-full px-2 py-0.5 text-xs font-bold ' + (offer.verified ? 'bg-emerald-500/10 text-emerald-800' : 'bg-amber-500/10 text-amber-900')}>

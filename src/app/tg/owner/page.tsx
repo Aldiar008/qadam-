@@ -15,7 +15,7 @@ interface Console {
   contract?: { id?: string; status?: string; audience?: number } | null;
   questions?: { id: string; customerId: string; name: string; body: string; occurredAt: string; answered: boolean }[];
   notifications?: { id: string; title: string; body: string; category: string }[];
-  supply?: { name: string; unit: string; monthlySavingMinor: number | null; best: { supplier: string; unitPriceMinor: number } | null }[];
+  supply?: { name: string; unit: string; monthlySavingMinor: number | null; best: { supplier: string; title: string | null; unitPriceMinor: number } | null }[];
 }
 
 const bandOf = (metricKey?: string) => {
@@ -158,7 +158,7 @@ export default async function OwnerConsolePage({ searchParams }: { searchParams:
                 <p className="font-semibold">{item.name}</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {item.best
-                    ? <>Дешевле всего у «{item.best.supplier}» — {money(item.best.unitPriceMinor)} за {item.unit}
+                    ? <>Дешевле всего: «{item.best.title ?? item.best.supplier}» — {money(item.best.unitPriceMinor)} за {item.unit}
                         {item.monthlySavingMinor ? `, экономия ${money(item.monthlySavingMinor)} в месяц` : ''}.</>
                     : 'Предложений пока нет — внесите цену поставщика в кабинете.'}
                 </p>

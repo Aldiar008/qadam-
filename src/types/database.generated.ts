@@ -4320,6 +4320,7 @@ export type Database = {
           source: string
           supplier: string
           supply_item_id: string
+          title: string | null
           url: string | null
           verified: boolean
         }
@@ -4335,6 +4336,7 @@ export type Database = {
           source?: string
           supplier: string
           supply_item_id: string
+          title?: string | null
           url?: string | null
           verified?: boolean
         }
@@ -4350,6 +4352,7 @@ export type Database = {
           source?: string
           supplier?: string
           supply_item_id?: string
+          title?: string | null
           url?: string | null
           verified?: boolean
         }

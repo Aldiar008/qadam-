@@ -244,6 +244,25 @@ export async function searchKaspi(query: string, options: { city?: string; limit
   if (!isMarketSourceEnabled('kaspi')) return { ...base, status: 'disabled', error: 'Источник Kaspi выключен настройкой QADAM_MARKET_SOURCES.' };
 
   const cityId = KASPI_CITIES[options.city ?? ''] ?? KASPI_DEFAULT_CITY;
+
+  // 429 means «не так часто», not «нет». Serverless functions leave from a pool
+  // of shared addresses, so a first attempt can be refused for traffic that was
+  // never ours. One retry, one pause — beyond that the answer really is no, and
+  // hammering a marketplace to prove otherwise is not something this product does.
+  let last = await attemptKaspi(trimmed, cityId, options.limit, base);
+  if (last.status === 'blocked' && last.httpStatus === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    last = await attemptKaspi(trimmed, cityId, options.limit, base);
+  }
+  return last;
+}
+
+async function attemptKaspi(
+  trimmed: string,
+  cityId: string,
+  limit: number | undefined,
+  base: MarketSearchResult,
+): Promise<MarketSearchResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -282,7 +301,7 @@ export async function searchKaspi(query: string, options: { city?: string; limit
       return { ...base, status: 'blocked', httpStatus: response.status, error: 'Kaspi вернул не JSON — похоже на проверку «вы не робот».' };
     }
 
-    const offers = parseKaspiPayload(payload, options.limit ?? 8);
+    const offers = parseKaspiPayload(payload, limit ?? 8);
     return { ...base, status: offers.length ? 'ok' : 'empty', httpStatus: response.status, offers };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
