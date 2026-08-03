@@ -69,10 +69,14 @@ export default async function TeamPage({
       {/* The table needs 680px and the narrowest supported screen is 320px, so it
           scrolls inside its own box. `overflow-x-auto` alone is not enough: a
           flex or grid child defaults to min-width:auto and grows to fit its
-          content instead of shrinking, which pushes the whole page sideways. */}
+          content instead of shrinking, which pushes the whole page sideways.
+          `relative` closes the last hole: the `sr-only` label inside the table
+          is absolutely positioned, and without a positioned ancestor it resolves
+          against the page instead of this box — one invisible 1px element at
+          x=376 made the whole document scroll sideways at 320px. */}
       <section className="min-w-0 rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Участники ({(members ?? []).length})</h2>
-        <div className="mt-4 min-w-0 overflow-x-auto">
+        <div className="relative mt-4 min-w-0 overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
             <caption className="sr-only">Участники команды и их роли</caption>
             <thead className="bg-surface-muted text-xs text-muted-foreground">
@@ -189,7 +193,7 @@ export default async function TeamPage({
         <p className="mt-1 text-xs text-muted-foreground">
           Критические действия отмечены звёздочкой: каждое из них записывается в журнал.
         </p>
-        <div className="mt-4 min-w-0 overflow-x-auto">
+        <div className="relative mt-4 min-w-0 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <caption className="sr-only">Какие роли какие действия могут выполнять</caption>
             <thead className="bg-surface-muted text-xs text-muted-foreground">

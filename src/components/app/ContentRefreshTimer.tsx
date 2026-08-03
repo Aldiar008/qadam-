@@ -37,8 +37,10 @@ export function ContentRefreshTimer(
       {left === null ? (
         <span className="text-muted-foreground">··:··:··</span>
       ) : left === 0 ? (
-        // «Обновляется» и «стоит в очереди» — разные вещи, и владельцу это видно.
-        <span className="text-emerald-700 text-base">{pending ? 'в ближайшем цикле' : 'обновляется…'}</span>
+        // «Обновляется» здесь было бы обещанием за чужой счёт: цикл вызывает
+        // внешний планировщик, и его расписание — best-effort. Экран говорит,
+        // что срок подошёл, и рядом стоит кнопка, которая делает это сейчас.
+        <span className="text-emerald-700 text-base">{pending ? 'в ближайшем цикле' : 'срок подошёл'}</span>
       ) : (
         <>
           {pad(hours ?? 0)}:{pad(minutes ?? 0)}:{pad(seconds ?? 0)}

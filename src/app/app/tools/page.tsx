@@ -77,8 +77,15 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
               <li key={tool.code} className="flex gap-3 rounded-2xl bg-surface p-4">
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">{index + 1}</span>
                 <div className="min-w-0">
-                  <Link href={tool.route} className="text-sm font-bold underline-offset-4 hover:underline">{tool.nameRu}</Link>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{tool.reason}</p>
+                  {/* Ссылка — цель для пальца, а не строка текста: минимум 24px
+                      по высоте, иначе аудит доступности справедливо ругается. */}
+                  <Link
+                    href={tool.route}
+                    className="inline-flex min-h-11 items-center text-sm font-bold underline-offset-4 hover:underline"
+                  >
+                    {tool.nameRu}
+                  </Link>
+                  <p className="text-xs leading-5 text-muted-foreground">{tool.reason}</p>
                 </div>
               </li>
             ))}
