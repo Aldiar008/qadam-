@@ -42,12 +42,12 @@ test('analyst can read but cannot launch, export or edit', () => {
   assert.equal(can('analyst', 'edit_customers'), false);
 });
 
-test('the marketer seat is no longer handed out, but old rows still render', () => {
-  assert.equal(ASSIGNABLE_ROLES.includes('marketer'), false);
-  assert.equal(isAssignableRole('marketer'), false);
+test('роль за стойкой называется баристой, а не маркетологом', () => {
+  // Код в базе остался marketer: он упомянут в политиках RLS, и переименовывать
+  // его миграцией ради слова значит трогать права доступа. Меняется подпись.
+  assert.equal(ROLE_LABELS.marketer, 'Бариста');
+  assert.equal(isAssignableRole('marketer'), true);
   assert.equal(isAssignableRole('nonsense'), false);
-  // A membership created before the role was withdrawn must keep a human name.
-  assert.equal(ROLE_LABELS.marketer, 'Маркетолог');
   for (const role of ASSIGNABLE_ROLES) assert.ok(TENANT_ROLES.includes(role));
 });
 

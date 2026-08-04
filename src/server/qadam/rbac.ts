@@ -19,24 +19,30 @@ export const TENANT_ROLES: readonly TenantRole[] = ['owner', 'manager', 'markete
 /**
  * Roles the product actually offers when inviting or changing someone.
  *
- * «Маркетолог» was dropped from the product: in a café or a salon the person
- * who prepares a campaign is the manager, and a separate marketing seat only
- * added a role nobody filled. It stays in `TenantRole` and in `ROLE_LABELS`
- * because rows already carrying it must keep rendering with a name instead of a
- * raw code — removing the value from the schema would rewrite other people's
- * data to fix a wording problem. What changes is that it can no longer be
- * handed out: the screen does not offer it and the server refuses it.
+ * «Маркетолог» из продукта убран: в кофейне или салоне кампанию готовит
+ * менеджер, а отдельное маркетинговое место оставалось незанятым. Само значение
+ * `marketer` осталось — под ним теперь бариста, человек за стойкой: он видит
+ * гостей и готовит кампании, но не подтверждает запуск и не трогает лимиты.
+ * Права те же, поменялось название.
  */
-export const ASSIGNABLE_ROLES: readonly TenantRole[] = ['owner', 'manager', 'analyst', 'viewer'];
+export const ASSIGNABLE_ROLES: readonly TenantRole[] = ['owner', 'manager', 'marketer', 'analyst', 'viewer'];
 
 export function isAssignableRole(role: string): role is TenantRole {
   return (ASSIGNABLE_ROLES as readonly string[]).includes(role);
 }
 
+/**
+ * Как роль называется на экране.
+ *
+ * `marketer` — значение колонки в базе, и оно упоминается в политиках RLS и в
+ * проверках домена; переименовывать его пришлось бы миграцией, которая трогает
+ * права доступа ради слова. Меняется подпись: в кофейне у стойки стоит бариста,
+ * а не маркетолог, и владелец приглашает в команду именно его.
+ */
 export const ROLE_LABELS: Record<TenantRole, string> = {
   owner: 'Владелец',
   manager: 'Менеджер',
-  marketer: 'Маркетолог',
+  marketer: 'Бариста',
   analyst: 'Аналитик',
   viewer: 'Наблюдатель',
 };

@@ -3,6 +3,7 @@ import { AlertTriangle, WandSparkles } from 'lucide-react';
 import { canMarket, getContentData } from '@/server/qadam/repository';
 import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
 import { PublishActions } from '@/components/app/PublishActions';
+import { PosterStudio } from '@/components/app/PosterStudio';
 import { contentStatusLabel } from '@/lib/status-labels';
 import { generateCampaignContent, generateSocialContent, updateContentItem } from '../actions';
 
@@ -178,6 +179,7 @@ export default async function ContentPage({
                       отметка о выходе. Кнопки «Опубликовать в Reels» здесь нет
                       намеренно — см. пояснение под списком. */}
                   <PublishActions kind={item.content_kind} body={item.body} cta={item.cta} />
+                  <PosterStudio body={item.body} cta={item.cta} />
 
                   {item.cta && <p className="mt-3 text-xs font-bold text-primary">CTA: {item.cta}</p>}
                   {item.alt_text && (
