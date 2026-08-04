@@ -1681,6 +1681,14 @@ export type Database = {
       }
       customer_interactions: {
         Row: {
+          answered_at: string | null
+          answered_by: string | null
+          answered_interaction_id: string | null
+          category: string | null
+          draft_reply: string | null
+          sentiment: string | null
+          status: string | null
+          urgency: number | null
           body: string
           business_id: string
           channel: string
@@ -1694,6 +1702,14 @@ export type Database = {
           occurred_at: string
         }
         Insert: {
+          answered_at?: string | null
+          answered_by?: string | null
+          answered_interaction_id?: string | null
+          category?: string | null
+          draft_reply?: string | null
+          sentiment?: string | null
+          status?: string | null
+          urgency?: number | null
           body: string
           business_id: string
           channel: string
@@ -1707,6 +1723,14 @@ export type Database = {
           occurred_at?: string
         }
         Update: {
+          answered_at?: string | null
+          answered_by?: string | null
+          answered_interaction_id?: string | null
+          category?: string | null
+          draft_reply?: string | null
+          sentiment?: string | null
+          status?: string | null
+          urgency?: number | null
           body?: string
           business_id?: string
           channel?: string
@@ -2513,6 +2537,44 @@ export type Database = {
             columns: ["growth_contract_id"]
             isOneToOne: false
             referencedRelation: "growth_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inquiry_policies: {
+        Row: {
+          business_id: string
+          category: string
+          created_at: string
+          id: string
+          is_mock: boolean
+          mode: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          category: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          mode: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          mode?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inquiry_policies_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -5015,6 +5077,10 @@ export type Database = {
       anonymize_customer: {
         Args: { p_business_id: string; p_customer_id: string; p_reason: string }
         Returns: Json
+      }
+      answer_inquiry: {
+        Args: { p_answered_by: string; p_body: string; p_inquiry_id: string }
+        Returns: string
       }
       assistant_context: {
         Args: { p_business_id: string; p_customer_id?: string }

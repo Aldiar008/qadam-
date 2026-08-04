@@ -30,6 +30,7 @@ export const siteConfig = {
     { titleRu: 'Лояльность', titleKk: 'Адалдық', href: '/app/loyalty', icon: 'QrCode' },
     { titleRu: 'Аналитика', titleKk: 'Аналитика', href: '/app/analytics', icon: 'BarChart3' },
     { titleRu: 'Автоматизации', titleKk: 'Автоматтандыру', href: '/app/automations', icon: 'Sliders' },
+    { titleRu: 'Обращения', titleKk: 'Өтініштер', href: '/app/inbox', icon: 'MessagesSquare' },
     { titleRu: 'Уведомления', titleKk: 'Хабарламалар', href: '/app/notifications', icon: 'Bell' },
     { titleRu: 'История действий', titleKk: 'Әрекеттер тарихы', href: '/app/journal', icon: 'History' },
     { titleRu: 'Команда', titleKk: 'Команда', href: '/app/team', icon: 'Users' },

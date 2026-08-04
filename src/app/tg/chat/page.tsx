@@ -10,10 +10,13 @@ const moment = (iso: string) => new Date(iso).toLocaleString('ru-RU', { day: 'nu
 /**
  * Написать заведению.
  *
- * Deliberately not the assistant. The bot answers questions about the menu and
- * the hours because those have answers in the data; a complaint does not, and
- * a machine replying to «у меня проблема» with a cheerful fact is worse than
- * silence. Everything sent here goes to the owner, and the owner answers.
+ * Ассистент отвечает на то, у чего есть ответ в данных заведения: часы, меню,
+ * цены, условия заказа — и только по темам, которые владелец разрешил. Жалоба
+ * и всё денежное уходят человеку: у продукта нет на них ответа, а бодрый факт о
+ * часах работы в ответ на «у меня проблема» хуже молчания.
+ *
+ * Гость видит, кто ему ответил. Подпись под ответом берётся из базы, а не
+ * дорисовывается экраном.
  */
 export default async function GuestChatPage({ searchParams }: { searchParams: Promise<{ sent?: string; error?: string }> }) {
   const params = await searchParams;
@@ -24,7 +27,7 @@ export default async function GuestChatPage({ searchParams }: { searchParams: Pr
   const db = createAdminClient();
   const { data: history } = await db
     .from('customer_interactions')
-    .select('id,direction,kind,body,occurred_at,metadata')
+    .select('id,direction,kind,body,occurred_at,metadata,answered_by')
     .eq('business_id', session.businessId).eq('customer_id', session.customerId)
     .in('kind', ['question', 'answer'])
     .order('occurred_at', { ascending: false }).limit(20);
@@ -36,14 +39,16 @@ export default async function GuestChatPage({ searchParams }: { searchParams: Pr
       <header>
         <h1 className="text-2xl font-extrabold">Написать заведению</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Здесь отвечает человек, а не робот. Если вопрос о меню или часах работы — бот в чате
-          ответит сразу; сюда пишите то, что должен прочитать владелец.
+          На вопросы о меню, ценах, часах и заказе ассистент отвечает сразу. Жалобы, возвраты и
+          всё, что касается денег, читает владелец лично — машина на такое не отвечает.
         </p>
       </header>
 
       {params.sent && (
         <p role="status" className="rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-800">
-          Отправлено. Владелец видит это в своём кабинете и ответит здесь же.
+          {params.sent === 'answered'
+            ? 'Ответ уже в переписке ниже.'
+            : 'Отправлено. Владелец прочитает и ответит здесь же.'}
         </p>
       )}
       {params.error && (
@@ -71,8 +76,12 @@ export default async function GuestChatPage({ searchParams }: { searchParams: Pr
         <section className="space-y-3">
           <p className="text-sm font-bold">Переписка</p>
           {thread.map((row) => {
+            // Подпись берётся из базы: кто ответил, там и записано. Экран,
+            // который решает это сам, рано или поздно подпишет ответ владельца
+            // ботом.
             const meta = (row.metadata ?? {}) as { source?: string };
-            const fromBot = row.direction === 'outbound' && meta.source !== 'owner';
+            const author = (row as { answered_by?: string | null }).answered_by ?? meta.source ?? null;
+            const label = row.direction === 'inbound' ? 'вы' : author === 'ai' ? 'ассистент' : 'заведение';
             return (
               <div
                 key={row.id}
@@ -82,7 +91,7 @@ export default async function GuestChatPage({ searchParams }: { searchParams: Pr
               >
                 <p className="whitespace-pre-line">{row.body}</p>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {row.direction === 'inbound' ? 'вы' : fromBot ? 'бот' : 'заведение'} · {moment(row.occurred_at)}
+                  {label} · {moment(row.occurred_at)}
                 </p>
               </div>
             );

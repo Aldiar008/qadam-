@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { searchMarketForItem } from '@/server/qadam/supply-search';
 import { readTelegramSession } from '@/server/telegram/session';
+import { INQUIRY_CATEGORY_LABELS, triageInquiry } from '@/server/qadam/inquiry-desk';
 
 /**
  * What a guest may do from inside their own card.
@@ -116,10 +117,14 @@ export async function launchFromMiniApp(form: FormData) {
 /**
  * Гость пишет заведению.
  *
- * Nothing here reaches a model. The bot answers questions with answers in the
- * data; a complaint has none, and a machine replying to «у меня проблема» with
- * a cheerful fact about opening hours is worse than silence. This is recorded
- * for the owner, and it pings their chat so it is not found next week.
+ * Сообщение сначала разбирается: тема, настроение, срочность и проект ответа.
+ * Бытовой вопрос, ответ на который есть в данных заведения и тема которого
+ * разрешена владельцем, уходит гостю сразу — будить человека ради «во сколько
+ * вы открываетесь» незачем.
+ *
+ * Жалоба и всё денежное не отвечаются машиной никогда: у продукта нет на них
+ * ответа, а бодрый факт о часах работы в ответ на «у меня проблема» хуже
+ * молчания. Такое обращение ждёт владельца, и его чат об этом узнаёт.
  */
 export async function sendMessageToVenue(form: FormData) {
   const session = await readTelegramSession();
@@ -129,32 +134,47 @@ export async function sendMessageToVenue(form: FormData) {
   if (body.length < 3) redirect(`/tg/chat?error=${encodeURIComponent('Напишите чуть подробнее.')}`);
 
   const db = createAdminClient();
-  const { error } = await db.rpc('record_customer_interaction', {
+  const { data: inquiryId, error } = await db.rpc('record_customer_interaction', {
     p_business_id: session.businessId,
     p_customer_id: session.customerId,
     p_channel: 'telegram',
     p_direction: 'inbound',
     p_kind: 'question',
     p_body: body,
-    p_metadata: { surface: 'mini_app', needs_human: true },
+    p_metadata: { surface: 'mini_app' },
   });
   if (error) redirect(`/tg/chat?error=${encodeURIComponent('Сообщение не сохранилось. Попробуйте ещё раз.')}`);
 
-  await db.from('notifications').insert({
-    business_id: session.businessId,
-    user_id: null,
-    notification_type: 'guest_message',
-    category: 'approval',
-    title: `Сообщение от гостя: ${session.name}`,
-    body: body.slice(0, 300),
-    action_url: '/app/customers/' + session.customerId,
-    is_mock: false,
-  });
+  // Разбор и, если тема разрешена владельцем, ответ — сразу. До этого любое
+  // сообщение будило владельца, включая вопрос о часах работы, ответ на который
+  // лежит в его же данных.
+  const outcome = await triageInquiry(db, {
+    businessId: session.businessId,
+    customerId: session.customerId,
+    inquiryId: String(inquiryId),
+    body,
+  }).catch(() => null);
+
+  // Уведомление — только о том, что действительно ждёт человека. Сообщать
+  // владельцу о каждом отвеченном вопросе значит приучить его не читать
+  // уведомления вовсе.
+  if (!outcome?.sent) {
+    await db.from('notifications').insert({
+      business_id: session.businessId,
+      user_id: null,
+      notification_type: 'guest_message',
+      category: outcome?.triage.sentiment === 'negative' ? 'risk' : 'approval',
+      title: `${outcome ? INQUIRY_CATEGORY_LABELS[outcome.decision.category] : 'Сообщение'} от гостя: ${session.name}`,
+      body: body.slice(0, 300),
+      action_url: '/app/inbox',
+      is_mock: false,
+    });
+  }
 
   // The owner's chat, if it is linked: a message a guest wrote is worth an
   // interruption, unlike most of what a product sends.
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (token) {
+  if (token && !outcome?.sent) {
     const { data: chats } = await db.rpc('owner_chats', { p_business_id: session.businessId });
     for (const row of (chats ?? []) as { chat_id: string }[]) {
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -166,7 +186,7 @@ export async function sendMessageToVenue(form: FormData) {
 
 «${body}»
 
-Ответить можно в кабинете, в карточке гостя.`,
+Ответить можно в разделе «Обращения» — там уже готов проект ответа.`,
           disable_web_page_preview: true,
         }),
       }).catch(() => {});
@@ -174,7 +194,7 @@ export async function sendMessageToVenue(form: FormData) {
   }
 
   revalidatePath('/tg/chat');
-  redirect('/tg/chat?sent=1');
+  redirect(`/tg/chat?sent=${outcome?.sent ? 'answered' : '1'}`);
 }
 
 /** Пересобрать предложения прямо из приложения. */
@@ -204,19 +224,26 @@ export async function answerGuestAsOwner(form: FormData) {
   if (!session?.ownerUserId) redirect('/tg');
 
   const customerId = String(form.get('customerId') ?? '').trim();
+  const inquiryId = String(form.get('inquiryId') ?? '').trim();
   const body = String(form.get('body') ?? '').trim().slice(0, 1500);
   if (!customerId || body.length < 2) redirect(`/tg/owner/inbox?error=${encodeURIComponent('Пустой ответ не отправляется.')}`);
 
   const db = createAdminClient();
-  const { error } = await db.rpc('record_customer_interaction', {
-    p_business_id: session.businessId,
-    p_customer_id: customerId,
-    p_channel: 'telegram',
-    p_direction: 'outbound',
-    p_kind: 'answer',
-    p_body: body,
-    p_metadata: { source: 'owner', surface: 'mini_app' },
-  });
+  // Когда ответ относится к конкретному обращению, он идёт через
+  // `answer_inquiry`: одна запись создаёт сообщение гостю и закрывает
+  // обращение. Раздельно они расходятся — гость получает ответ, а обращение
+  // навсегда остаётся «ждёт владельца».
+  const { error } = inquiryId
+    ? await db.rpc('answer_inquiry', { p_inquiry_id: inquiryId, p_body: body, p_answered_by: 'owner' })
+    : await db.rpc('record_customer_interaction', {
+      p_business_id: session.businessId,
+      p_customer_id: customerId,
+      p_channel: 'telegram',
+      p_direction: 'outbound',
+      p_kind: 'answer',
+      p_body: body,
+      p_metadata: { source: 'owner', surface: 'mini_app' },
+    });
   if (error) redirect(`/tg/owner/inbox?error=${encodeURIComponent('Ответ не сохранился.')}`);
 
   const token = process.env.TELEGRAM_BOT_TOKEN;

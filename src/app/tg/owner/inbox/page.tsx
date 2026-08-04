@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readTelegramSession } from '@/server/telegram/session';
+import { CATEGORY_LABELS, type InquiryCategory } from '@/domain/inquiry-triage';
 import { answerGuestAsOwner } from '../../actions';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,10 @@ interface Row {
   body: string;
   occurred_at: string;
   metadata: Record<string, unknown> | null;
+  category: string | null;
+  status: string | null;
+  draft_reply: string | null;
+  answered_by: string | null;
   customers: { display_name?: string | null } | { display_name?: string | null }[] | null;
 }
 
@@ -34,7 +39,7 @@ export default async function OwnerInboxPage({ searchParams }: { searchParams: P
   const db = createAdminClient();
   const { data: rows } = await db
     .from('customer_interactions')
-    .select('id,customer_id,direction,kind,body,occurred_at,metadata,customers(display_name)')
+    .select('id,customer_id,direction,kind,body,occurred_at,metadata,category,status,draft_reply,answered_by,customers(display_name)')
     .eq('business_id', session.businessId)
     .in('kind', ['question', 'answer'])
     .order('occurred_at', { ascending: false })
@@ -59,7 +64,7 @@ export default async function OwnerInboxPage({ searchParams }: { searchParams: P
     const answeredAfter = lastQuestion
       ? sorted.some((row) => row.direction === 'outbound' && row.kind === 'answer' && row.occurred_at > lastQuestion.occurred_at)
       : true;
-    return { customerId, name: thread.name, rows: sorted.slice(-6), answeredAfter };
+    return { customerId, name: thread.name, rows: sorted.slice(-6), answeredAfter, waiting: lastQuestion?.status === 'awaiting_owner' ? lastQuestion : null };
   }).sort((a, b) => Number(a.answeredAfter) - Number(b.answeredAfter));
 
   return (
@@ -67,8 +72,8 @@ export default async function OwnerInboxPage({ searchParams }: { searchParams: P
       <header>
         <h1 className="text-2xl font-extrabold">Вопросы гостей</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Бот отвечает на вопросы о меню и часах. Всё остальное ждёт вас — и гость видит ваш ответ
-          в своём приложении и в чате.
+          Ассистент отвечает сам на разрешённые вами темы. Жалобы и всё денежное ждут здесь —
+          вместе с готовым проектом ответа, который можно отправить как есть или исправить.
         </p>
       </header>
 
@@ -91,13 +96,11 @@ export default async function OwnerInboxPage({ searchParams }: { searchParams: P
 
             <div className="mt-3 grid gap-2">
               {thread.rows.map((row) => {
-                const meta = (row.metadata ?? {}) as { source?: string };
-                const fromBot = row.direction === 'outbound' && meta.source !== 'owner';
                 return (
                   <div key={row.id} className={'rounded-2xl p-3 text-sm leading-6 ' + (row.direction === 'inbound' ? 'bg-primary/10' : 'border border-border bg-surface-muted')}>
                     <p className="whitespace-pre-line">{row.body}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {row.direction === 'inbound' ? 'гость' : fromBot ? 'бот' : 'вы'} · {moment(row.occurred_at)}
+                      {row.direction === 'inbound' ? 'гость' : row.answered_by === 'ai' ? 'ассистент' : 'вы'} · {moment(row.occurred_at)}
                     </p>
                   </div>
                 );
@@ -106,10 +109,18 @@ export default async function OwnerInboxPage({ searchParams }: { searchParams: P
 
             <form action={answerGuestAsOwner} className="mt-3 grid gap-2">
               <input type="hidden" name="customerId" value={thread.customerId} />
+              {thread.waiting && <input type="hidden" name="inquiryId" value={thread.waiting.id} />}
+              {thread.waiting?.category && (
+                <p className="text-[11px] font-bold text-muted-foreground">
+                  {CATEGORY_LABELS[thread.waiting.category as InquiryCategory] ?? thread.waiting.category}
+                  {thread.waiting.draft_reply ? ' · проект ответа готов, проверьте' : ''}
+                </p>
+              )}
               <textarea
                 name="body"
                 required
-                rows={2}
+                defaultValue={thread.waiting?.draft_reply ?? ''}
+                rows={3}
                 maxLength={1500}
                 placeholder="Ответить гостю…"
                 className="w-full rounded-2xl border border-border bg-surface-muted p-3 text-sm leading-6 outline-none focus:ring-2 focus:ring-primary"
