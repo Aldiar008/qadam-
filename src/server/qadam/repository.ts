@@ -12,6 +12,7 @@ import {
   type GoalCode,
 } from '@/domain/tool-recommendations';
 import { analyseCustomerFromReceipts } from './customer-analysis';
+import { loadTodayOpportunities } from './opportunities';
 
 export type BusinessRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer';
 
@@ -85,6 +86,10 @@ export async function getTodayData() {
   const repeatCustomers = [...visits.values()].filter((value) => value > 1).length;
   const repeatRate = visits.size ? Math.round((repeatCustomers / visits.size) * 100) : 0;
   const contributionRows = contribution ?? [];
+  // Что можно заработать сегодня: те же строки продаж, но повёрнутые к вопросу
+  // владельца, а не к отчёту. Считается после KPI, потому что переиспользует
+  // уже загруженные транзакции и не делает ни одного лишнего запроса к ним.
+  const opportunities = await loadTodayOpportunities(supabase, businessId, ctx.business.timezone ?? 'Asia/Almaty', rows);
   const tools = (activations ?? []).map((row) => {
     const tool = (Array.isArray(row.tools) ? row.tools[0] : row.tools) as { code?: string; name_ru?: string; route?: string } | null;
     return { id: row.id, toolId: row.tool_id, code: tool?.code ?? '', name: tool?.name_ru ?? 'Инструмент', route: tool?.route ?? '/app/tools' };
@@ -102,6 +107,7 @@ export async function getTodayData() {
     },
     signal,
     recommendation,
+    opportunities,
     tools,
     campaigns: campaigns ?? [],
     notifications: notifications ?? [],

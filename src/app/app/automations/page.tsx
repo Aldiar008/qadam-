@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, OctagonX, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 
-import { AUTOMATION_TEMPLATES, allowedModes } from '@/automations/catalog.ts';
+import { AUTOMATION_TEMPLATES, allowedModes, describeGuardrails, describeTrigger } from '@/automations/catalog.ts';
 import { CONNECTOR_STATE_LABELS, type ConnectorState } from '@/connectors/contract.ts';
 import { canManage, canMarket, getAutomationsData } from '@/server/qadam/repository';
 import {
@@ -157,70 +157,6 @@ export default async function AutomationsPage({
         </div>
       </section>
 
-      {/* Connectors ------------------------------------------------------- */}
-      <section className="rounded-3xl border border-border bg-surface p-6">
-        <h2 className="text-lg font-bold">Каналы отправки</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Состояние «Подключён» присваивается только после успешной проверки связи, доказательство которой
-          сохраняется в базе. Без него максимум — «Песочница».
-        </p>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <caption className="sr-only">Состояние каналов отправки</caption>
-            <thead className="bg-surface-muted text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="p-3 font-semibold">Канал</th>
-                <th scope="col" className="p-3 font-semibold">Адаптер</th>
-                <th scope="col" className="p-3 font-semibold">Состояние</th>
-                <th scope="col" className="p-3 font-semibold">Проверка</th>
-                <th scope="col" className="p-3 font-semibold">Действие</th>
-              </tr>
-            </thead>
-            <tbody>
-              {['telegram', 'email', 'webhook'].map((channel) => {
-                const row = data.channels.find((item) => item.channel_type === channel);
-                const state = (row?.connector_state ?? 'not_configured') as ConnectorState;
-                const meta = CONNECTOR_STATE_LABELS[state];
-                return (
-                  <tr key={channel} className="border-t border-border">
-                    <th scope="row" className="p-3 text-left font-semibold uppercase">{channel}</th>
-                    <td className="p-3 font-mono text-xs">{row?.adapter ?? '—'}</td>
-                    <td className="p-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                        state === 'connected' ? 'bg-emerald-500/10 text-emerald-800'
-                          : state === 'sandbox' ? 'bg-amber-500/10 text-amber-800'
-                            : state === 'error' ? 'bg-rose-500/10 text-rose-800'
-                              : 'bg-surface-muted text-muted-foreground'}`}>
-                        {meta.label}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">{meta.hint}</span>
-                      {row?.last_error && <span className="mt-1 block text-xs text-rose-700">{row.last_error}</span>}
-                    </td>
-                    <td className="p-3 font-mono text-xs">
-                      {row?.last_health_check_at ? new Date(row.last_health_check_at).toLocaleString('ru-RU') : 'не выполнялась'}
-                    </td>
-                    <td className="p-3">
-                      {isManager && (
-                        <form action={checkConnectorHealth} className="flex flex-wrap items-end gap-2">
-                          <input type="hidden" name="channel" value={channel} />
-                          <label className="sr-only" htmlFor={`adapter-${channel}`}>Адаптер для {channel}</label>
-                          <select id={`adapter-${channel}`} name="adapter" defaultValue={row?.adapter ?? 'mock'} className="min-h-11 rounded-xl border border-border bg-surface-muted px-2 text-xs">
-                            <option value="mock">mock</option>
-                            <option value="webhook">webhook</option>
-                            <option value="vendor">vendor (не реализован)</option>
-                          </select>
-                          <button className="min-h-11 rounded-xl border border-border px-3 text-xs font-bold">Проверить связь</button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {/* Dead letters ----------------------------------------------------- */}
       {data.deadLetters.length > 0 && (
         <section className="rounded-3xl border border-rose-500/40 bg-rose-500/5 p-6">
@@ -309,12 +245,28 @@ export default async function AutomationsPage({
                   </div>
                 </div>
 
-                <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
-                  <div><dt className="font-semibold">Триггер</dt><dd className="font-mono text-muted-foreground">{JSON.stringify(trigger)}</dd></div>
-                  <div><dt className="font-semibold">Ограничения</dt><dd className="font-mono text-muted-foreground">{JSON.stringify(guardrails)}</dd></div>
-                  <div><dt className="font-semibold">Следующий запуск</dt><dd className="text-muted-foreground">{automation.next_run_at ? new Date(automation.next_run_at).toLocaleString('ru-RU') : '—'}</dd></div>
-                  <div><dt className="font-semibold">Последний запуск</dt><dd className="text-muted-foreground">{automation.last_run_at ? new Date(automation.last_run_at).toLocaleString('ru-RU') : 'ещё не запускалось'}</dd></div>
-                </dl>
+                {/* Здесь печатался JSON настроек. Он точен и нечитаем: владелец
+                    кофейни не обязан разбирать фигурные скобки, чтобы понять,
+                    кого правило ищет. Точный вид остался — в «Настройках
+                    правила» ниже, для того, кому он нужен. */}
+                <p className="mt-4 text-sm leading-6">{describeTrigger(trigger)}</p>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {describeGuardrails(guardrails).map((rule) => (
+                    <li key={rule} className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground">{rule}</li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Следующая проверка: {automation.next_run_at ? new Date(automation.next_run_at).toLocaleString('ru-RU') : '—'}
+                  {' · '}
+                  {automation.last_run_at ? `последняя была ${new Date(automation.last_run_at).toLocaleString('ru-RU')}` : 'ещё ни разу не запускалось'}
+                </p>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-muted-foreground underline decoration-dotted">Настройки правила целиком</summary>
+                  <dl className="mt-2 grid gap-2 rounded-xl bg-surface-muted p-3 text-xs">
+                    <div><dt className="inline font-semibold">Условие: </dt><dd className="inline font-mono text-muted-foreground">{JSON.stringify(trigger)}</dd></div>
+                    <div><dt className="inline font-semibold">Ограничения: </dt><dd className="inline font-mono text-muted-foreground">{JSON.stringify(guardrails)}</dd></div>
+                  </dl>
+                </details>
 
                 {automation.mode !== 'autopilot' && (
                   <p className="mt-3 flex gap-2 rounded-xl bg-surface-muted p-3 text-xs">
@@ -383,6 +335,77 @@ export default async function AutomationsPage({
           )}
         </section>
       </div>
+      <details className="rounded-3xl border border-border bg-surface p-6">
+        <summary className="cursor-pointer text-lg font-bold">Технические настройки каналов</summary>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Нужны один раз при подключении. В обычный день сюда заходить не надо — если канал отвалится,
+          правило само скажет об этом в уведомлении.
+        </p>
+        {/* Connectors ------------------------------------------------------- */}
+        <section className="rounded-3xl border border-border bg-surface p-6">
+          <h2 className="text-lg font-bold">Каналы отправки</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Состояние «Подключён» присваивается только после успешной проверки связи, доказательство которой
+            сохраняется в базе. Без него максимум — «Песочница».
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <caption className="sr-only">Состояние каналов отправки</caption>
+              <thead className="bg-surface-muted text-xs text-muted-foreground">
+                <tr>
+                  <th scope="col" className="p-3 font-semibold">Канал</th>
+                  <th scope="col" className="p-3 font-semibold">Адаптер</th>
+                  <th scope="col" className="p-3 font-semibold">Состояние</th>
+                  <th scope="col" className="p-3 font-semibold">Проверка</th>
+                  <th scope="col" className="p-3 font-semibold">Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                {['telegram', 'email', 'webhook'].map((channel) => {
+                  const row = data.channels.find((item) => item.channel_type === channel);
+                  const state = (row?.connector_state ?? 'not_configured') as ConnectorState;
+                  const meta = CONNECTOR_STATE_LABELS[state];
+                  return (
+                    <tr key={channel} className="border-t border-border">
+                      <th scope="row" className="p-3 text-left font-semibold uppercase">{channel}</th>
+                      <td className="p-3 font-mono text-xs">{row?.adapter ?? '—'}</td>
+                      <td className="p-3">
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          state === 'connected' ? 'bg-emerald-500/10 text-emerald-800'
+                            : state === 'sandbox' ? 'bg-amber-500/10 text-amber-800'
+                              : state === 'error' ? 'bg-rose-500/10 text-rose-800'
+                                : 'bg-surface-muted text-muted-foreground'}`}>
+                          {meta.label}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{meta.hint}</span>
+                        {row?.last_error && <span className="mt-1 block text-xs text-rose-700">{row.last_error}</span>}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {row?.last_health_check_at ? new Date(row.last_health_check_at).toLocaleString('ru-RU') : 'не выполнялась'}
+                      </td>
+                      <td className="p-3">
+                        {isManager && (
+                          <form action={checkConnectorHealth} className="flex flex-wrap items-end gap-2">
+                            <input type="hidden" name="channel" value={channel} />
+                            <label className="sr-only" htmlFor={`adapter-${channel}`}>Адаптер для {channel}</label>
+                            <select id={`adapter-${channel}`} name="adapter" defaultValue={row?.adapter ?? 'mock'} className="min-h-11 rounded-xl border border-border bg-surface-muted px-2 text-xs">
+                              <option value="mock">mock</option>
+                              <option value="webhook">webhook</option>
+                              <option value="vendor">vendor (не реализован)</option>
+                            </select>
+                            <button className="min-h-11 rounded-xl border border-border px-3 text-xs font-bold">Проверить связь</button>
+                          </form>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </details>
+
     </div>
   );
 }

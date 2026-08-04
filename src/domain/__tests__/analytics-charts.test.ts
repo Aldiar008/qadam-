@@ -5,8 +5,10 @@ import {
   areaPath,
   campaignFunnel,
   dailyRevenueSeries,
+  isWeekend,
   lifecycleMix,
   linePath,
+  movingAverage,
   visitHeatmap,
 } from '../analytics-charts.ts';
 
@@ -140,4 +142,29 @@ test('linePath scales to the box and areaPath closes it', () => {
   assert.match(line, /^M 5\.00 45\.00 L 95\.00 5\.00$/);
   assert.ok(areaPath([0, 10], 100, 50, 5).endsWith('Z'));
   assert.equal(linePath([], 100, 50), '', 'no points, no path');
+});
+
+// ---------------------------------------------------------------------------
+// Столбцы и линия тренда
+// ---------------------------------------------------------------------------
+
+test('среднее за неделю сглаживает субботние всплески, но не выдумывает точек', () => {
+  const values = [100, 900, 100, 100, 100, 100, 100, 900];
+  const average = movingAverage(values, 7);
+  assert.equal(average.length, values.length);
+  // Первая точка не может быть ничем, кроме самой себя: раньше данных нет.
+  assert.equal(average[0], 100);
+  assert.ok(average[1] > 100 && average[1] < 900, 'всплеск размазывается, а не копируется');
+  assert.ok(Math.max(...average) < Math.max(...values), 'сглаженная линия ниже пиков по определению');
+});
+
+test('окно короче единицы возвращает исходный ряд, а не пустоту', () => {
+  assert.deepEqual(movingAverage([1, 2, 3], 0), [1, 2, 3]);
+});
+
+test('выходные определяются по дате заведения, а не по часовому поясу сервера', () => {
+  // 2026-08-01 — суббота, 2026-08-02 — воскресенье, 2026-08-03 — понедельник.
+  assert.equal(isWeekend('2026-08-01'), true);
+  assert.equal(isWeekend('2026-08-02'), true);
+  assert.equal(isWeekend('2026-08-03'), false);
 });

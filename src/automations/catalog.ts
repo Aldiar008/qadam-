@@ -23,7 +23,11 @@ export type AutomationTypeCode =
   | 'content_queue'
   | 'stop_loss'
   | 'weekly_review'
-  | 'data_quality';
+  | 'data_quality'
+  | 'second_visit'
+  | 'abandoned_item'
+  | 'check_drop'
+  | 'low_margin_item';
 
 export interface AutomationTemplate {
   code: AutomationTypeCode;
@@ -137,6 +141,58 @@ export const AUTOMATION_TEMPLATES: readonly AutomationTemplate[] = [
     defaultMode: 'assistant',
     autopilotGates: ['Казахский текст проверен носителем языка'],
   },
+  // Четыре правила ниже опираются только на то, что есть у любого заведения с
+  // кассой: покупки и меню. Половина каталога до них требовала того, чего у
+  // маленькой кофейни может не быть вовсе — VIP-сегмента, цикла услуги, даты
+  // рождения, — и раздел выглядел пустым не потому, что правил мало.
+  {
+    code: 'second_visit',
+    version: 'second_visit.v1',
+    nameRu: 'Первый визит без второго',
+    descriptionRu: 'Находит гостей, которые купили один раз и не вернулись. Второй визит стоит дешевле любой новой продажи.',
+    trigger: { kind: 'single_purchase_only', days: 14, intervalHours: 24 },
+    filters: { excludeStages: ['anonymized'], requiresConsent: true },
+    action: { kind: 'propose_growth_contract', goal: 'repeat_visit', channel: 'telegram' },
+    guardrails: { ...BASE_GUARDRAILS, maxRecipientsPerRun: 40 },
+    defaultMode: 'assistant',
+    autopilotGates: ['Не менее 3 подтверждённых кампаний', 'Канал в состоянии connected'],
+  },
+  {
+    code: 'abandoned_item',
+    version: 'abandoned_item.v1',
+    nameRu: 'Гость бросил любимую позицию',
+    descriptionRu: 'Ищет тех, кто регулярно брал одну позицию и перестал. Считается по составу чека, а не по общей сумме.',
+    trigger: { kind: 'item_abandoned', days: 30, minOrders: 2, intervalHours: 24 },
+    filters: { requiresConsent: true, requiresReceiptLines: true },
+    action: { kind: 'propose_growth_contract', goal: 'repeat_visit', channel: 'telegram' },
+    guardrails: { ...BASE_GUARDRAILS, maxRecipientsPerRun: 30 },
+    defaultMode: 'assistant',
+    autopilotGates: ['Касса передаёт состав чека, а не только сумму', 'Канал в состоянии connected'],
+  },
+  {
+    code: 'check_drop',
+    version: 'check_drop.v1',
+    nameRu: 'Средний чек падает',
+    descriptionRu: 'Сравнивает средний чек за 28 дней с предыдущими 28 и предупреждает, когда он просел больше чем на 10%.',
+    trigger: { kind: 'average_check_drop', windowDays: 28, thresholdBps: 1000, intervalHours: 24 },
+    filters: {},
+    action: { kind: 'notify_summary', category: 'risk' },
+    guardrails: { ...BASE_GUARDRAILS, requiresConsent: false, maxRecipientsPerRun: 1 },
+    defaultMode: 'assistant',
+    autopilotGates: ['Правило только предупреждает и ничего не отправляет гостям'],
+  },
+  {
+    code: 'low_margin_item',
+    version: 'low_margin_item.v1',
+    nameRu: 'Позиции ниже порога маржи',
+    descriptionRu: 'Проверяет меню против вашей минимальной маржи. Именно такие позиции превращают акцию в убыток.',
+    trigger: { kind: 'catalog_margin_below_floor', intervalHours: 168 },
+    filters: { requiresCatalogCost: true },
+    action: { kind: 'notify_summary', category: 'risk' },
+    guardrails: { ...BASE_GUARDRAILS, requiresConsent: false, maxRecipientsPerRun: 1 },
+    defaultMode: 'assistant',
+    autopilotGates: ['Правило только предупреждает'],
+  },
   {
     code: 'stop_loss',
     version: 'stop_loss.v1',
@@ -187,4 +243,59 @@ export function allowedModes(template: AutomationTemplate): AutomationMode[] {
   return template.code === 'stop_loss'
     ? ['manual', 'assistant', 'autopilot']
     : ['manual', 'assistant'];
+}
+
+/**
+ * Правило по-человечески.
+ *
+ * Карточка правила печатала свои настройки как JSON: `{"kind":"customer_inactive",
+ * "days":30,"intervalHours":24}`. Это точное описание и нечитаемое: владелец
+ * кофейни не обязан разбирать фигурные скобки, чтобы понять, кого правило ищет.
+ * Здесь тот же объект превращается в предложение. Незнакомый ключ не
+ * выбрасывается — он показывается как есть, потому что молча потерять настройку
+ * хуже, чем показать её некрасиво.
+ */
+export function describeTrigger(trigger: Record<string, unknown>): string {
+  const days = Number(trigger.days ?? trigger.cycleDays ?? trigger.windowDays ?? 0);
+  const every = Number(trigger.intervalHours ?? 0);
+  const cadence = every >= 168 ? 'Проверяется раз в неделю'
+    : every >= 24 ? 'Проверяется раз в сутки'
+      : every > 0 ? `Проверяется каждые ${every} ч`
+        : 'Проверяется в общем цикле';
+
+  const what: Record<string, string> = {
+    first_purchase: 'Срабатывает после первой покупки гостя',
+    customer_inactive: `Ищет гостей без визита дольше ${days || 30} дней`,
+    capacity_below_threshold: 'Следит за часами, загруженными меньше чем наполовину',
+    service_cycle_elapsed: `Напоминает, когда прошло ${days || 45} дней с прошлой услуги`,
+    birthday_within: `Смотрит, у кого день рождения в ближайшие ${days || 3} дня`,
+    vip_inactive: `Ищет VIP-гостей без визита дольше ${days || 21} дней`,
+    campaign_without_content: 'Ищет кампании, у которых нет утверждённого текста',
+    underperformance: 'Следит за откликом идущих кампаний',
+    weekly: 'Собирает итоги недели',
+    daily: 'Проверяет качество данных',
+    single_purchase_only: `Ищет гостей с одной покупкой, сделанной больше ${days || 14} дней назад`,
+    item_abandoned: `Ищет позиции, которые гость брал регулярно и не брал ${days || 30} дней`,
+    average_check_drop: 'Сравнивает средний чек с предыдущим таким же периодом',
+    catalog_margin_below_floor: 'Проверяет меню против вашей минимальной маржи',
+  };
+
+  const kind = typeof trigger.kind === 'string' ? trigger.kind : '';
+  return `${what[kind] ?? `Условие: ${kind || 'не задано'}`}. ${cadence}.`;
+}
+
+/** Ограничения — теми же словами, что владелец услышал бы от менеджера. */
+export function describeGuardrails(guardrails: Record<string, unknown>): string[] {
+  const lines: string[] = [];
+  if (guardrails.requiresConsent) lines.push('Только тем, кто дал согласие');
+  if (guardrails.respectsQuietHours) lines.push('Не пишет в тихие часы');
+  if (guardrails.respectsSuppressionList) lines.push('Не трогает отписавшихся');
+  if (guardrails.ownerApprovalRequired) lines.push('Отправка — только после вашего подтверждения');
+  if (guardrails.stopOnNegativeContribution) lines.push('Останавливается, если предложение уходит в минус');
+  if (guardrails.nativeReviewRequiredForKk) lines.push('Казахский текст требует проверки носителем');
+  if (guardrails.canPauseAutomatically) lines.push('Может остановить кампанию само');
+  if (guardrails.canRestartAutomatically === false) lines.push('Возобновить может только владелец');
+  const cap = Number(guardrails.maxRecipientsPerRun ?? 0);
+  if (cap > 1) lines.push(`Не больше ${cap} человек за один запуск`);
+  return lines;
 }

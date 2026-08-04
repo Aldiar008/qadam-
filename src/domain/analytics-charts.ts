@@ -296,3 +296,30 @@ export function areaPath(values: readonly number[], width: number, height: numbe
   const lastX = values.length > 1 ? width - padding : padding;
   return `${line} L ${lastX.toFixed(2)} ${height - padding} L ${padding.toFixed(2)} ${height - padding} Z`;
 }
+
+/**
+ * Скользящее среднее по дневной выручке.
+ *
+ * Дневная выручка кофейни скачет вдвое между вторником и субботой, и по одной
+ * ломаной линии владелец видит зубцы, а не направление. Столбцы отвечают на
+ * «сколько было в этот день», а среднее за неделю — на «куда идёт».
+ */
+export function movingAverage(values: readonly number[], window: number): number[] {
+  if (window < 1) return [...values];
+  return values.map((_, index) => {
+    const from = Math.max(0, index - window + 1);
+    const slice = values.slice(from, index + 1);
+    return slice.reduce((sum, value) => sum + value, 0) / slice.length;
+  });
+}
+
+/**
+ * Выходной ли этот день.
+ *
+ * Дата приходит уже приведённой к часовому поясу заведения (`YYYY-MM-DD`),
+ * поэтому читается как полдень UTC: любой сдвиг пояса оставит её тем же днём.
+ */
+export function isWeekend(date: string): boolean {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
