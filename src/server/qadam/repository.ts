@@ -263,8 +263,22 @@ export async function getCustomersData(filters: { q?: string; segment?: string; 
 
 export async function getRecommendationsData() {
   const ctx = await requireBusinessContext();
-  const { data } = await ctx.supabase.from('recommendations').select('id,signal_id,title_ru,title_kk,explanation,confidence,status,snoozed_until,optimistic_version,feedback,created_at').eq('business_id', ctx.businessId).order('created_at', { ascending: false });
-  return { ...ctx, recommendations: data ?? [] };
+  const { data } = await ctx.supabase.from('recommendations').select('id,signal_id,title_ru,title_kk,explanation,confidence,status,snoozed_until,optimistic_version,feedback,created_at,updated_at').eq('business_id', ctx.businessId).order('created_at', { ascending: false });
+  // Решённая рекомендация остаётся в списке ещё час.
+  //
+  // Раньше принятые и отклонённые исчезали сразу: список после каждого нажатия
+  // становился короче, и всё, что ниже, уезжало вверх. Владелец целился во
+  // вторую карточку, а под пальцем оказывалась третья — со стороны это
+  // выглядит как «кнопка срабатывает через раз» и «нажимать надо дважды».
+  //
+  // Считается здесь, а не на экране: `Date.now()` во время отрисовки —
+  // нечистый вызов, и правило React его справедливо запрещает.
+  const decidedSince = Date.now() - 3_600_000;
+  const rows = data ?? [];
+  const visible = rows.filter((item) => item.status === 'open' || item.status === 'snoozed'
+    || (['accepted', 'rejected'].includes(item.status)
+      && new Date(item.updated_at ?? item.created_at).getTime() >= decidedSince));
+  return { ...ctx, recommendations: rows, visible };
 }
 
 export async function getCustomerDetail(customerId: string) {

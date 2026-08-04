@@ -49,7 +49,16 @@ export async function updateRecommendation(form: FormData) {
   const reason = textValue(form, 'reason');
   const idempotencyKey = textValue(form, 'idempotencyKey') || `recommendation:${id}:${status}:${randomUUID()}`;
   const { error } = await ctx.supabase.rpc('transition_domain_entity', { p_entity_type: 'recommendation', p_entity_id: id, p_to_status: status, p_expected_version: expectedVersion, p_idempotency_key: idempotencyKey });
-  if (error) throw error;
+  // Отказ базы — это ответ, а не сбой приложения. Раньше он превращался в
+  // пустую страницу ошибки, и владелец видел только то, что кнопка «не
+  // сработала». Чаще всего причина одна: карточку уже успели изменить в другой
+  // вкладке или на телефоне, и версия в форме устарела.
+  if (error) {
+    redirect(`/app/recommendations?error=${encodeURIComponent(
+      /optimistic|version|40001/i.test(error.message)
+        ? 'Эта рекомендация уже изменилась — обновите страницу и решите ещё раз.'
+        : describeDbError(error))}`);
+  }
   if (reason) await ctx.supabase.from('recommendations').update({ feedback: { reason, kind: 'owner_feedback', trained_model: false } }).eq('id', id).eq('business_id', ctx.businessId);
   revalidatePath('/app/recommendations');
   revalidatePath('/app/today');

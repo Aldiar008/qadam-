@@ -6,6 +6,20 @@ import { refreshRecommendations, updateRecommendation } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Состояние рекомендации словом.
+ *
+ * Решённые остаются в списке до конца часа: список, который после каждого
+ * нажатия становится короче, уводит соседние карточки вверх — и владелец
+ * промахивается по следующей.
+ */
+const STATUS_LABELS: Record<string, string> = {
+  open: 'Открыта',
+  snoozed: 'Отложена',
+  accepted: 'Принята',
+  rejected: 'Отклонена',
+};
+
 const money = (minor: number) => `${Number(minor).toLocaleString('ru-RU')} ₸`;
 
 interface Economics {
@@ -21,7 +35,7 @@ interface Economics {
 export default async function RecommendationsPage({ searchParams }: { searchParams: Promise<{ refreshed?: string; error?: string }> }) {
   const params = await searchParams;
   const data = await getRecommendationsData();
-  const open = data.recommendations.filter((item) => item.status === 'open' || item.status === 'snoozed');
+  const open = data.visible;
 
   return (
     <div className="mx-auto max-w-6xl space-y-7">
@@ -72,7 +86,7 @@ export default async function RecommendationsPage({ searchParams }: { searchPara
                         ? <span>GOS {String(explanation.gos)}</span>
                         : <span>Из автоматизации</span>}
                       <span>Уверенность {item.confidence}%</span>
-                      <span>{item.status === 'snoozed' ? 'Отложена' : 'Открыта'}</span>
+                      <span>{STATUS_LABELS[item.status] ?? item.status}</span>
                       {eligible !== null && <span>Можно написать: {eligible}</span>}
                     </div>
                     <h2 className="mt-3 text-xl font-bold">{item.title_ru}</h2>
@@ -107,6 +121,20 @@ export default async function RecommendationsPage({ searchParams }: { searchPara
                     )}
                   </div>
                 </div>
+
+                {(item.status === 'accepted' || item.status === 'rejected') && (
+                  <p className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-sm">
+                    <span className={'rounded-full px-3 py-1 text-xs font-bold ' + (item.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-800' : 'bg-surface-muted text-muted-foreground')}>
+                      {item.status === 'accepted' ? 'Вы приняли это решение' : 'Вы отклонили'}
+                    </span>
+                    {item.status === 'accepted' && (
+                      <Link href={`/app/campaigns/studio?step=1&recommendation=${item.id}`} className="font-bold text-primary hover:underline">
+                        Собрать кампанию
+                      </Link>
+                    )}
+                    <span className="text-xs text-muted-foreground">Карточка останется здесь до конца часа, чтобы список не прыгал под рукой.</span>
+                  </p>
+                )}
 
                 {item.status === 'open' && (
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
