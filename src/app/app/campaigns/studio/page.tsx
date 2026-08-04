@@ -85,7 +85,7 @@ function ScenarioGrid({ evaluation }: { evaluation: VariantEvaluation }) {
 export default async function CampaignStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ step?: string; error?: string; invalid?: string; generated?: string; adopted?: string; compiled?: string; approved?: string; mechanic?: string }>;
+  searchParams: Promise<{ step?: string; error?: string; invalid?: string; generated?: string; adopted?: string; compiled?: string; approved?: string; recalculated?: string; mechanic?: string }>;
 }) {
   const params = await searchParams;
   const data = await getStudioViewData();
@@ -138,6 +138,11 @@ export default async function CampaignStudioPage({
           {params.approved && 'Growth Contract подтверждён. Снимок зафиксирован.'}
         </div>
       )}
+
+      {/* Куда возвращается владелец после любой кнопки этого экрана.
+          `scroll-mt-24` оставляет место под липкой шапкой — иначе якорь
+          прячет заголовок шага под ней. */}
+      <div id="studio-step" className="scroll-mt-24" />
 
       {/* ---------------------------------------------------------------- 1 */}
       {step === 1 && (
@@ -531,9 +536,19 @@ export default async function CampaignStudioPage({
                 <input name="upliftHighBps" type="number" min="0" max="10000" defaultValue={draft.upliftHighBps} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
             </div>
-            <div className="flex flex-wrap justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <button name="direction" value="back" className="inline-flex min-h-12 items-center rounded-xl border border-border px-5 text-sm font-bold">Назад</button>
-              <button name="direction" value="next" className="inline-flex min-h-12 items-center rounded-xl border border-border px-5 text-sm font-bold">Пересчитать</button>
+              {/* Подтверждение стоит рядом с кнопкой, а не в шапке страницы:
+                  владелец остаётся на месте и должен увидеть ответ там, где
+                  нажал. */}
+              {params.recalculated && (
+                <p role="status" className="rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-800">
+                  Сценарии пересчитаны сервером — числа выше обновлены.
+                </p>
+              )}
+              {/* «Пересчитать» отправляла `next` и уводила на следующий шаг:
+                  владелец просил пересчёт, а получал другой экран. */}
+              <button name="direction" value="recalculate" className="inline-flex min-h-12 items-center rounded-xl border border-border px-5 text-sm font-bold">Пересчитать</button>
             </div>
           </form>
 

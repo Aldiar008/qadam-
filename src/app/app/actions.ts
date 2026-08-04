@@ -389,7 +389,7 @@ export async function saveBusinessSettings(form: FormData) {
   const name = textValue(form, 'name');
   if (name) {
     const { error } = await ctx.supabase.from('businesses').update({ name }).eq('id', ctx.businessId);
-    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}`);
+    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}#business-profile`);
   }
 
   const averageCheck = Number(textValue(form, 'averageCheckMinor') || '0');
@@ -399,7 +399,7 @@ export async function saveBusinessSettings(form: FormData) {
     const { error } = await ctx.supabase.from('business_profiles')
       .update({ average_check_minor: averageCheck, margin_floor_bps: marginFloorBps, monthly_marketing_budget_minor: marketingBudget })
       .eq('business_id', ctx.businessId);
-    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}`);
+    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}#business-profile`);
   }
 
   const city = textValue(form, 'city');
@@ -408,7 +408,7 @@ export async function saveBusinessSettings(form: FormData) {
     const { error } = await ctx.supabase.from('business_locations')
       .update({ city, district: textValue(form, 'district') || null, address_text: textValue(form, 'addressText') || null })
       .eq('id', locationId).eq('business_id', ctx.businessId);
-    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}`);
+    if (error) redirect(`/app/settings?error=${encodeURIComponent(describeDbError(error))}#business-profile`);
   }
 
   await ctx.supabase.from('activity_logs').insert({
@@ -420,7 +420,7 @@ export async function saveBusinessSettings(form: FormData) {
 
   revalidatePath('/app/settings');
   revalidatePath('/app/today');
-  redirect('/app/settings?saved=1');
+  redirect('/app/settings?saved=profile#business-profile');
 }
 
 /** Reads the rule out of a form exactly as both the preview and the card read it. */
@@ -535,13 +535,13 @@ export async function saveBusinessLimits(form: FormData) {
   if (campaigns !== null) changes.max_campaigns_per_month = campaigns;
   const contacts = positive('maxContactsPerMonth');
   if (contacts !== null) changes.max_contacts_per_month = contacts;
-  if (!Object.keys(changes).length) redirect('/app/settings?error=' + encodeURIComponent('Ни одно поле лимитов не заполнено.'));
+  if (!Object.keys(changes).length) redirect('/app/settings?error=' + encodeURIComponent('Ни одно поле лимитов не заполнено.') + '#business-limits');
 
   const { data: existing } = await ctx.supabase.from('business_limits').select('id').eq('business_id', ctx.businessId).maybeSingle();
   const result = existing
     ? await ctx.supabase.from('business_limits').update(changes).eq('id', existing.id)
     : await ctx.supabase.from('business_limits').insert({ business_id: ctx.businessId, currency: 'KZT', is_mock: ctx.business.mode === 'demo', ...changes });
-  if (result.error) redirect('/app/settings?error=' + encodeURIComponent(describeDbError(result.error)));
+  if (result.error) redirect('/app/settings?error=' + encodeURIComponent(describeDbError(result.error)) + '#business-limits');
 
   await ctx.supabase.from('activity_logs').insert({
     business_id: ctx.businessId, actor_id: ctx.userId, action: 'business.limits_updated',
@@ -550,7 +550,7 @@ export async function saveBusinessLimits(form: FormData) {
   });
 
   revalidatePath('/app/settings');
-  redirect('/app/settings?saved=1');
+  redirect('/app/settings?saved=limits#business-limits');
 }
 
 export async function saveCustomSegment(form: FormData) {

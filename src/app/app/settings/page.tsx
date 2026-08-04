@@ -43,7 +43,7 @@ export default async function SettingsPage({
         </p>
       )}
 
-      <form action={saveBusinessSettings} className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+      <form action={saveBusinessSettings} id="business-profile" className="scroll-mt-24 rounded-3xl border border-border bg-surface p-6 sm:p-8">
         <fieldset disabled={!canEdit} className="grid gap-5 sm:grid-cols-2">
           <legend className="sr-only">Профиль бизнеса</legend>
           <input type="hidden" name="locationId" value={location?.id ?? ''} />
@@ -90,15 +90,25 @@ export default async function SettingsPage({
         </fieldset>
 
         {canEdit && (
-          <button className="mt-8 min-h-12 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground">
-            Сохранить настройки
-          </button>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <button className="min-h-12 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground">
+              Сохранить настройки
+            </button>
+            {/* Подтверждение рядом с кнопкой, а не только в шапке страницы:
+                после сохранения владелец остаётся здесь и должен увидеть ответ
+                там, где нажал. */}
+            {params.saved === 'profile' && (
+              <p role="status" className="rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-800">
+                Сохранено. Margin Shield считает по этим числам с этой секунды.
+              </p>
+            )}
+          </div>
         )}
       </form>
 
       {/* «меняются владельцем отдельно» was true of the sentence and false of
           the product: there was no screen anywhere that edited these. */}
-      <form action={saveBusinessLimits} className="rounded-3xl border border-border bg-surface p-6">
+      <form action={saveBusinessLimits} id="business-limits" className="scroll-mt-24 rounded-3xl border border-border bg-surface p-6">
         <h2 className="text-xl font-bold">Лимиты запуска</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Проверяются в базе при каждом запуске кампании. Превысить их из интерфейса нельзя.
@@ -122,9 +132,16 @@ export default async function SettingsPage({
           </label>
         </div>
         {canEdit && (
-          <button className="mt-6 min-h-12 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground">
-            Сохранить лимиты
-          </button>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button className="min-h-12 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground">
+              Сохранить лимиты
+            </button>
+            {params.saved === 'limits' && (
+              <p role="status" className="rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-800">
+                Лимиты сохранены. База проверяет их при каждом запуске.
+              </p>
+            )}
+          </div>
         )}
       </form>
 

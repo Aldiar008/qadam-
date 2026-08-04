@@ -24,8 +24,19 @@ const int = (form: FormData, key: string, fallback: number) => {
 };
 
 const BASE = '/app/campaigns/studio';
+
+/**
+ * Возврат на шаг — к самому шагу, а не в начало страницы.
+ *
+ * Каждая кнопка студии отправляет форму, сервер отвечает переходом, и браузер
+ * открывает страницу с начала. На шаге «Симулятор» это особенно заметно: блок
+ * с решением Margin Shield находится внизу длинной страницы, и после
+ * «Пересчитать» владелец оказывался наверху, не увидев, что именно
+ * пересчиталось. Якорь возвращает его туда, где он нажал кнопку.
+ */
+const STEP_ANCHOR = 'studio-step';
 function backTo(step: number, extra = ''): never {
-  redirect(`${BASE}?step=${step}${extra}`);
+  redirect(`${BASE}?step=${step}${extra}#${STEP_ANCHOR}`);
 }
 
 /** Reads the fields this step owns; every other field keeps its stored value. */
@@ -90,7 +101,14 @@ export async function saveStudioStep(form: FormData) {
   const draft = applyStep(step, session.draft, form);
 
   // Persist first: a validation failure must not cost the owner their typing.
-  const target = direction === 'back' ? Math.max(1, step - 1) : Math.min(7, step + 1);
+  //
+  // `recalculate` — третье направление помимо «вперёд» и «назад». Кнопка
+  // «Пересчитать» на шаге симулятора отправляла `next` и уводила владельца на
+  // следующий шаг: он просил пересчитать сценарии, а получал другой экран.
+  // Теперь она остаётся на месте и говорит, что пересчёт выполнен.
+  const target = direction === 'back' ? Math.max(1, step - 1)
+    : direction === 'recalculate' ? step
+      : Math.min(7, step + 1);
   const issues = direction === 'next' ? validateStep(step, draft) : [];
   const nextStep = issues.length ? step : target;
 
@@ -99,7 +117,7 @@ export async function saveStudioStep(form: FormData) {
 
   revalidatePath(BASE);
   if (issues.length) backTo(step, `&invalid=${encodeURIComponent(issues.map((issue) => issue.field).join(','))}`);
-  backTo(nextStep);
+  backTo(nextStep, direction === 'recalculate' ? '&recalculated=1' : '');
 }
 
 /** Jump straight to a step the owner already reached. */
