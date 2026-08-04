@@ -123,14 +123,18 @@ export function RevenueTrend({ series, days }: { series: RevenueSeries; days: nu
             const isPeak = index === peakIndex;
             const barHeight = Math.max(point.valueMinor > 0 ? 2 : 0, padTop + plotHeight - y(point.valueMinor));
             return (
+              // `<title>` внутри столбца дал бы всплывающую подсказку и стоил
+              // ошибки гидратации: React 19 поднимает `title` в `<head>`, и
+              // разметка сервера перестаёт совпадать с клиентской. Подпись
+              // столбца живёт в `aria-label`; сама цифра и так сказана в
+              // описании всего графика и в подписи под ним.
               <rect
                 key={point.date}
                 x={x(index)} y={padTop + plotHeight - barHeight}
                 width={barWidth} height={barHeight} rx={Math.min(3, barWidth / 2)}
+                aria-label={`${dayLabel(point.date)} — ${money(point.valueMinor)}, продаж ${point.transactions}`}
                 className={isPeak ? 'fill-emerald-600' : weekend ? 'fill-primary/40' : 'fill-primary/80'}
-              >
-                <title>{dayLabel(point.date)} — {money(point.valueMinor)}, продаж {point.transactions}</title>
-              </rect>
+              />
             );
           })}
 
