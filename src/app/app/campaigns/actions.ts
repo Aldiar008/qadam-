@@ -21,7 +21,7 @@ const intValue = (form: FormData, key: string, fallback: number) => {
 };
 
 function failTo(path: string, message: string): never {
-  redirect(`${path}${path.includes('?') ? '&' : '?'}error=${encodeURIComponent(message)}`);
+  redirect(`${path}${path.includes('?') ? '&' : '?'}error=${encodeURIComponent(message)}#campaign-result`);
 }
 
 /**
@@ -126,7 +126,10 @@ export async function compileCampaignDraft(form: FormData) {
       stopRule: { maxRedemptions: audienceCustomerIds.length, maxBudgetMinor: Math.max(0, intValue(form, 'budgetCapMinor', 7000)), pauseOnNegativeContribution: true },
     });
     revalidatePath('/app/campaigns');
-    redirect(`/app/campaigns/new?contract=${compiled.id}&segment=${encodeURIComponent(textValue(form, 'segment'))}&channel=${encodeURIComponent(channel)}&compiled=1`);
+    // Якорь возвращает владельца к решению Margin Shield, ради которого он и
+    // нажимал кнопку. Без него страница открывалась с начала, и результат
+    // оставался ниже экрана.
+    redirect(`/app/campaigns/new?contract=${compiled.id}&segment=${encodeURIComponent(textValue(form, 'segment'))}&channel=${encodeURIComponent(channel)}&compiled=1#campaign-result`);
   } catch (error) {
     if (error instanceof DomainError) failTo(back, domainMessage(error));
     throw error;
@@ -148,7 +151,7 @@ export async function transitionContract(form: FormData) {
   });
   if (error) failTo(back, describeDbError(error));
   revalidatePath('/app/campaigns');
-  redirect(`${back}&transitioned=1`);
+  redirect(`${back}&transitioned=1#campaign-result`);
 }
 
 export async function launchCampaign(form: FormData) {

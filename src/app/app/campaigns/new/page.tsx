@@ -4,6 +4,17 @@ import { getCampaignStudioData, segmentForCustomer } from '@/server/qadam/reposi
 import { mechanicFromRecommendation } from '@/lib/recommendation-mechanic';
 import { compileCampaignDraft, launchCampaign, transitionContract } from '../actions';
 
+/**
+ * Решение Margin Shield по-русски: на карточке стояло «Margin Shield: allowed».
+ * Владелец читает два английских слова как шум и пролистывает, а решение здесь
+ * — самое важное на экране.
+ */
+const MARGIN_LABELS: Record<string, string> = {
+  allowed: 'проходит',
+  warning: 'проходит с оговоркой',
+  blocked: 'не проходит',
+};
+
 export const dynamic = 'force-dynamic';
 
 // KZT minor unit is the tenge itself in this schema — no division.
@@ -252,7 +263,7 @@ export default async function CampaignStudioPage({
       )}
 
       {contract && (
-        <section className="space-y-5 rounded-3xl border border-border bg-surface p-6" aria-live="polite">
+        <section id="campaign-result" className="scroll-mt-24 space-y-5 rounded-3xl border border-border bg-surface p-6" aria-live="polite">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-bold">Шаг 4 · Growth Contract v{contract.version}</h2>
@@ -270,7 +281,7 @@ export default async function CampaignStudioPage({
               }`}
             >
               {decision?.status === 'allowed' ? <ShieldCheck className="size-4" /> : <ShieldAlert className="size-4" />}
-              Margin Shield: {decision?.status ?? 'n/a'}
+              Маржа: {MARGIN_LABELS[decision?.status ?? ''] ?? 'не проверялась'}
             </span>
           </div>
 
