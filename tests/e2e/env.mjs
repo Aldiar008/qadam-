@@ -34,15 +34,25 @@ export function loadLocalEnv(
 ) {
   for (const file of files) {
     if (!existsSync(file)) continue;
-    for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-      const match = /^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
-      if (!match) continue;
-      // Shell-строки вида `export A=1 B=2` встречаются в CREDENTIALS.local.md,
-      // и без этого второй ключ уезжал в значение первого.
-      const raw = match[2].trim();
-      const quoted = /^(["'])(.*?)\1/.exec(raw);
-      const value = quoted ? quoted[2] : raw.split(/\s+/)[0];
-      if (value && process.env[match[1]] === undefined) process.env[match[1]] = value;
+    for (const rawLine of readFileSync(file, 'utf8').split(/\r?\n/)) {
+      const line = rawLine.replace(/^\s*export\s+/, '');
+      // Каждое присваивание в строке, а не только первое.
+      //
+      // В CREDENTIALS.local.md встречается форма `export A B=$C`: она
+      // экспортирует уже заданную A и заодно присваивает B. Прежнее правило
+      // требовало `=` сразу после первого имени, поэтому такая строка не
+      // подходила под шаблон целиком — и оба ключа молча терялись. Дороже всего
+      // обошёлся `QADAM_SUPABASE_PROJECT_REF`: без него приёмка гоняла браузер
+      // по развёрнутому стенду, а SQL-проверки задавала локальной базе, и
+      // расхождение выглядело как поломка продукта.
+      for (const match of line.matchAll(/([A-Z][A-Z0-9_]*)\s*=\s*("[^"]*"|'[^']*'|[^\s#]*)/g)) {
+        const [, name, rawValue] = match;
+        const quoted = /^(["'])([\s\S]*)\1$/.exec(rawValue);
+        let value = quoted ? quoted[2] : rawValue;
+        // `B=$A` — ссылка на уже прочитанный ключ, как её понял бы шелл.
+        if (value.startsWith('$')) value = process.env[value.slice(1).replace(/[{}]/g, '')] ?? '';
+        if (value && process.env[name] === undefined) process.env[name] = value;
+      }
     }
   }
 }
