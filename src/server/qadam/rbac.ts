@@ -16,6 +16,23 @@ export type TenantRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer'
 
 export const TENANT_ROLES: readonly TenantRole[] = ['owner', 'manager', 'marketer', 'analyst', 'viewer'];
 
+/**
+ * Roles the product actually offers when inviting or changing someone.
+ *
+ * «Маркетолог» was dropped from the product: in a café or a salon the person
+ * who prepares a campaign is the manager, and a separate marketing seat only
+ * added a role nobody filled. It stays in `TenantRole` and in `ROLE_LABELS`
+ * because rows already carrying it must keep rendering with a name instead of a
+ * raw code — removing the value from the schema would rewrite other people's
+ * data to fix a wording problem. What changes is that it can no longer be
+ * handed out: the screen does not offer it and the server refuses it.
+ */
+export const ASSIGNABLE_ROLES: readonly TenantRole[] = ['owner', 'manager', 'analyst', 'viewer'];
+
+export function isAssignableRole(role: string): role is TenantRole {
+  return (ASSIGNABLE_ROLES as readonly string[]).includes(role);
+}
+
 export const ROLE_LABELS: Record<TenantRole, string> = {
   owner: 'Владелец',
   manager: 'Менеджер',

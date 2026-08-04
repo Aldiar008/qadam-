@@ -11,6 +11,7 @@ import {
   type BusinessTypeCode,
   type GoalCode,
 } from '@/domain/tool-recommendations';
+import { analyseCustomerFromReceipts } from './customer-analysis';
 
 export type BusinessRole = 'owner' | 'manager' | 'marketer' | 'analyst' | 'viewer';
 
@@ -267,6 +268,7 @@ export async function getCustomerDetail(customerId: string) {
   ]);
   if (!customer) throw new Error('CUSTOMER_NOT_FOUND');
   const purchases = transactions ?? [];
+  const insights = await analyseCustomerFromReceipts(ctx.supabase, ctx.businessId, purchases);
   const totalMinor = purchases.reduce((sum, item) => sum + Number(item.net_minor), 0);
   // Frequency used to be `visits / 4` — a fixed four weeks for everybody,
   // whether the person had been coming for a fortnight or a year. It is the
@@ -285,6 +287,7 @@ export async function getCustomerDetail(customerId: string) {
     activities: activities ?? [],
     audiences: audiences ?? [],
     interactions: interactions ?? [],
+    insights,
     metrics: {
       visits: purchases.length,
       totalMinor,

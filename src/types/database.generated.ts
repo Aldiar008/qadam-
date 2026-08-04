@@ -1376,6 +1376,7 @@ export type Database = {
       catalog_items: {
         Row: {
           business_id: string
+          category: string | null
           cost_minor: number | null
           created_at: string
           currency: string
@@ -1392,6 +1393,7 @@ export type Database = {
         }
         Insert: {
           business_id: string
+          category?: string | null
           cost_minor?: number | null
           created_at?: string
           currency?: string
@@ -1408,6 +1410,7 @@ export type Database = {
         }
         Update: {
           business_id?: string
+          category?: string | null
           cost_minor?: number | null
           created_at?: string
           currency?: string

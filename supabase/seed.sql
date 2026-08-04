@@ -92,26 +92,26 @@ on conflict(business_id) do update set monthly_budget_minor=60000,is_mock=false;
 -- Без него Margin Shield считал вклад-маржу от одного среднего чека, в промпт AI
 -- уходил пустой каталог, генератор рекомендаций честно отвечал «не хватает
 -- себестоимости позиций», а в Telegram-приложении гостю нечего было показать.
-insert into public.catalog_items(id,business_id,location_id,sku,item_kind,name_ru,name_kk,price_minor,cost_minor,currency,is_active,is_mock)
+insert into public.catalog_items(id,business_id,location_id,sku,item_kind,category,name_ru,name_kk,price_minor,cost_minor,currency,is_active,is_mock)
 select private.deterministic_uuid('catalog-'||t.sku),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
- t.sku,'product',t.name_ru,t.name_kk,t.price,t.cost,'KZT',true,true
+ t.sku,'product',t.category,t.name_ru,t.name_kk,t.price,t.cost,'KZT',true,true
 from (values
- ('espresso','Эспрессо','Эспрессо',700,210),
- ('americano','Американо','Американо',900,250),
- ('cappuccino','Капучино','Капучино',1400,500),
- ('latte','Латте','Латте',1500,540),
- ('raf','Раф','Раф',1800,650),
- ('flat_white','Флэт-уайт','Флэт-уайт',1600,570),
- ('tea','Чай','Шай',800,180),
- ('croissant','Круассан','Круассан',900,600),
- ('almond_croissant','Круассан с миндалём','Бадаммен круассан',1200,760),
- ('cheesecake','Чизкейк','Чизкейк',1900,900),
- ('cinnamon_roll','Синнабон','Синнабон',1400,700),
- ('sandwich','Сэндвич','Сэндвич',2200,1250),
- ('porridge','Овсяная каша','Сұлы ботқасы',1500,620),
- ('lemonade','Лимонад','Лимонад',1300,430)
-) as t(sku,name_ru,name_kk,price,cost)
-on conflict(business_id,sku) do update set price_minor=excluded.price_minor,cost_minor=excluded.cost_minor,is_active=true,is_mock=true;
+ ('espresso','кофе','Эспрессо','Эспрессо',700,210),
+ ('americano','кофе','Американо','Американо',900,250),
+ ('cappuccino','кофе','Капучино','Капучино',1400,500),
+ ('latte','кофе','Латте','Латте',1500,540),
+ ('raf','кофе','Раф','Раф',1800,650),
+ ('flat_white','кофе','Флэт-уайт','Флэт-уайт',1600,570),
+ ('tea','напитки','Чай','Шай',800,180),
+ ('croissant','выпечка','Круассан','Круассан',900,600),
+ ('almond_croissant','выпечка','Круассан с миндалём','Бадаммен круассан',1200,760),
+ ('cheesecake','десерты','Чизкейк','Чизкейк',1900,900),
+ ('cinnamon_roll','выпечка','Синнабон','Синнабон',1400,700),
+ ('sandwich','еда','Сэндвич','Сэндвич',2200,1250),
+ ('porridge','еда','Овсяная каша','Сұлы ботқасы',1500,620),
+ ('lemonade','напитки','Лимонад','Лимонад',1300,430)
+) as t(sku,category,name_ru,name_kk,price,cost)
+on conflict(business_id,sku) do update set price_minor=excluded.price_minor,cost_minor=excluded.cost_minor,category=excluded.category,is_active=true,is_mock=true;
 
 -- Часы работы: без них сигнал «свободные окна» и автоматизация «тихие часы»
 -- всегда находили ноль, потому что таблица была пуста.
@@ -211,32 +211,120 @@ join public.customers c
  on c.business_id='10000000-0000-4000-8000-000000000001' and c.lifecycle_stage=s.stage
 on conflict(segment_id,customer_id) do nothing;
 
-insert into public.transactions(id,business_id,location_id,customer_id,external_ref,occurred_at,gross_minor,discount_minor,net_minor,cost_minor,currency,source,is_mock)
-select private.deterministic_uuid('transaction-'||g),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
- private.deterministic_uuid('customer-'||(((g-1)%180)+1)),'demo-tx-'||g,
- t.occurred_at, t.amount, 0, t.amount, round(t.amount*0.38), 'KZT','demo_seed',true
-from generate_series(1,1129) g
-cross join lateral (
- select ts.occurred_at,
-  case
-   when ((g-1)%84) < 7
-    and extract(isodow from ts.local_day) between 1 and 5
-    and (9 + ((g-1)/84)) between 15 and 17
-   then 2519
-   else 3450
-  end as amount
- from (
+-- Чек знает, что в нём лежало.
+--
+-- Здесь была одна строка на покупку — «Demo coffee order» за 3450 ₸, одна и та
+-- же у всех 180 гостей. Из-за неё карточка клиента не могла сказать ничего,
+-- кроме того, что уже написано у гостя в шапке: любимая позиция, категория,
+-- «перестал брать» и «что предложить» считаются по составу чека, а состава не
+-- было.
+--
+-- Теперь у каждого гостя свой вкус — шесть профилей по номеру клиента. В тихие
+-- часы он берёт кофе без еды. У двух профилей состав меняется в последний
+-- месяц: p1 перестал брать чизкейк, p4 перешёл с сэндвича на кашу. Это нужно не
+-- для красоты — без такой смены нечем показать, что продукт её замечает.
+--
+-- Сумма чека теперь складывается из позиций, а не назначается отдельно: раньше
+-- 3450 ₸ и «позиции» жили независимо, и любой, кто сложил бы строки, получил бы
+-- другое число. Средний чек по-прежнему близок к 3450 ₸ — тому, что владелец
+-- указал в профиле заведения, — но теперь это следствие меню, а не совпадение.
+delete from public.transaction_items
+where business_id='10000000-0000-4000-8000-000000000001' and item_name='Demo coffee order';
+
+with basket(key, sku, position) as (values
+ ('p0-old','raf',1),('p0-old','cinnamon_roll',2),
+ ('p0-new','raf',1),('p0-new','cinnamon_roll',2),
+ ('p0-quiet','raf',1),('p0-quiet','tea',2),
+ ('p1-old','cappuccino',1),('p1-old','cheesecake',2),
+ ('p1-new','cappuccino',1),('p1-new','croissant',2),
+ ('p1-quiet','cappuccino',1),('p1-quiet','croissant',2),
+ ('p2-old','latte',1),('p2-old','sandwich',2),
+ ('p2-new','latte',1),('p2-new','sandwich',2),
+ ('p2-quiet','latte',1),('p2-quiet','croissant',2),
+ ('p3-old','flat_white',1),('p3-old','almond_croissant',2),('p3-old','tea',3),
+ ('p3-new','flat_white',1),('p3-new','almond_croissant',2),('p3-new','tea',3),
+ ('p3-quiet','flat_white',1),('p3-quiet','croissant',2),
+ ('p4-old','americano',1),('p4-old','sandwich',2),
+ ('p4-new','americano',1),('p4-new','porridge',2),('p4-new','tea',3),
+ ('p4-quiet','americano',1),('p4-quiet','cinnamon_roll',2),
+ ('p5-old','espresso',1),('p5-old','cheesecake',2),('p5-old','lemonade',3),
+ ('p5-new','espresso',1),('p5-new','cheesecake',2),('p5-new','lemonade',3),
+ ('p5-quiet','espresso',1),('p5-quiet','almond_croissant',2),('p5-quiet','tea',3)
+), plan as (
+ select g, ts.occurred_at,
+  'p'||(((g-1)%180)%6)||'-'||
+   case
+    when ((g-1)%84) < 7
+     and extract(isodow from ts.local_day) between 1 and 5
+     and (9 + ((g-1)/84)) between 15 and 17 then 'quiet'
+    when ((g-1)%84) < 28 then 'new'
+    else 'old'
+   end as key
+ from generate_series(1,1129) g
+ cross join lateral (
   select
    (date_trunc('day', now() at time zone 'Asia/Almaty') - (((g-1)%84)||' days')::interval) as local_day,
    ((date_trunc('day', now() at time zone 'Asia/Almaty')
      - (((g-1)%84)||' days')::interval
      + ((9 + ((g-1)/84))||' hours')::interval) at time zone 'Asia/Almaty') as occurred_at
  ) ts
-) t
-on conflict(id) do nothing;
-insert into public.transaction_items(id,business_id,transaction_id,item_name,quantity,unit_price_minor,unit_cost_minor,total_minor,currency,is_mock)
-select private.deterministic_uuid('transaction-item-'||g),'10000000-0000-4000-8000-000000000001',private.deterministic_uuid('transaction-'||g),
- 'Demo coffee order',1,3450,1311,3450,'KZT',true from generate_series(1,1129) g on conflict(id) do nothing;
+)
+insert into public.transactions(id,business_id,location_id,customer_id,external_ref,occurred_at,gross_minor,discount_minor,net_minor,cost_minor,currency,source,is_mock)
+select private.deterministic_uuid('transaction-'||p.g),'10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('customer-'||(((p.g-1)%180)+1)),'demo-tx-'||p.g,
+ p.occurred_at, sums.amount, 0, sums.amount, sums.cost, 'KZT','demo_seed',true
+from plan p
+cross join lateral (
+ select sum(c.price_minor)::bigint as amount, sum(c.cost_minor)::bigint as cost
+ from basket b
+ join public.catalog_items c on c.business_id='10000000-0000-4000-8000-000000000001' and c.sku=b.sku
+ where b.key = p.key
+) sums
+on conflict(id) do update set occurred_at=excluded.occurred_at,customer_id=excluded.customer_id,
+ gross_minor=excluded.gross_minor,net_minor=excluded.net_minor,cost_minor=excluded.cost_minor;
+
+with basket(key, sku, position) as (values
+ ('p0-old','raf',1),('p0-old','cinnamon_roll',2),
+ ('p0-new','raf',1),('p0-new','cinnamon_roll',2),
+ ('p0-quiet','raf',1),('p0-quiet','tea',2),
+ ('p1-old','cappuccino',1),('p1-old','cheesecake',2),
+ ('p1-new','cappuccino',1),('p1-new','croissant',2),
+ ('p1-quiet','cappuccino',1),('p1-quiet','croissant',2),
+ ('p2-old','latte',1),('p2-old','sandwich',2),
+ ('p2-new','latte',1),('p2-new','sandwich',2),
+ ('p2-quiet','latte',1),('p2-quiet','croissant',2),
+ ('p3-old','flat_white',1),('p3-old','almond_croissant',2),('p3-old','tea',3),
+ ('p3-new','flat_white',1),('p3-new','almond_croissant',2),('p3-new','tea',3),
+ ('p3-quiet','flat_white',1),('p3-quiet','croissant',2),
+ ('p4-old','americano',1),('p4-old','sandwich',2),
+ ('p4-new','americano',1),('p4-new','porridge',2),('p4-new','tea',3),
+ ('p4-quiet','americano',1),('p4-quiet','cinnamon_roll',2),
+ ('p5-old','espresso',1),('p5-old','cheesecake',2),('p5-old','lemonade',3),
+ ('p5-new','espresso',1),('p5-new','cheesecake',2),('p5-new','lemonade',3),
+ ('p5-quiet','espresso',1),('p5-quiet','almond_croissant',2),('p5-quiet','tea',3)
+), plan as (
+ select g,
+  'p'||(((g-1)%180)%6)||'-'||
+   case
+    when ((g-1)%84) < 7
+     and extract(isodow from ts.local_day) between 1 and 5
+     and (9 + ((g-1)/84)) between 15 and 17 then 'quiet'
+    when ((g-1)%84) < 28 then 'new'
+    else 'old'
+   end as key
+ from generate_series(1,1129) g
+ cross join lateral (
+  select (date_trunc('day', now() at time zone 'Asia/Almaty') - (((g-1)%84)||' days')::interval) as local_day
+ ) ts
+)
+insert into public.transaction_items(id,business_id,transaction_id,catalog_item_id,item_name,quantity,unit_price_minor,unit_cost_minor,total_minor,currency,is_mock)
+select private.deterministic_uuid('transaction-item-'||p.g||'-'||b.position),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('transaction-'||p.g), c.id, c.name_ru, 1, c.price_minor, c.cost_minor, c.price_minor, 'KZT', true
+from plan p
+join basket b on b.key = p.key
+join public.catalog_items c on c.business_id='10000000-0000-4000-8000-000000000001' and c.sku=b.sku
+on conflict(id) do update set catalog_item_id=excluded.catalog_item_id,item_name=excluded.item_name,
+ unit_price_minor=excluded.unit_price_minor,unit_cost_minor=excluded.unit_cost_minor,total_minor=excluded.total_minor;
 
 insert into public.signals(id,business_id,location_id,signal_type,metric_key,period_start,period_end,comparison_start,comparison_end,change_bps,growth_opportunity_score,confidence,status,evidence,detected_at,is_mock)
 values('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','12000000-0000-4000-8000-000000000001',

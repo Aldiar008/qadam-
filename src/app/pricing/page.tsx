@@ -8,93 +8,16 @@ import { Footer } from '@/components/navigation/Footer';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { useLanguage } from '@/context/LanguageContext';
+import { PUBLIC_PLANS, formatTenge } from '@/domain/pricing';
 
 export default function PricingPage() {
   const { language } = useLanguage();
 
-  const plans = [
-    {
-      nameRu: 'Старт (1 точка)',
-      nameKk: 'Бастау (1 нүкте)',
-      priceRu: '29 000 ₸',
-      priceKk: '29 000 ₸',
-      periodRu: '/ месяц',
-      periodKk: '/ ай',
-      descRu: 'Для одиночных кофеен, салонов красоты и локальных точек.',
-      descKk: 'Жеке кофеханалар, сұлулық салондары мен жергілікті нүктелер үшін.',
-      featuresRu: [
-        'До 500 клиентов в базе',
-        'Модуль «Сегодня» и 1 сигнал в день',
-        'Margin Shield фильтр акций',
-        'QR-лояльность и Mini-CRM',
-        'Поддержка RU / KK контента',
-      ],
-      featuresKk: [
-        'Базада 500-ге дейін клиент',
-        '«Бүгін» модулі және күніне 1 сигнал',
-        'Margin Shield акция сүзгісі',
-        'QR-лоялдылық және Mini-CRM',
-        'RU / KK контентін қолдау',
-      ],
-      popular: false,
-      ctaRu: 'Начать 14 дней бесплатно',
-      ctaKk: '14 күн тегін бастау',
-    },
-    {
-      nameRu: 'Рост (Growth OS)',
-      nameKk: 'Өсу (Growth OS)',
-      priceRu: '59 000 ₸',
-      priceKk: '59 000 ₸',
-      periodRu: '/ месяц',
-      periodKk: '/ ай',
-      descRu: 'Для растущего бизнеса с активной базой гостей.',
-      descKk: 'Белсенді қонақтар базасы бар өсіп келе жатқан бизнес үшін.',
-      featuresRu: [
-        'Неограниченная база клиентов',
-        'Безлимитный генератор Growth Contract',
-        'Multilingual Content Studio',
-        'Impact Ledger расширенная аналитика',
-        'Приоритетный доступ к модулю «Скидки рядом»',
-      ],
-      featuresKk: [
-        'Шексіз клиенттер базасы',
-        'Шексіз Growth Contract генераторы',
-        'Multilingual Content Studio',
-        'Impact Ledger кеңейтілген аналитикасы',
-        '«Жақын маңдағы жеңілдіктер» модуліне басымдықты қолжетімділік',
-      ],
-      popular: true,
-      ctaRu: 'Выбрать тариф Рост',
-      ctaKk: 'Өсу тарифін таңдау',
-    },
-    {
-      nameRu: 'Сеть (Multi-location)',
-      nameKk: 'Желі (Multi-location)',
-      priceRu: '99 000 ₸',
-      priceKk: '99 000 ₸',
-      periodRu: '/ месяц',
-      periodKk: '/ ай',
-      descRu: 'Для сетей из 2-5 филиалов и франшиз.',
-      descKk: '2-5 филиалдан және франшизалардан тұратын желілер үшін.',
-      featuresRu: [
-        'До 5 филиалов в едином кабинете',
-        'Сравнительная аналитика локаций',
-        'Кросс-локационные акции',
-        'Персональный менеджер успеха',
-        'Индивидуальные интеграции POS',
-      ],
-      featuresKk: [
-        'Бірыңғай кабинетте 5 филиалға дейін',
-        'Локациялардың салыстырмалы аналитикасы',
-        'Кросс-локациялық акциялар',
-        'Жеке табыс менеджері',
-        'Индивидуалды POS интеграциялары',
-      ],
-      popular: false,
-      ctaRu: 'Связаться с нами',
-      ctaKk: 'Бізбен байланысу',
-    },
-  ];
+  // Цены и состав тарифов лежат в `src/domain/pricing.ts` — там же, откуда их
+  // берёт миграция для `public.plans`. Раньше они были написаны здесь руками и
+  // разошлись с базой на десятки тысяч тенге.
+  const plans = PUBLIC_PLANS;
+  const period = language === 'ru' ? '/ месяц' : '/ ай';
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
@@ -110,7 +33,7 @@ export default function PricingPage() {
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Investment in Guaranteed Growth</span>
+              <span>{language === 'ru' ? 'Вложение в измеримый рост' : 'Өлшенетін өсуге салым'}</span>
             </div>
             <h1 className="text-4xl sm:text-6xl font-extrabold text-foreground tracking-tight">
               {language === 'ru' ? 'Простые и прозрачные тарифы' : 'Қарапайым және мөлдір тарифтер'}
@@ -141,17 +64,15 @@ export default function PricingPage() {
 
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-bold text-foreground">
-                      {language === 'ru' ? p.nameRu : p.nameKk}
-                    </h2>
+                    <h2 className="text-xl font-bold text-foreground">{p.name}</h2>
                     <p className="text-xs text-muted-foreground mt-1">
                       {language === 'ru' ? p.descRu : p.descKk}
                     </p>
                   </div>
 
                   <div className="flex items-baseline gap-1 font-mono">
-                    <span className="text-4xl font-extrabold text-foreground">{p.priceRu}</span>
-                    <span className="text-sm text-muted-foreground">{p.periodRu}</span>
+                    <span className="text-4xl font-extrabold text-foreground">{formatTenge(p.priceMinor)}</span>
+                    <span className="text-sm text-muted-foreground">{period}</span>
                   </div>
 
                   <ul className="space-y-3 pt-4 border-t border-border text-sm">

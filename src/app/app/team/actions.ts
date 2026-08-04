@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 
 import { describeDbError } from '@/server/qadam/errors';
 import { requireBusinessContext } from '@/server/qadam/repository';
-import { can, type TenantRole } from '@/server/qadam/rbac';
+import { can, isAssignableRole, type TenantRole } from '@/server/qadam/rbac';
 import type { Json } from '@/types/database.generated';
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
@@ -23,6 +23,9 @@ export async function inviteTeamMember(form: FormData) {
   const email = text(form, 'email');
   const role = text(form, 'role') as TenantRole;
   if (!email.includes('@')) back('?error=' + encodeURIComponent('Укажите корректный email.'));
+  // A removed role must be refused by the server too: hiding it from the select
+  // is a convenience, not a rule.
+  if (!isAssignableRole(role)) back('?error=' + encodeURIComponent('Такая роль больше не выдаётся. Выберите менеджера, аналитика или наблюдателя.'));
 
   // The token is shown once and only its hash is stored, exactly like the QR path.
   const token = randomBytes(32).toString('base64url');
@@ -66,6 +69,7 @@ export async function changeMemberRole(form: FormData) {
 
   const memberId = text(form, 'memberId');
   const role = text(form, 'role') as TenantRole;
+  if (!isAssignableRole(role)) back('?error=' + encodeURIComponent('Такая роль больше не выдаётся. Выберите менеджера, аналитика или наблюдателя.'));
   // Only an owner can create another owner.
   if (role === 'owner' && ctx.role !== 'owner') {
     back('?error=' + encodeURIComponent('Назначить владельца может только текущий владелец.'));

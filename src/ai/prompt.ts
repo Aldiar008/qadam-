@@ -127,6 +127,22 @@ export function buildCustomerBriefPrompt(input: CustomerBriefInput): BuiltPrompt
       consents: input.consents.map((item) => ({ scope: clean(item.scope, 40), status: item.status })),
       campaignsIncluded: input.campaignsIncluded,
       favouriteItems: input.favouriteItems.slice(0, 5).map((item) => clean(item, 60)),
+      // Разбор состава чеков. До него модели было нечего сказать, кроме того,
+      // что уже стоит у гостя в шапке карточки, и досье выходило пересказом.
+      behaviour: input.behaviour && {
+        favourites: input.behaviour.favourites.map((item) => ({ name: clean(item.name, 60), orders: item.orders, sharePercent: item.sharePercent })),
+        categories: input.behaviour.categories.map((item) => ({ category: clean(item.category, 40), sharePercent: item.sharePercent })),
+        pairs: input.behaviour.pairs.map((item) => ({ a: clean(item.a, 60), b: clean(item.b, 60), together: item.together })),
+        dropped: input.behaviour.dropped.map((item) => ({ name: clean(item.name, 60), ordersBefore: item.ordersBefore, daysSince: item.daysSince })),
+        cadenceDays: input.behaviour.cadenceDays,
+        overdueDays: input.behaviour.overdueDays,
+        returnPercent: input.behaviour.returnPercent,
+        returnHorizonDays: input.behaviour.returnHorizonDays,
+        suggestion: input.behaviour.suggestion && {
+          itemName: clean(input.behaviour.suggestion.itemName, 60),
+          reason: clean(input.behaviour.suggestion.reason, 240),
+        },
+      },
     },
     currency: input.currency,
   };
@@ -145,7 +161,11 @@ ${`Формат ответа (строго):
   "cautions": ["<чего делать не стоит и почему>"]
 }
 
-От 2 до 4 наблюдений. Никаких новых чисел: можно повторить только те, что даны выше.`}`;
+От 2 до 4 наблюдений. Никаких новых чисел: можно повторить только те, что даны выше.
+
+Наблюдения строй по составу чеков (behaviour), а не по общим показателям: что человек
+берёт, что перестал брать, что берёт вместе, куда сдвинулся вкус. Визиты и средний чек
+владелец видит и без вас. Если behaviour пуст — так и скажите, что состава чеков нет.`}`;
 
   return {
     request: {

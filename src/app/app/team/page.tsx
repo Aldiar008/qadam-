@@ -2,7 +2,7 @@ import { AlertTriangle, Copy, ShieldCheck } from 'lucide-react';
 
 import { requireBusinessContext } from '@/server/qadam/repository';
 import {
-  CAPABILITY_LABELS, CRITICAL_CAPABILITIES, ROLE_LABELS, ROLE_MATRIX, TENANT_ROLES,
+  ASSIGNABLE_ROLES, CAPABILITY_LABELS, CRITICAL_CAPABILITIES, ROLE_LABELS, ROLE_MATRIX,
   can, type Capability, type TenantRole,
 } from '@/server/qadam/rbac';
 import { changeMemberRole, inviteTeamMember, removeMember, revokeInvitation, transferOwnership } from './actions';
@@ -105,8 +105,8 @@ export default async function TeamPage({
                           <form action={changeMemberRole} className="flex items-center gap-1">
                             <input type="hidden" name="memberId" value={member.id} />
                             <label className="sr-only" htmlFor={`role-${member.id}`}>Роль участника</label>
-                            <select id={`role-${member.id}`} name="role" defaultValue={member.role} className="min-h-11 rounded-xl border border-border bg-surface-muted px-2 text-xs">
-                              {TENANT_ROLES.filter((option) => option !== 'owner' || role === 'owner')
+                            <select id={`role-${member.id}`} name="role" defaultValue={ASSIGNABLE_ROLES.includes(member.role as TenantRole) ? member.role : 'manager'} className="min-h-11 rounded-xl border border-border bg-surface-muted px-2 text-xs">
+                              {ASSIGNABLE_ROLES.filter((option) => option !== 'owner' || role === 'owner')
                                 .map((option) => <option key={option} value={option}>{ROLE_LABELS[option]}</option>)}
                             </select>
                             <button className="min-h-11 rounded-xl border border-border px-3 text-xs font-bold">Сменить</button>
@@ -152,8 +152,8 @@ export default async function TeamPage({
             </label>
             <label className="grid gap-1 text-sm font-semibold">
               Роль
-              <select name="role" defaultValue="marketer" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 font-normal">
-                {TENANT_ROLES.filter((option) => option !== 'owner' || role === 'owner')
+              <select name="role" defaultValue="manager" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 font-normal">
+                {ASSIGNABLE_ROLES.filter((option) => option !== 'owner' || role === 'owner')
                   .map((option) => <option key={option} value={option}>{ROLE_LABELS[option]}</option>)}
               </select>
             </label>
@@ -199,7 +199,7 @@ export default async function TeamPage({
             <thead className="bg-surface-muted text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="p-3 font-semibold">Действие</th>
-                {TENANT_ROLES.map((option) => (
+                {ASSIGNABLE_ROLES.map((option) => (
                   <th key={option} scope="col" className="p-3 text-center font-semibold">{ROLE_LABELS[option]}</th>
                 ))}
               </tr>
@@ -211,7 +211,7 @@ export default async function TeamPage({
                     {CAPABILITY_LABELS[capability]}
                     {CRITICAL_CAPABILITIES.includes(capability) && <span className="ml-1 font-bold text-amber-800" title="Критическое действие">*</span>}
                   </th>
-                  {TENANT_ROLES.map((option) => (
+                  {ASSIGNABLE_ROLES.map((option) => (
                     <td key={option} className="p-3 text-center">
                       {can(option, capability)
                         ? <span className="font-bold text-emerald-700" aria-label="разрешено">✓</span>

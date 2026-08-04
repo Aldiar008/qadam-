@@ -7,6 +7,7 @@ import { composeDeterministicBrief } from '@/ai/deterministic.ts';
 import { generateStructured } from '@/ai/generator.ts';
 import { buildCustomerBriefPrompt } from '@/ai/prompt.ts';
 import { createProvider, readProviderConfig } from '@/ai/providers.ts';
+import { analyseCustomerFromReceipts, insightsForBrief } from '@/server/qadam/customer-analysis';
 import { loadBrandVoice } from './brand-voice.ts';
 import { recordGenerationRun } from './run-recorder.ts';
 
@@ -39,7 +40,7 @@ const days = (iso: string | null): number | null =>
 export async function loadCustomerBriefInput(db: SupabaseClient, businessId: string, customerId: string): Promise<CustomerBriefInput> {
   const [{ data: customer }, { data: transactions }, { data: consents }, { data: accounts }, { data: audiences }, { data: business }, { data: type }] = await Promise.all([
     db.from('customers').select('display_name,lifecycle_stage,first_seen_at,last_seen_at').eq('business_id', businessId).eq('id', customerId).maybeSingle(),
-    db.from('transactions').select('net_minor,occurred_at').eq('business_id', businessId).eq('customer_id', customerId).order('occurred_at', { ascending: false }).limit(200),
+    db.from('transactions').select('id,net_minor,occurred_at').eq('business_id', businessId).eq('customer_id', customerId).order('occurred_at', { ascending: false }).limit(200),
     db.from('customer_consents').select('scope,status,created_at').eq('business_id', businessId).eq('customer_id', customerId).order('created_at', { ascending: false }),
     db.from('loyalty_accounts').select('points_balance,stamps_balance').eq('business_id', businessId).eq('customer_id', customerId).limit(1).maybeSingle(),
     db.from('campaign_audiences').select('campaign_id').eq('business_id', businessId).eq('customer_id', customerId).eq('inclusion_status', 'included'),
@@ -57,6 +58,8 @@ export async function loadCustomerBriefInput(db: SupabaseClient, businessId: str
   const latest = new Map<string, string>();
   for (const row of consents ?? []) if (!latest.has(row.scope)) latest.set(row.scope, row.status);
 
+  const behaviour = insightsForBrief(await analyseCustomerFromReceipts(db, businessId, purchases));
+
   return {
     businessType: type?.name_ru ?? 'Локальный бизнес',
     brandVoice: await loadBrandVoice(db, businessId),
@@ -71,8 +74,12 @@ export async function loadCustomerBriefInput(db: SupabaseClient, businessId: str
     loyalty: accounts ? { stamps: Number(accounts.stamps_balance ?? 0), points: Number(accounts.points_balance ?? 0) } : null,
     consents: [...latest.entries()].map(([scope, status]) => ({ scope, status })),
     campaignsIncluded: (audiences ?? []).length,
-    // Item-level history is not modelled per customer yet; saying so beats guessing.
-    favouriteItems: [],
+    // Раньше здесь стоял пустой список с комментарием «поштучной истории у нас
+    // нет» — и досье поневоле пересказывало шапку карточки. Теперь состав чеков
+    // разбирается тем же кодом, что рисует блок «Досье» на экране: одно число в
+    // двух местах не должно расходиться.
+    favouriteItems: behaviour?.favourites.map((item) => item.name) ?? [],
+    behaviour,
     currency: business?.currency ?? 'KZT',
   };
 }

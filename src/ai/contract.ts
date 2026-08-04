@@ -122,6 +122,24 @@ export interface CustomerBriefInput {
   consents: readonly { scope: string; status: string }[];
   campaignsIncluded: number;
   favouriteItems: readonly string[];
+  /**
+   * Что видно по составу его чеков. `null`, когда позиции не записаны — тогда
+   * модель и не пытается говорить о вкусах.
+   *
+   * Всё здесь посчитано в `src/domain/customer-insights.ts`. Модель складывает
+   * из этого фразу и не имеет права добавить к ней ни одного своего числа.
+   */
+  behaviour: {
+    favourites: readonly { name: string; orders: number; sharePercent: number }[];
+    categories: readonly { category: string; sharePercent: number }[];
+    pairs: readonly { a: string; b: string; together: number }[];
+    dropped: readonly { name: string; ordersBefore: number; daysSince: number }[];
+    cadenceDays: number | null;
+    overdueDays: number | null;
+    returnPercent: number | null;
+    returnHorizonDays: number | null;
+    suggestion: { itemName: string; reason: string } | null;
+  } | null;
   currency: string;
 }
 
@@ -309,6 +327,14 @@ const ALLOWED_BRIEF_NUMBERS = (input: CustomerBriefInput): Set<string> => new Se
   input.visits, input.averageCheckMinor, input.totalSpentMinor,
   input.daysSinceLastVisit, input.daysKnown, input.campaignsIncluded,
   input.loyalty?.stamps, input.loyalty?.points,
+  // Разбор чеков — такие же собственные числа гостя, как и всё выше: они
+  // посчитаны по его покупкам и переданы модели вместе с остальными.
+  ...(input.behaviour?.favourites ?? []).flatMap((item) => [item.orders, item.sharePercent]),
+  ...(input.behaviour?.categories ?? []).map((item) => item.sharePercent),
+  ...(input.behaviour?.pairs ?? []).map((item) => item.together),
+  ...(input.behaviour?.dropped ?? []).flatMap((item) => [item.ordersBefore, item.daysSince]),
+  input.behaviour?.cadenceDays, input.behaviour?.overdueDays,
+  input.behaviour?.returnPercent, input.behaviour?.returnHorizonDays,
 ].filter((value): value is number => typeof value === 'number').map((value) => String(Math.trunc(value))));
 
 function assertNoInventedNumbers(text: string, allowed: Set<string>, path: string, name: string): void {

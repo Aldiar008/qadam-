@@ -20,7 +20,25 @@ const GUEST: CustomerBriefInput = {
   consents: [{ scope: 'marketing.telegram', status: 'granted' }],
   campaignsIncluded: 2,
   favouriteItems: [],
+  behaviour: null,
   currency: 'KZT',
+};
+
+/** Тот же гость, но у заведения записан состав его чеков. */
+const GUEST_WITH_RECEIPTS: CustomerBriefInput = {
+  ...GUEST,
+  favouriteItems: ['Капучино'],
+  behaviour: {
+    favourites: [{ name: 'Капучино', orders: 9, sharePercent: 43 }],
+    categories: [{ category: 'кофе', sharePercent: 62 }],
+    pairs: [{ a: 'Капучино', b: 'Круассан', together: 6 }],
+    dropped: [{ name: 'Чизкейк', ordersBefore: 4, daysSince: 117 }],
+    cadenceDays: 12,
+    overdueDays: 32,
+    returnPercent: 46,
+    returnHorizonDays: 30,
+    suggestion: { itemName: 'Раф', reason: 'Его категория — «кофе», а эту позицию он не брал.' },
+  },
 };
 
 const brief = (overrides: Record<string, unknown> = {}) => ({
@@ -40,6 +58,25 @@ test('a brief that only retells the guest own figures is accepted', () => {
   const parsed = parseCustomerBrief(brief(), GUEST);
   assert.equal(parsed.observations.length, 2);
   assert.match(parsed.summary, /3200/);
+});
+
+test('figures from the receipt analysis count as the guest own figures', () => {
+  const parsed = parseCustomerBrief(brief({
+    summary: 'Чаще всего берёт капучино — 9 раз, это 43% его позиций.',
+    observations: ['Перестал брать чизкейк: было 4 раза, последний раз 117 дней назад.', 'Ходит примерно раз в 12 дней.'],
+    nextStep: 'Предложить раф.',
+  }), GUEST_WITH_RECEIPTS);
+  assert.match(parsed.summary, /43%/);
+  assert.match(parsed.observations[0], /117/);
+});
+
+test('the offline brief talks about what the guest buys, not about the header', () => {
+  const composed = composeDeterministicBrief(GUEST_WITH_RECEIPTS);
+  assert.match(composed.observations[0], /Капучино/);
+  assert.match(composed.observations[1], /Чизкейк/);
+  assert.match(composed.nextStep, /Раф/);
+  // И этот текст обязан пройти собственную проверку на выдуманные числа.
+  assert.doesNotThrow(() => parseCustomerBrief({ ...composed }, GUEST_WITH_RECEIPTS));
 });
 
 test('a brief that invents a number is rejected, not shown with a disclaimer', () => {

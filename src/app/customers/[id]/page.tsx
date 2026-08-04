@@ -10,6 +10,13 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('ru-
 const moment = (iso: string) => new Date(iso).toLocaleString('ru-RU');
 
 const card = 'rounded-3xl border border-border bg-surface p-6';
+const percent = (value: number) => `${Math.round(value / 100)}%`;
+
+const CONFIDENCE: Record<'low' | 'medium' | 'high', string> = {
+  low: 'низкая, сравнимых случаев мало',
+  medium: 'средняя',
+  high: 'высокая',
+};
 
 const INTERACTION_LABELS: Record<string, string> = {
   question: 'вопрос',
@@ -32,6 +39,66 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
   const included = data.audiences.filter((row) => row.inclusion_status === 'included').length;
   const excluded = data.audiences.filter((row) => row.inclusion_status === 'excluded');
+
+  // Разбор чеков: только то, что посчитано. Пустая карточка факта не рисуется —
+  // «—» в шести клетках выглядит как поломка, а не как отсутствие данных.
+  const { insights } = data;
+  const facts: { label: string; value: string; note?: string }[] = [];
+  if (insights.favourites.length) {
+    const top = insights.favourites[0];
+    facts.push({
+      label: 'Берёт чаще всего',
+      value: `${top.name} — ${top.orders} раз${percent(top.shareBps) === '0%' ? '' : ` (${percent(top.shareBps)} всех позиций)`}`,
+      note: insights.favourites.slice(1).map((item) => `${item.name} — ${item.orders}`).join(' · ') || undefined,
+    });
+  }
+  if (insights.categories.length) {
+    facts.push({
+      label: 'Категории',
+      value: insights.categories.map((item) => `${item.category} ${percent(item.shareBps)}`).join(' · '),
+      note: 'Доля позиций в его чеках, а не доля денег.',
+    });
+  }
+  if (insights.pairs.length) {
+    facts.push({
+      label: 'Берёт вместе',
+      value: insights.pairs.map((pair) => `${pair.a} + ${pair.b} — ${pair.together} раз`).join(' · '),
+      note: 'Готовая пара для комбо-предложения.',
+    });
+  }
+  if (insights.dropped.length) {
+    const item = insights.dropped[0];
+    facts.push({
+      label: 'Перестал брать',
+      value: `${item.name} — было ${item.ordersBefore} раз`,
+      note: `Последний раз ${item.daysSince} дней назад, с тех пор ни разу.`,
+    });
+  }
+  if (insights.shift.length) {
+    facts.push({
+      label: 'Куда сдвинулся вкус',
+      value: insights.shift
+        .map((item) => `${item.category}: ${percent(item.earlierBps)} → ${percent(item.recentBps)}`)
+        .join(' · '),
+      note: 'Последняя треть визитов против всех предыдущих.',
+    });
+  }
+  if (insights.cadence) {
+    facts.push({
+      label: 'Ритм визитов',
+      value: `примерно раз в ${insights.cadence.medianDays} дн., молчит ${insights.cadence.daysSinceLast} дн.`,
+      note: insights.cadence.overdueDays > 0
+        ? `Опаздывает на ${insights.cadence.overdueDays} дн. против собственного ритма.`
+        : 'Идёт по своему обычному расписанию.',
+    });
+  }
+  if (insights.returning) {
+    facts.push({
+      label: `Вернётся за ${insights.returning.horizonDays} дней`,
+      value: percent(insights.returning.probabilityBps),
+      note: `Оценка по ${insights.returning.sampleAtRisk} гостям вашей базы, молчавшим столько же. Достоверность: ${CONFIDENCE[insights.returning.confidence]}.`,
+    });
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -64,6 +131,57 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{note}</p>
           </article>
         ))}
+      </section>
+
+      {/* Досье, ради которого карточка и существует.
+          Раньше здесь был пересказ четырёх чисел из шапки: «12 визитов, средний
+          чек 3 400 ₸, был 7 дней назад» — владелец это и так видел. Вывод
+          начинается там, где разобран состав чека. */}
+      <section className={card}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl font-bold">Досье: что видно по чекам</h2>
+          <p className="font-mono text-xs text-muted-foreground">
+            {insights.linesCounted} позиций в {insights.receiptsCounted} чеках
+          </p>
+        </div>
+
+        {facts.length > 0 ? (
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            {facts.map((fact) => (
+              <div key={fact.label} className="rounded-2xl border border-border bg-surface-muted p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{fact.label}</dt>
+                <dd className="mt-1 text-sm font-bold leading-6 text-foreground">{fact.value}</dd>
+                {fact.note && <dd className="mt-1 text-xs leading-5 text-muted-foreground">{fact.note}</dd>}
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            По этому гостю пока нечего разбирать — нужны его покупки с составом чека.
+          </p>
+        )}
+
+        {insights.suggestion && (
+          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Что предложить</p>
+            <p className="mt-1 text-lg font-extrabold">{insights.suggestion.itemName}</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{insights.suggestion.reason}</p>
+            <Link
+              href={`/app/campaigns/studio?step=3&mechanic=${encodeURIComponent(insights.suggestion.mechanic)}`}
+              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+            >
+              Собрать акцию под это предложение
+            </Link>
+          </div>
+        )}
+
+        {insights.gaps.length > 0 && (
+          <ul className="mt-4 grid gap-1.5">
+            {insights.gaps.map((gap) => (
+              <li key={gap} className="text-xs leading-5 text-muted-foreground">— {gap}</li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">

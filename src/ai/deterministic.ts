@@ -211,9 +211,24 @@ export function composeDeterministicBrief(input: CustomerBriefInput): CustomerBr
   const money = (minor: number) => `${minor} ${input.currency}`;
   const observations: string[] = [];
 
-  observations.push(input.visits > 0
-    ? `Визитов: ${input.visits}, средний чек ${money(input.averageCheckMinor)}.`
-    : 'Покупок за этим гостем ещё не записано.');
+  // Разбор состава чеков идёт первым: визиты и средний чек владелец видит в
+  // шапке карточки, а что человек берёт и что перестал брать — нет.
+  const behaviour = input.behaviour;
+  if (behaviour?.favourites.length) {
+    const top = behaviour.favourites[0];
+    observations.push(`Чаще всего берёт «${top.name}» — ${top.orders} раз, это ${top.sharePercent}% всех его позиций.`);
+  } else {
+    observations.push(input.visits > 0
+      ? `Визитов: ${input.visits}, средний чек ${money(input.averageCheckMinor)}.`
+      : 'Покупок за этим гостем ещё не записано.');
+  }
+  if (behaviour?.dropped.length) {
+    const gone = behaviour.dropped[0];
+    observations.push(`Перестал брать «${gone.name}»: было ${gone.ordersBefore} раз, последний раз ${gone.daysSince} дней назад.`);
+  } else if (behaviour?.pairs.length) {
+    const pair = behaviour.pairs[0];
+    observations.push(`Берёт вместе «${pair.a}» и «${pair.b}» — ${pair.together} раз.`);
+  }
 
   if (input.daysSinceLastVisit === null) {
     observations.push('Дата последнего визита неизвестна — источник продаж не подключён или гость ещё не покупал.');
@@ -232,11 +247,13 @@ export function composeDeterministicBrief(input: CustomerBriefInput): CustomerBr
     observations.push(`На карте лояльности ${input.loyalty.stamps} штампов и ${input.loyalty.points} баллов.`);
   }
 
-  const nextStep = marketing?.status === 'granted'
-    ? (input.daysSinceLastVisit !== null && input.daysSinceLastVisit >= 30
-        ? 'Добавить в кампанию возврата — согласие есть, и гость давно не заходил.'
-        : 'Держать в сегменте постоянных: специального повода писать сейчас нет.')
-    : 'Получить согласие на рассылку при следующем визите — без него любая кампания его исключит.';
+  const nextStep = marketing?.status !== 'granted'
+    ? 'Получить согласие на рассылку при следующем визите — без него любая кампания его исключит.'
+    : behaviour?.suggestion
+      ? `Предложить «${behaviour.suggestion.itemName}». ${behaviour.suggestion.reason}`
+      : (input.daysSinceLastVisit !== null && input.daysSinceLastVisit >= 30
+          ? 'Добавить в кампанию возврата — согласие есть, и гость давно не заходил.'
+          : 'Держать в сегменте постоянных: специального повода писать сейчас нет.');
 
   return Object.freeze({
     schemaVersion: BRIEF_SCHEMA_VERSION,

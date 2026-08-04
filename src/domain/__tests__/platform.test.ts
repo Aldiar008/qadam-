@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  CRITICAL_CAPABILITIES, ROLE_MATRIX, TENANT_ROLES,
-  can, capabilitiesFor, rolesFor, type Capability, type TenantRole,
+  ASSIGNABLE_ROLES, CRITICAL_CAPABILITIES, ROLE_LABELS, ROLE_MATRIX, TENANT_ROLES,
+  can, capabilitiesFor, isAssignableRole, rolesFor, type Capability, type TenantRole,
 } from '../../server/qadam/rbac.ts';
 import {
   DEFAULT_LOCALE, GLOSSARY, MESSAGE_CATALOGUE, SUPPORTED_LOCALES,
@@ -40,6 +40,15 @@ test('analyst can read but cannot launch, export or edit', () => {
   assert.equal(can('analyst', 'approve_launch'), false);
   assert.equal(can('analyst', 'export_customer_data'), false);
   assert.equal(can('analyst', 'edit_customers'), false);
+});
+
+test('the marketer seat is no longer handed out, but old rows still render', () => {
+  assert.equal(ASSIGNABLE_ROLES.includes('marketer'), false);
+  assert.equal(isAssignableRole('marketer'), false);
+  assert.equal(isAssignableRole('nonsense'), false);
+  // A membership created before the role was withdrawn must keep a human name.
+  assert.equal(ROLE_LABELS.marketer, 'Маркетолог');
+  for (const role of ASSIGNABLE_ROLES) assert.ok(TENANT_ROLES.includes(role));
 });
 
 test('a marketer prepares campaigns but cannot authorise a launch', () => {
