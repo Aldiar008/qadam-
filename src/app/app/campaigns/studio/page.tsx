@@ -141,8 +141,14 @@ export default async function CampaignStudioPage({
 
       {/* Куда возвращается владелец после любой кнопки этого экрана.
           `scroll-mt-24` оставляет место под липкой шапкой — иначе якорь
-          прячет заголовок шага под ней. */}
-      <div id="studio-step" className="scroll-mt-24" />
+          прячет заголовок шага под ней.
+
+          На шаге симулятора якорь стоит не здесь, а у самих кнопок: страница
+          там длинная, владелец работает внизу, и возврат к заголовку шага для
+          него — тот же прыжок наверх, только короче. Идентификатор в документе
+          обязан быть один, поэтому здесь он появляется на всех шагах, кроме
+          пятого. */}
+      {step !== 5 && <div id="studio-step" className="scroll-mt-24" />}
 
       {/* ---------------------------------------------------------------- 1 */}
       {step === 1 && (
@@ -536,7 +542,7 @@ export default async function CampaignStudioPage({
                 <input name="upliftHighBps" type="number" min="0" max="10000" defaultValue={draft.upliftHighBps} className="min-h-11 rounded-xl border border-border bg-surface-muted px-4 text-sm" />
               </label>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div id="studio-step" className="flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
               <button name="direction" value="back" className="inline-flex min-h-12 items-center rounded-xl border border-border px-5 text-sm font-bold">Назад</button>
               {/* Подтверждение стоит рядом с кнопкой, а не в шапке страницы:
                   владелец остаётся на месте и должен увидеть ответ там, где
