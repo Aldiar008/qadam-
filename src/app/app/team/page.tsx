@@ -5,6 +5,7 @@ import {
   ASSIGNABLE_ROLES, CAPABILITY_LABELS, CRITICAL_CAPABILITIES, ROLE_LABELS, ROLE_MATRIX,
   can, type Capability, type TenantRole,
 } from '@/server/qadam/rbac';
+import { invitationStatusLabel, memberStatusLabel } from '@/lib/status-labels';
 import { changeMemberRole, inviteTeamMember, removeMember, revokeInvitation, transferOwnership } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -98,7 +99,7 @@ export default async function TeamPage({
                       {isLastOwner && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-900">последний владелец</span>}
                     </td>
                     <td className="p-3 font-semibold">{ROLE_LABELS[member.role as TenantRole] ?? member.role}</td>
-                    <td className="p-3 text-xs">{member.status}</td>
+                    <td className="p-3 text-xs">{memberStatusLabel(member.status)}</td>
                     <td className="p-3">
                       {canManage && member.status === 'active' && (
                         <div className="flex flex-wrap gap-2">
@@ -171,7 +172,7 @@ export default async function TeamPage({
                     <span className="font-mono">{invitation.masked_email}</span>
                     <span className="font-semibold">{ROLE_LABELS[invitation.role as TenantRole]}</span>
                     <span className="text-muted-foreground">
-                      {invitation.status === 'pending' && expired ? 'истекло' : invitation.status}
+                      {invitation.status === 'pending' && expired ? 'истекло' : invitationStatusLabel(invitation.status)}
                       {' · до '}{new Date(invitation.expires_at).toLocaleDateString('ru-RU')}
                     </span>
                     {invitation.status === 'pending' && !expired && (

@@ -60,6 +60,13 @@ export interface MoneyInput {
   itemTrend: readonly ItemTrend[];
   /** Порог молчания, после которого гость считается спящим. */
   sleepingAfterDays?: number;
+  /**
+   * Слова этого бизнеса: гость или пациент, визит или приём.
+   *
+   * По умолчанию — язык кофейни, потому что расчёты писались на её данных.
+   * Стоматологии «12 гостей не приходили» читается как чужой текст.
+   */
+  words?: { personGenitive: string; visitGenitive: string };
 }
 
 export interface MoneyOnTheTable {
@@ -81,6 +88,7 @@ function median(values: readonly number[]): number {
 
 export function moneyOnTheTable(input: MoneyInput): MoneyOnTheTable {
   const sleepingAfterDays = input.sleepingAfterDays ?? 30;
+  const people = input.words?.personGenitive ?? 'гостей';
   const opportunities: Opportunity[] = [];
   const notes: string[] = [];
 
@@ -96,7 +104,7 @@ export function moneyOnTheTable(input: MoneyInput): MoneyOnTheTable {
 
     opportunities.push({
       kind: 'sleeping',
-      title: `${sleeping.length} гостей не приходили ${silence} дней и дольше`,
+      title: `${sleeping.length} ${people} не приходили ${silence} дней и дольше`,
       detail: reachable.length === sleeping.length
         ? 'Всем можно написать: согласие на рассылку у них действует.'
         : `Написать можно ${reachable.length} из них — у остальных нет действующего согласия, и кампания их исключит.`,
@@ -115,7 +123,7 @@ export function moneyOnTheTable(input: MoneyInput): MoneyOnTheTable {
     const conversion = input.questionConversionBps;
     opportunities.push({
       kind: 'unanswered',
-      title: `${input.unansweredQuestions} вопросов от гостей без ответа`,
+      title: `${input.unansweredQuestions} вопросов от ${people} без ответа`,
       detail: 'Человек написал в бот заведения и до сих пор ничего не получил.',
       amountMinor: conversion !== null && input.averageCheckMinor > 0
         ? Math.round(input.unansweredQuestions * (conversion / 10_000) * input.averageCheckMinor)

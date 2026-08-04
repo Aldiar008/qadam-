@@ -37,6 +37,7 @@ export async function loadTodayOpportunities(
   businessId: string,
   timeZone: string,
   transactions: readonly TransactionRow[],
+  words?: { personGenitive: string; visitGenitive: string },
 ): Promise<MoneyOnTheTable> {
   const now = Date.now();
   const since = new Date(now - 56 * DAY).toISOString();
@@ -132,6 +133,7 @@ export async function loadTodayOpportunities(
     questionConversionBps,
     hourly,
     itemTrend,
+    words,
   });
 }
 

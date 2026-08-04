@@ -16,7 +16,7 @@
  * `src/components` и `src/app`), только данные.
  */
 
-export type BusinessTypeCode = 'cafe' | 'beauty' | 'retail' | 'service';
+export type BusinessTypeCode = 'cafe' | 'beauty' | 'retail' | 'service' | 'dental';
 export type GoalCode = 'reactivate' | 'acquire' | 'average_check' | 'quiet_hours';
 
 /** Механики, которые действительно умеет Студия кампаний. */
@@ -51,6 +51,7 @@ const TYPE_LABEL: Record<BusinessTypeCode, string> = {
   beauty: 'салону',
   retail: 'магазину',
   service: 'сервисной точке',
+  dental: 'стоматологии',
 };
 
 const GOAL_LABEL: Record<GoalCode, string> = {
@@ -80,6 +81,7 @@ const WHY: Record<string, Partial<Record<BusinessTypeCode, string>> & { any: str
     any: 'находит тех, кто перестал приходить, и у кого есть действующее согласие',
     cafe: 'гость кофейни выпадает из привычки за две-три недели — этот список показывает, кто уже выпал',
     beauty: 'в салоне цикл длиннее: список ловит тех, кто не записался на повторную процедуру',
+    dental: 'пациент пропускает профилактику молча — список показывает, кто не был дольше срока',
   },
   segments: { any: 'правило вместо списка: видно, скольким можно писать по закону и согласию' },
   campaign_studio: {
@@ -91,6 +93,7 @@ const WHY: Record<string, Partial<Record<BusinessTypeCode, string>> & { any: str
     any: 'карта гостя по QR: штампы и награды без пластиковых карт',
     cafe: 'штампы за визит — то, что в кофейне работает лучше скидки',
     beauty: 'карта помнит процедуры и возвращает клиента к сроку',
+    dental: 'карта помнит дату последнего приёма и напоминает о профилактике вовремя',
   },
   content_studio: { any: 'посты, сторис и сценарии видео на русском и казахском — из вашего меню' },
   telegram_bot: { any: 'сводка дня владельцу и вступление гостя по QR прямо в Telegram' },
@@ -152,6 +155,10 @@ const MECHANICS: Record<BusinessTypeCode, MechanicSuggestion[]> = {
   service: [
     { kind: 'return_coupon', title: 'Скидка на повторное обращение', reason: 'сервис живёт повторными визитами — купон назначает срок следующему' },
     { kind: 'fixed_discount', title: 'Фиксированная скидка на услугу', reason: 'понятная сумма вместо процентов, которую легко объяснить на месте' },
+  ],
+  dental: [
+    { kind: 'return_coupon', title: 'Напоминание о профилактике', reason: 'приём раз в полгода пациент не помнит сам — купон назначает срок и держит кресло занятым' },
+    { kind: 'bonus_points', title: 'Баллы за гигиену и осмотр', reason: 'дешёвая процедура приводит пациента раньше, чем боль, и лечение обходится ему дешевле' },
   ],
 };
 

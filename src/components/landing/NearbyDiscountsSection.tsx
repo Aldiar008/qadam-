@@ -71,7 +71,7 @@ export function NearbyDiscountsSection() {
                   </div>
 
                   <div className="pt-2 flex items-center justify-between text-xs font-mono text-primary font-bold">
-                    <span>Active Offer</span>
+                    <span>Действует сейчас</span>
                     <MapPin className="w-3.5 h-3.5" />
                   </div>
                 </motion.div>

@@ -143,7 +143,7 @@ function MockupContent({ step }: { step: number }) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-2xl border border-accent/20 bg-accent/10 p-4 font-mono text-sm text-accent">
-          <span>[STREAM DATA] Active POS Integration</span>
+          <span>[ПОТОК ДАННЫХ] Касса подключена</span>
           <span className="inline-flex items-center gap-2 text-xs font-bold">
             <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
             LIVE

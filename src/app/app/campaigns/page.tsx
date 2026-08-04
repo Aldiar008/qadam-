@@ -79,7 +79,7 @@ export default async function CampaignsPage() {
 
       {data.openContracts.length > 0 && (
         <section className="rounded-3xl border border-border bg-surface p-6">
-          <h2 className="text-lg font-bold">Незапущенные Growth Contracts</h2>
+          <h2 className="text-lg font-bold">Готовые, но незапущенные Growth Contract</h2>
           <p className="mt-1 text-xs text-muted-foreground">Экономика рассчитана, но кампания ещё не создана.</p>
           <ul className="mt-4 grid gap-2">
             {data.openContracts.map((contract) => {
@@ -90,8 +90,10 @@ export default async function CampaignsPage() {
                     <p className="text-sm font-bold">
                       Контракт v{contract.version} · {contractStatusLabels[contract.status] ?? contract.status}
                     </p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
-                      hash {String(contract.content_hash).slice(0, 12)}… · Margin Shield: {decision.status ?? 'n/a'}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Маржа: {MARGIN_LABELS[decision.status ?? ''] ?? 'не проверялась'}
+                      {' · '}
+                      <span className="font-mono">отпечаток {String(contract.content_hash).slice(0, 12)}…</span>
                     </p>
                   </div>
                   <Link

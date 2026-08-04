@@ -283,7 +283,7 @@ export default async function CampaignStudioPage({
                     {name === 'pessimistic' ? 'Осторожный' : name === 'base' ? 'Базовый' : 'Оптимистичный'}
                   </p>
                   <p className="mt-3 font-mono text-2xl font-extrabold">{money(scenario?.incrementalContributionMinor)}</p>
-                  <p className="text-xs opacity-70">вклад-маржа (forecast)</p>
+                  <p className="text-xs opacity-70">вклад-маржа (прогноз)</p>
                   <dl className="mt-3 space-y-1 text-xs">
                     <div className="flex justify-between"><dt className="opacity-70">Доп. заказы</dt><dd className="font-mono">{scenario?.incrementalOrders ?? 0}</dd></div>
                     <div className="flex justify-between"><dt className="opacity-70">Затраты</dt><dd className="font-mono">{money(scenario?.campaignCostMinor)}</dd></div>

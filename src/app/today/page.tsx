@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, ShieldCheck, TrendingDown } from 'lucide-react';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { getTodayData } from '@/server/qadam/repository';
+import { capitalise } from '@/domain/business-vocabulary';
 
 export const dynamic = 'force-dynamic';
 const money = (value: number) => new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
@@ -60,7 +61,7 @@ export default async function AppTodayPage() {
     </section>}
 
     <section aria-label="Ключевые показатели" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{[
-      ['Клиенты',String(data.kpis.customers),'всего в базе'],
+      [capitalise(data.words.personMany),String(data.kpis.customers),'всего в базе'],
       ['Продажи',money(data.kpis.salesMinor),'за всю историю'],
       ['Повторные',data.kpis.repeatRate+'%','пришли больше одного раза'],
       ['Активные кампании',String(data.kpis.activeCampaigns),'идут прямо сейчас'],

@@ -94,7 +94,7 @@ function SignupContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 text-xs font-mono text-muted-foreground">Тип бизнеса<select name="businessType" defaultValue="cafe" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 text-sm text-foreground"><option value="cafe">Кофейня</option><option value="beauty">Салон</option><option value="retail">Магазин</option><option value="service">Сервис</option></select></label>
+            <label className="grid gap-1 text-xs font-mono text-muted-foreground">Тип бизнеса<select name="businessType" defaultValue="cafe" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 text-sm text-foreground"><option value="cafe">Кофейня</option><option value="beauty">Салон красоты</option><option value="retail">Магазин</option><option value="service">Сервисная точка</option><option value="dental">Стоматология</option></select></label>
             <label className="grid gap-1 text-xs font-mono text-muted-foreground">Размер<select name="businessSize" defaultValue="single_location" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 text-sm text-foreground"><option value="single_location">1 точка</option><option value="multi_location">Несколько точек</option></select></label>
           </div>
           <label className="grid gap-1 text-xs font-mono text-muted-foreground">Главная цель<select name="goal" defaultValue="reactivate" className="min-h-11 rounded-xl border border-border bg-surface-muted px-3 text-sm text-foreground"><option value="reactivate">Вернуть клиентов</option><option value="acquire">Привлечь новых</option><option value="average_check">Повысить средний чек</option></select></label>

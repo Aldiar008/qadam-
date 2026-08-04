@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { addCustomerNote, generateCustomerBriefNote, revokeCustomerConsent } from '@/app/app/actions';
 import { canManage, getCustomerDetail } from '@/server/qadam/repository';
+import { capitalise } from '@/domain/business-vocabulary';
+import { consentScopeLabel, consentSourceLabel, consentStatusLabel } from '@/lib/status-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -191,8 +193,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             {latestConsent.size ? [...latestConsent.values()].map((consent) => (
               <div key={consent.scope} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
                 <div>
-                  <strong className="text-sm">{consent.scope}</strong>
-                  <p className="text-xs text-muted-foreground">{consent.status} · {consent.source}</p>
+                  <strong className="text-sm">{consentScopeLabel(consent.scope)}</strong>
+                  <p className="text-xs text-muted-foreground">
+                    {consentStatusLabel(consent.status)} · получено {consentSourceLabel(consent.source)}
+                  </p>
                 </div>
                 {canManage(data.role) && consent.status === 'granted' && (
                   <form action={revokeCustomerConsent}>
@@ -224,7 +228,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           repository and thrown away by this page, so «Заметки и activity»
           showed notes only. */}
       <section className={card}>
-        <h2 className="text-xl font-bold">Покупки</h2>
+        <h2 className="text-xl font-bold">{capitalise(data.words.visitMany)}</h2>
         {data.transactions.length ? (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[420px] text-left text-sm">
@@ -243,7 +247,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               <p className="mt-3 text-xs text-muted-foreground">Показаны последние 10 из {data.transactions.length}.</p>
             )}
           </div>
-        ) : <p className="mt-3 text-sm text-muted-foreground">Покупок за этим гостем не записано.</p>}
+        ) : <p className="mt-3 text-sm text-muted-foreground">За этим {data.words.personInstrumental} {data.words.visitGenitive} не записано.</p>}
       </section>
 
       <section className={card}>

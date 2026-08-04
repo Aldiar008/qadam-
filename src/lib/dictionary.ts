@@ -20,13 +20,13 @@ export const dictionary = {
     keyInsight3: 'QADAM превращает эти отношения в измеримый рост.',
 
     howTitle: 'Как работает QADAM',
-    howStep1: 'Observe',
+    howStep1: 'Наблюдает',
     howStep1Desc: 'Система непрерывно анализирует данные чеков, визитов и активности.',
-    howStep2: 'Detect',
+    howStep2: 'Замечает',
     howStep2Desc: 'Алгоритм выявляет провалы в выручке и потенциал "спящих" гостей.',
-    howStep3: 'Compile',
+    howStep3: 'Собирает',
     howStep3Desc: 'Автоматическая сборка безопасного Growth Contract с проверкой маржи.',
-    howStep4: 'Measure',
+    howStep4: 'Измеряет',
     howStep4Desc: 'Точное измерение фактического прироста выручки и сохраненного бюджета.',
 
     qrTitle: 'Начните узнавать клиентов без сложных интеграций',
@@ -43,7 +43,7 @@ export const dictionary = {
 
     nearbyTitle: 'Скидки рядом',
     nearbySub: 'Локальные предложения тогда, когда они действительно нужны.',
-    nearbyBadge: 'Coming next',
+    nearbyBadge: 'Скоро',
 
     solutionsTitle: 'Для каждого формата бизнеса',
 
@@ -80,13 +80,13 @@ export const dictionary = {
     keyInsight3: 'QADAM бұл қарым-қатынасты өлшенетін өсімге айналдырады.',
 
     howTitle: 'QADAM қалай жұмыс істейді',
-    howStep1: 'Observe',
+    howStep1: 'Бақылайды',
     howStep1Desc: 'Жүйе чектер, сапарлар мен белсенділік деректерін үздіксіз талдайды.',
-    howStep2: 'Detect',
+    howStep2: 'Байқайды',
     howStep2Desc: 'Алгоритм түсімдегі төмендеуді және "ұйықтап жатқан" қонақтардың әлеуетін анықтайды.',
-    howStep3: 'Compile',
+    howStep3: 'Жинайды',
     howStep3Desc: 'Маржаны тексере отырып, қауіпсіз Growth Contract автоматты түрде жинайды.',
-    howStep4: 'Measure',
+    howStep4: 'Өлшейді',
     howStep4Desc: 'Түсімнің нақты өсуін және үнемделген бюджетті дәл өлшеу.',
 
     qrTitle: 'Күрделі интеграцияларсыз клиенттерді тани бастаңыз',
@@ -103,7 +103,7 @@ export const dictionary = {
 
     nearbyTitle: 'Жақын маңдағы жеңілдіктер',
     nearbySub: 'Жергілікті ұсыныстар шынымен қажет болған кезде.',
-    nearbyBadge: 'Coming next',
+    nearbyBadge: 'Жақында',
 
     solutionsTitle: 'Бизнестің әр форматы үшін',
 

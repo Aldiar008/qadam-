@@ -11,6 +11,7 @@ import {
   type BusinessTypeCode,
   type GoalCode,
 } from '@/domain/tool-recommendations';
+import { vocabularyFor } from '@/domain/business-vocabulary';
 import { analyseCustomerFromReceipts } from './customer-analysis';
 import { loadTodayOpportunities } from './opportunities';
 
@@ -43,7 +44,10 @@ export async function requireBusinessContext() {
   if (memberError) throw new DataUnavailableError('membership', memberError);
   if (!member) throw new Error('MEMBERSHIP_REQUIRED');
   const [{ data: business, error: businessError }, { data: location }, { data: profile }, { data: person }] = await Promise.all([
-    supabase.from('businesses').select('id,name,mode,status,currency,timezone,business_type_id').eq('id', member.business_id).single(),
+    // Код типа заведения приходит вместе с самим заведением: от него зависит,
+    // какими словами продукт называет происходящее — гость или пациент, визит
+    // или приём. Отдельный запрос ради одного поля был бы лишним.
+    supabase.from('businesses').select('id,name,mode,status,currency,timezone,business_type_id,business_types(code,name_ru)').eq('id', member.business_id).single(),
     supabase.from('business_locations').select('id,name,city,district,address_text,capacity').eq('business_id', member.business_id).eq('is_active', true).order('created_at').limit(1).maybeSingle(),
     supabase.from('business_profiles').select('average_check_minor,margin_floor_bps,monthly_marketing_budget_minor,profile_confidence').eq('business_id', member.business_id).maybeSingle(),
     supabase.from('profiles').select('display_name,preferred_locale').eq('id', userId).maybeSingle(),
@@ -52,8 +56,15 @@ export async function requireBusinessContext() {
   if (!business) throw new Error('BUSINESS_REQUIRED');
   // Narrowed once, here: every caller downstream decides behaviour from the
   // tenant's mode, and none of them should have to re-check what it can be.
+  const businessType = (Array.isArray(business.business_types) ? business.business_types[0] : business.business_types) as { code?: string; name_ru?: string } | null;
   const scopedBusiness = { ...business, mode: asBusinessMode(business.mode) };
-  return { supabase, userId, businessId: member.business_id, role: member.role as BusinessRole, business: scopedBusiness, location, profile, person };
+  return {
+    supabase, userId, businessId: member.business_id, role: member.role as BusinessRole,
+    business: scopedBusiness, location, profile, person,
+    businessTypeCode: businessType?.code ?? null,
+    businessTypeName: businessType?.name_ru ?? null,
+    words: vocabularyFor(businessType?.code),
+  };
 }
 
 export function canManage(role: BusinessRole) { return role === 'owner' || role === 'manager'; }
@@ -89,7 +100,7 @@ export async function getTodayData() {
   // Что можно заработать сегодня: те же строки продаж, но повёрнутые к вопросу
   // владельца, а не к отчёту. Считается после KPI, потому что переиспользует
   // уже загруженные транзакции и не делает ни одного лишнего запроса к ним.
-  const opportunities = await loadTodayOpportunities(supabase, businessId, ctx.business.timezone ?? 'Asia/Almaty', rows);
+  const opportunities = await loadTodayOpportunities(supabase, businessId, ctx.business.timezone ?? 'Asia/Almaty', rows, ctx.words);
   const tools = (activations ?? []).map((row) => {
     const tool = (Array.isArray(row.tools) ? row.tools[0] : row.tools) as { code?: string; name_ru?: string; route?: string } | null;
     return { id: row.id, toolId: row.tool_id, code: tool?.code ?? '', name: tool?.name_ru ?? 'Инструмент', route: tool?.route ?? '/app/tools' };

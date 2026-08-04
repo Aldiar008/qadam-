@@ -147,7 +147,7 @@ export default async function CampaignDetailPage({
               <dd className="font-mono font-bold">{money(base?.campaignCostMinor)}</dd>
             </div>
             <div className="flex justify-between border-b border-border pb-2">
-              <dt className="text-muted-foreground">ROI (forecast)</dt>
+              <dt className="text-muted-foreground">Окупаемость (прогноз)</dt>
               <dd className="font-mono font-bold">{base?.roiBps == null ? '—' : `${Math.round(base.roiBps / 100)}%`}</dd>
             </div>
             <div className="flex justify-between">

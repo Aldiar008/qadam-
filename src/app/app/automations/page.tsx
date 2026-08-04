@@ -14,6 +14,7 @@ import {
   transitionAutomationRule,
 } from './actions';
 
+import { outcomeLabel, runStatusLabel, triggerSourceLabel } from '@/lib/status-labels';
 import { AdminKeyCard } from '@/components/app/AdminKeyCard';
 import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
 
@@ -283,13 +284,13 @@ export default async function AutomationsPage({
                         const result = (run.result ?? {}) as { outcome?: string; candidates?: number; eligible?: number; reason?: string };
                         return (
                           <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-2 text-xs">
-                            <span className="font-mono font-bold text-primary">{run.status}</span>
+                            <span className="font-bold text-primary">{runStatusLabel(run.status)}</span>
                             <span className="text-muted-foreground">
-                              {result.outcome ?? '—'}
+                              {outcomeLabel(result.outcome)}
                               {result.eligible != null && ` · подходящих ${result.eligible} из ${result.candidates ?? 0}`}
                               {result.reason && ` · ${result.reason}`}
                             </span>
-                            <span className="text-muted-foreground">{run.trigger_source} · {new Date(run.scheduled_at).toLocaleString('ru-RU')}</span>
+                            <span className="text-muted-foreground">{triggerSourceLabel(run.trigger_source)} · {new Date(run.scheduled_at).toLocaleString('ru-RU')}</span>
                           </li>
                         );
                       })}

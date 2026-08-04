@@ -3,6 +3,7 @@ import { AlertTriangle, WandSparkles } from 'lucide-react';
 import { canMarket, getContentData } from '@/server/qadam/repository';
 import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
 import { PublishActions } from '@/components/app/PublishActions';
+import { contentStatusLabel } from '@/lib/status-labels';
 import { generateCampaignContent, generateSocialContent, updateContentItem } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -137,7 +138,7 @@ export default async function ContentPage({
                         {item.source === 'provider' ? 'AI' : 'шаблон'}
                       </span>
                       <span className="rounded-full bg-primary/10 px-3 py-1 uppercase text-primary">{item.locale}</span>
-                      <span className="rounded-full bg-surface-muted px-3 py-1">{item.status}</span>
+                      <span className="rounded-full bg-surface-muted px-3 py-1">{contentStatusLabel(item.status)}</span>
                     </div>
                   </div>
 

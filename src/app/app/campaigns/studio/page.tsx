@@ -23,7 +23,7 @@ const GOAL_OPTIONS = [
 
 function StepNav({ current }: { current: number }) {
   return (
-    <nav aria-label="Шаги Campaign Studio">
+    <nav aria-label="Шаги Студия кампаний">
       <ol className="flex flex-wrap gap-2">
         {STUDIO_STEPS.map((step) => (
           <li key={step.slug}>
@@ -108,7 +108,7 @@ export default async function CampaignStudioPage({
       </Link>
 
       <header>
-        <h1 className="text-3xl font-extrabold tracking-tight">Campaign Studio</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Студия кампаний</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
           Семь шагов от цели до запуска. Черновик сохраняется на сервере после каждого шага, поэтому
           обновление страницы, кнопка «назад» и ошибка не теряют ваш ввод.

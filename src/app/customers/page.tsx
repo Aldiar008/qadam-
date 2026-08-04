@@ -3,6 +3,7 @@ import { ArrowRight, Download, FileSpreadsheet, Search } from 'lucide-react';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { canMarket, countSegmentAudience, getCustomersData } from '@/server/qadam/repository';
 import { STAGE_OPTIONS } from '@/lib/segment-rules';
+import { capitalise } from '@/domain/business-vocabulary';
 
 export const dynamic = 'force-dynamic';
 const stages = STAGE_OPTIONS;
@@ -27,11 +28,17 @@ export default async function CustomersPage({
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight">Клиенты и Mini-CRM</h1>
+            {/* Заголовок называет тех, кто приходит, словами этого бизнеса:
+                у кофейни гости, у стоматологии пациенты. Интерфейс, который
+                зовёт пациента гостем, читается как чужой. */}
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              {capitalise(data.words.personMany)} и база контактов
+            </h1>
             {data.business.mode === 'demo' && <DemoBadge label="DEMO DATA" />}
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Cursor pagination, masked identity, аудируемый экспорт и импорт CSV.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Контакты хранятся замаскированными: продукт видит, что это тот же человек, но не хранит
+            телефон целиком. Экспорт записывается в журнал, импорт из CSV не перезаписывает согласия.
           </p>
         </div>
 
@@ -159,7 +166,7 @@ export default async function CustomersPage({
             </tbody>
           </table>
         </div>
-        {!data.customers.length && <div className="p-10 text-center text-sm text-muted-foreground">Клиенты не найдены.</div>}
+        {!data.customers.length && <div className="p-10 text-center text-sm text-muted-foreground">Подходящих {data.words.personGenitive} не найдено.</div>}
       </div>
 
       {data.nextCursor && (
