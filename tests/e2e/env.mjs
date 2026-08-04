@@ -25,11 +25,27 @@ function orderFor(target) {
     : ['.env.local', '.env', 'CREDENTIALS.local.md'];
 }
 
+/**
+ * Цель можно назвать прямо: `QADAM_ENV_TARGET=remote`.
+ *
+ * Иначе она угадывается по уже заданным переменным, а они сами лежат в этих же
+ * файлах — курица и яйцо. Пока набор запускали вручную с экспортом, угадывание
+ * работало; в `tests/security/http-suite.mjs`, который ничего не экспортирует,
+ * оно молча выбирало локальный файл. Секрет цикла оттуда стенд, разумеется, не
+ * принимал, и четыре проверки безопасности годами показывали 401 — как будто
+ * отказывает продукт, а не как будто у прогона не тот ключ.
+ */
+function declaredTarget() {
+  const value = (process.env.QADAM_ENV_TARGET ?? '').trim().toLowerCase();
+  return value === 'remote' || value === 'local' ? value : null;
+}
+
 export function loadLocalEnv(
   files = orderFor(
-    process.env.QADAM_SUPABASE_PROJECT_REF || !/localhost|127\.0\.0\.1/.test(process.env.QADAM_E2E_BASE ?? 'localhost')
-      ? 'remote'
-      : 'local',
+    declaredTarget()
+      ?? (process.env.QADAM_SUPABASE_PROJECT_REF || !/localhost|127\.0\.0\.1/.test(process.env.QADAM_E2E_BASE ?? 'localhost')
+        ? 'remote'
+        : 'local'),
   ),
 ) {
   for (const file of files) {
