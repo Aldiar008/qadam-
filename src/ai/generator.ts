@@ -190,8 +190,13 @@ export async function generateStructured<T>(
   let lastProvider = options.provider;
   let totalAttempts = 0;
 
-  for (const active of chain) {
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
+  for (const [position, active] of chain.entries()) {
+  // Бюджет попыток достаётся основному поставщику. Запасного спрашиваем один
+  // раз: он нужен, чтобы у продукта был ответ, когда основной молчит, а не
+  // чтобы владелец ждал втрое дольше. Три поставщика по три попытки с
+  // таймаутом в двадцать секунд — это три минуты на кнопке «Подобрать акции».
+  const budget = position === 0 ? options.maxAttempts : 1;
+  for (let attempt = 1; attempt <= budget; attempt += 1) {
     totalAttempts += 1;
     lastProvider = active;
     const controller = new AbortController();
@@ -240,7 +245,7 @@ export async function generateStructured<T>(
           : new AiProviderError('server_error', (error as Error)?.message ?? 'unknown provider failure', { retryable: true });
       lastError = aiError;
 
-      if (!aiError.retryable || attempt === options.maxAttempts) break;
+      if (!aiError.retryable || attempt === budget) break;
       // Exponential backoff; deterministic so tests can assert the schedule.
       await sleep(Math.min(4_000, 250 * 2 ** (attempt - 1)));
     }

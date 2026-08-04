@@ -461,7 +461,7 @@ test('исчерпанная квота у первого поставщика �
   assert.equal(result.source, 'provider', 'ответ должен прийти от запасного поставщика, а не из шаблона');
   assert.equal(result.telemetry.provider, 'second-provider');
   assert.equal(first.count, OPTIONS.maxAttempts, 'основного спрашиваем столько раз, сколько разрешено');
-  assert.equal(second.count, 1);
+  assert.equal(second.count, 1, 'запасного — один раз: он для ответа, а не для утроенного ожидания');
   assert.equal(result.telemetry.attempts, OPTIONS.maxAttempts + 1);
 });
 
@@ -475,7 +475,8 @@ test('когда отказали все поставщики, ответ даё
   });
   assert.equal(result.source, 'deterministic_fallback');
   assert.match(result.telemetry.fallbackReason ?? '', /All 2 configured providers failed/);
-  assert.ok(first.count > 0 && second.count > 0, 'спросить надо было обоих');
+  assert.equal(first.count, OPTIONS.maxAttempts);
+  assert.equal(second.count, 1, 'ожидание не растёт линейно по числу поставщиков');
 });
 
 test('запасные поставщики берутся из окружения, а не из воздуха', () => {
