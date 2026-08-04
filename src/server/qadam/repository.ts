@@ -307,11 +307,44 @@ export async function getCustomerDetail(customerId: string) {
 
 export async function getSegmentsData() {
   const ctx = await requireBusinessContext();
-  const [{ data: segments }, { data: memberships }] = await Promise.all([
+  const [{ data: segments }, { data: memberships }, { data: consents }, { data: purchases }] = await Promise.all([
     ctx.supabase.from('customer_segments').select('id,code,name_ru,name_kk,definition,rule_version,status,last_evaluated_at').eq('business_id', ctx.businessId).eq('status', 'active').order('name_ru'),
     ctx.supabase.from('segment_memberships').select('segment_id,customer_id').eq('business_id', ctx.businessId),
+    // Размер сегмента и число людей, которым можно написать, — разные числа, и
+    // владельцу нужно второе: рассылка по первому просто отфильтруется молча.
+    ctx.supabase.from('customer_consents').select('customer_id,scope,status,created_at').eq('business_id', ctx.businessId).like('scope', 'marketing%').order('created_at', { ascending: false }).limit(5000),
+    ctx.supabase.from('transactions').select('net_minor').eq('business_id', ctx.businessId).order('occurred_at', { ascending: false }).limit(2000),
   ]);
-  return { ...ctx, segments: (segments ?? []).map((segment) => ({ ...segment, count: (memberships ?? []).filter((item) => item.segment_id === segment.id).length })) };
+
+  const decision = new Map<string, boolean>();
+  for (const row of consents ?? []) {
+    const key = `${row.customer_id}:${row.scope}`;
+    if (!decision.has(key)) decision.set(key, row.status === 'granted');
+  }
+  const reachable = new Set<string>();
+  for (const [key, allowed] of decision) if (allowed) reachable.add(key.split(':')[0]);
+
+  const rows = purchases ?? [];
+  const averageCheckMinor = rows.length
+    ? Math.round(rows.reduce((sum, row) => sum + Number(row.net_minor), 0) / rows.length)
+    : 0;
+
+  return {
+    ...ctx,
+    averageCheckMinor,
+    segments: (segments ?? []).map((segment) => {
+      const members = (memberships ?? []).filter((item) => item.segment_id === segment.id);
+      const canWrite = members.filter((item) => reachable.has(item.customer_id)).length;
+      return {
+        ...segment,
+        count: members.length,
+        reachable: canWrite,
+        // Один визит каждого, кому можно написать. Не прогноз кампании —
+        // верхняя граница того, о чём вообще идёт речь.
+        potentialMinor: canWrite * averageCheckMinor,
+      };
+    }),
+  };
 }
 
 export async function getCampaignsData() {
@@ -496,6 +529,42 @@ export async function getLoyaltyData() {
     ctx.supabase.from('activity_logs').select('id,action,resource_type,resource_id,metadata,occurred_at').eq('business_id', ctx.businessId).in('action', ['qr.scanned','loyalty.joined','loyalty.earned','loyalty.redeemed']).order('occurred_at', { ascending: false }).limit(30),
     ctx.supabase.from('qr_codes').select('id,loyalty_program_id,purpose,status,expires_at,revoked_at,rotated_from_id,created_at').eq('business_id', ctx.businessId).eq('purpose', 'loyalty_join').order('created_at', { ascending: false }).limit(50),
   ]);
+  // Что программа даёт заведению — числами, а не обещанием. Раздел объяснял
+  // себя словами «opaque token, rotation & revoke, append-only ledger»: всё
+  // правда и ничего из этого не отвечает владельцу, зачем ему эта программа.
+  const [{ data: members }, { data: entries }, { data: purchases }] = await Promise.all([
+    ctx.supabase.from('loyalty_accounts').select('customer_id,stamps_balance,points_balance').eq('business_id', ctx.businessId).limit(5000),
+    ctx.supabase.from('loyalty_ledger').select('entry_type,stamps_delta,points_delta').eq('business_id', ctx.businessId).limit(5000),
+    ctx.supabase.from('transactions').select('customer_id,net_minor').eq('business_id', ctx.businessId).not('customer_id', 'is', null).limit(5000),
+  ]);
+
+  const memberIds = new Set((members ?? []).map((row) => row.customer_id));
+  const visitsOf = new Map<string, { visits: number; revenueMinor: number }>();
+  for (const row of purchases ?? []) {
+    if (!row.customer_id) continue;
+    const current = visitsOf.get(row.customer_id) ?? { visits: 0, revenueMinor: 0 };
+    current.visits += 1;
+    current.revenueMinor += Number(row.net_minor);
+    visitsOf.set(row.customer_id, current);
+  }
+  const share = (ids: string[]) => {
+    const known = ids.map((id) => visitsOf.get(id)).filter(Boolean) as { visits: number; revenueMinor: number }[];
+    if (!known.length) return null;
+    return {
+      people: known.length,
+      repeatRate: Math.round((known.filter((row) => row.visits > 1).length / known.length) * 100),
+      averageVisits: Math.round((known.reduce((sum, row) => sum + row.visits, 0) / known.length) * 10) / 10,
+    };
+  };
+  const outsiders = [...visitsOf.keys()].filter((id) => !memberIds.has(id));
+  const effect = {
+    members: memberIds.size,
+    stampsIssued: (entries ?? []).reduce((sum, row) => sum + Math.max(0, Number(row.stamps_delta ?? 0)), 0),
+    rewardsRedeemed: (entries ?? []).filter((row) => row.entry_type === 'redeem').length,
+    withCard: share([...memberIds]),
+    withoutCard: share(outsiders),
+  };
+
   const scanRows = scans ?? [];
   const tokens = (qrCodes ?? []).map((qr) => {
     const own = scanRows.filter((scan) => scan.qr_code_id === qr.id);
@@ -511,5 +580,5 @@ export async function getLoyaltyData() {
       programName: (programs ?? []).find((program) => program.id === qr.loyalty_program_id)?.name ?? '—',
     };
   });
-  return { ...ctx, programs: programs ?? [], rewards: rewards ?? [], scans: scanRows.slice(0, 20), ledger: ledger ?? [], activities: activities ?? [], qrTokens: tokens };
+  return { ...ctx, programs: programs ?? [], rewards: rewards ?? [], scans: scanRows.slice(0, 20), ledger: ledger ?? [], activities: activities ?? [], qrTokens: tokens, effect };
 }

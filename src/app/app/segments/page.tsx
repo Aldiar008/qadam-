@@ -5,6 +5,23 @@ import { describeSegmentRule } from '@/lib/segment-rules';
 
 export const dynamic = 'force-dynamic';
 
+const money = (minor: number) => `${Number(minor).toLocaleString('ru-RU')} ₸`;
+
+/**
+ * Зачем владельцу каждый из готовых сегментов.
+ *
+ * Раздел выглядел бесполезным не потому, что считал неправильно, а потому что
+ * не отвечал на вопрос «и что мне с этим делать». Размер сегмента — это не
+ * задача; задача — вот она.
+ */
+const PURPOSE: Record<string, string> = {
+  inactive_30: 'Ходили и перестали. Самая дорогая потеря из всех: этих людей вы уже привлекли и оплатили — вернуть дешевле, чем найти новых.',
+  eligible_winback: 'Перестали ходить и при этом разрешили писать. Это единственный список, по которому кампания возврата действительно уйдёт.',
+  new: 'Пришли впервые. Второй визит решается в первые дни — дальше человек забывает дорогу.',
+  loyal: 'Ходят регулярно. Им не нужна скидка, нужен повод прийти чаще или взять больше.',
+  vip: 'Приносят больше всех. Потеря одного такого гостя стоит десяти обычных, поэтому им — внимание, а не рассылка.',
+};
+
 export default async function SegmentsPage() {
   const data = await getSegmentsData();
   const inactiveSegment = data.segments.find((segment) => segment.code === 'inactive_30');
@@ -53,6 +70,33 @@ export default async function SegmentsPage() {
                     {segment.count} чел.
                   </span>
                 </div>
+
+                {/* Зачем этот сегмент нужен и что он стоит. Раньше карточка
+                    сообщала только размер, и «Спящие — 64 человека» ничем не
+                    отличалось от строки в отчёте. */}
+                {PURPOSE[segment.code] && (
+                  <p className="mt-3 text-sm leading-6">{PURPOSE[segment.code]}</p>
+                )}
+                <dl className="mt-3 grid grid-cols-2 gap-3 rounded-2xl bg-surface-muted p-3 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">Можно написать</dt>
+                    <dd className="mt-0.5 font-mono text-base font-bold">
+                      {segment.reachable} из {segment.count}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Один их визит стоит</dt>
+                    <dd className="mt-0.5 font-mono text-base font-bold">
+                      {segment.potentialMinor > 0 ? money(segment.potentialMinor) : '—'}
+                    </dd>
+                  </div>
+                </dl>
+                {segment.reachable < segment.count && (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    Остальные {segment.count - segment.reachable} не дали согласия на рассылку — кампания
+                    исключит их сама, и это не ошибка настройки.
+                  </p>
+                )}
 
                 {lines.length ? (
                   <ul className="mt-4 space-y-1.5 text-sm leading-6">

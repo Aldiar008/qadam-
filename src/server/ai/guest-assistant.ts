@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { REPLY_PROMPT_VERSION, REPLY_SCHEMA_VERSION, parseGuestReply, type AiRequest, type GuestReply } from '@/ai/contract.ts';
 import { generateStructured } from '@/ai/generator.ts';
-import { createProvider, readProviderConfig } from '@/ai/providers.ts';
+import { generatorOptionsFor } from '@/ai/providers.ts';
 import { sanitiseForPrompt } from '@/ai/redaction.ts';
 import { recordGenerationRun } from './run-recorder.ts';
 
@@ -201,7 +201,6 @@ export async function answerGuest(
   const context = (data ?? {}) as AssistantContext;
   const built = buildGuestReplyPrompt(context, command.question);
   const allowed = allowedNumbersOf(context);
-  const config = readProviderConfig();
 
   // The same question against the same facts has the same answer, and a free
   // provider tier runs out of requests long before a busy café runs out of
@@ -247,10 +246,7 @@ export async function answerGuest(
     safetyTextOf: (reply) => reply.reply,
     fallback: () => composeDeterministicReply(context, command.question),
   }, {
-    provider: config ? createProvider(config) : null,
-    timeoutMs: config?.timeoutMs ?? 15_000,
-    maxAttempts: config?.maxAttempts ?? 3,
-    costCeilingMicros: config?.costCeilingMicros ?? 250_000,
+    ...generatorOptionsFor(),
     // The same digest the cache looks up, so a successful answer becomes the
     // cached one without a second hashing rule to keep in step.
     hash: async () => inputHash,

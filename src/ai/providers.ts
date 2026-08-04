@@ -240,3 +240,59 @@ export function createProvider(config: ProviderConfig): AiProvider | null {
   if (config.provider === 'gemini') return createGeminiProvider(config);
   return null;
 }
+
+/**
+ * Цепочка поставщиков вместо одного.
+ *
+ * У Gemini кончаются бесплатные лимиты — и инструмент, который на нём держится,
+ * переставал работать до следующих суток. Формально всё было честно: генератор
+ * откатывался на встроенный шаблон и подписывал ответ как шаблонный. По факту
+ * владелец видел, что «умная» часть продукта умерла и не понимал почему.
+ *
+ * Ответ — не «взять поставщика получше», а перестать зависеть от одного.
+ * Основной берётся из `QADAM_AI_PROVIDER`; запасные — из
+ * `QADAM_AI_FALLBACK_PROVIDERS`, а если там ничего не указано, то любые
+ * остальные, чей ключ есть в окружении. Модель и базовый URL основного
+ * поставщика запасному не передаются: `gemini-3.6-flash` не существует у
+ * Anthropic, и попытка была бы гарантированной ошибкой.
+ *
+ * Встроенный шаблон остаётся последним звеном: он не зависит ни от кого.
+ */
+const FALLBACK_CANDIDATES = ['anthropic', 'openai', 'gemini'] as const;
+
+export function readProviderChain(env: Readonly<Record<string, string | undefined>> = process.env): ProviderConfig[] {
+  const primary = readProviderConfig(env);
+  if (!primary) return [];
+  // Демо-поставщик отвечает всегда и ни от чего не зависит; запасные ему не нужны.
+  if (primary.provider === 'demo') return [primary];
+
+  const declared = (env.QADAM_AI_FALLBACK_PROVIDERS ?? '')
+    .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean);
+  const wanted = declared.length ? declared : [...FALLBACK_CANDIDATES];
+
+  const chain: ProviderConfig[] = [primary];
+  for (const name of wanted) {
+    if (name === primary.provider || chain.some((item) => item.provider === name)) continue;
+    const config = readProviderConfig({
+      ...env,
+      QADAM_AI_PROVIDER: name,
+      QADAM_AI_MODEL: undefined,
+      QADAM_AI_BASE_URL: undefined,
+    });
+    if (config) chain.push(config);
+  }
+  return chain;
+}
+
+/** Готовые параметры генератора: основной поставщик, запасные и общие лимиты. */
+export function generatorOptionsFor(env: Readonly<Record<string, string | undefined>> = process.env) {
+  const chain = readProviderChain(env);
+  const [primary, ...rest] = chain;
+  return {
+    provider: primary ? createProvider(primary) : null,
+    fallbackProviders: rest.map(createProvider).filter((item): item is AiProvider => item !== null),
+    timeoutMs: primary?.timeoutMs ?? DEFAULTS.timeoutMs,
+    maxAttempts: primary?.maxAttempts ?? DEFAULTS.maxAttempts,
+    costCeilingMicros: primary?.costCeilingMicros ?? DEFAULTS.costCeilingMicros,
+  };
+}

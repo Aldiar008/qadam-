@@ -94,6 +94,14 @@ export interface StructuredGenerationResult<T> {
 
 export interface GeneratorOptions {
   provider: AiProvider | null;
+  /**
+   * Кого спрашивать, когда основной поставщик отказал.
+   *
+   * Исчерпанная квота у одного поставщика не должна выключать умную часть
+   * продукта до следующих суток. Перебор идёт по порядку; встроенный шаблон
+   * остаётся последним звеном и не зависит ни от кого.
+   */
+  fallbackProviders?: readonly AiProvider[];
   timeoutMs: number;
   maxAttempts: number;
   costCeilingMicros: number;
@@ -177,12 +185,19 @@ export async function generateStructured<T>(
     );
   }
 
+  const chain = [options.provider, ...(options.fallbackProviders ?? [])];
   let lastError: AiProviderError | null = null;
+  let lastProvider = options.provider;
+  let totalAttempts = 0;
+
+  for (const active of chain) {
   for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
+    totalAttempts += 1;
+    lastProvider = active;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs);
     try {
-      const response = await options.provider.complete(spec.request, controller.signal);
+      const response = await active.complete(spec.request, controller.signal);
       clearTimeout(timer);
 
       const value = spec.parse(extractJson(response.text));
@@ -193,7 +208,7 @@ export async function generateStructured<T>(
         return fallback(
           `Generated copy failed content safety: ${safety.violations.join(', ')}.`,
           'unsafe_content',
-          attempt,
+          totalAttempts,
           { safety: { ...baseTelemetry.safety, contentViolations: safety.violations } },
         );
       }
@@ -204,10 +219,10 @@ export async function generateStructured<T>(
         source: 'provider',
         telemetry: {
           ...baseTelemetry,
-          provider: options.provider.name,
+          provider: active.name,
           model: response.model,
           latencyMs: now() - startedAt,
-          attempts: attempt,
+          attempts: totalAttempts,
           inputTokens: response.inputTokens,
           outputTokens: response.outputTokens,
           costMicros,
@@ -230,11 +245,15 @@ export async function generateStructured<T>(
       await sleep(Math.min(4_000, 250 * 2 ** (attempt - 1)));
     }
   }
+  }
 
+  const exhausted = chain.length > 1
+    ? `All ${chain.length} configured providers failed (last: ${lastProvider?.name ?? 'unknown'})`
+    : `Provider failed after ${options.maxAttempts} attempt(s)`;
   return fallback(
-    `Provider failed after ${options.maxAttempts} attempt(s): ${lastError?.kind ?? 'unknown'} — ${lastError?.message ?? 'no detail'}`,
+    `${exhausted}: ${lastError?.kind ?? 'unknown'} — ${lastError?.message ?? 'no detail'}`,
     lastError?.kind ?? 'server_error',
-    options.maxAttempts,
+    totalAttempts,
   );
 }
 

@@ -6,7 +6,7 @@ import { BRIEF_PROMPT_VERSION, BRIEF_SCHEMA_VERSION, parseCustomerBrief, type Cu
 import { composeDeterministicBrief } from '@/ai/deterministic.ts';
 import { generateStructured } from '@/ai/generator.ts';
 import { buildCustomerBriefPrompt } from '@/ai/prompt.ts';
-import { createProvider, readProviderConfig } from '@/ai/providers.ts';
+import { generatorOptionsFor } from '@/ai/providers.ts';
 import { analyseCustomerFromReceipts, insightsForBrief } from '@/server/qadam/customer-analysis';
 import { loadBrandVoice } from './brand-voice.ts';
 import { recordGenerationRun } from './run-recorder.ts';
@@ -87,7 +87,6 @@ export async function loadCustomerBriefInput(db: SupabaseClient, businessId: str
 export async function generateCustomerBrief(db: SupabaseClient, command: CustomerBriefCommand): Promise<CustomerBriefResult> {
   const input = await loadCustomerBriefInput(db, command.businessId, command.customerId);
   const built = buildCustomerBriefPrompt(input);
-  const config = readProviderConfig();
 
   const result = await generateStructured<CustomerBrief>({
     request: built.request,
@@ -99,12 +98,7 @@ export async function generateCustomerBrief(db: SupabaseClient, command: Custome
     parse: (raw) => parseCustomerBrief(raw, input),
     safetyTextOf: (brief) => [brief.summary, ...brief.observations, brief.nextStep, ...brief.cautions].join('\n'),
     fallback: () => composeDeterministicBrief(input),
-  }, {
-    provider: config ? createProvider(config) : null,
-    timeoutMs: config?.timeoutMs ?? 20_000,
-    maxAttempts: config?.maxAttempts ?? 3,
-    costCeilingMicros: config?.costCeilingMicros ?? 250_000,
-  });
+  }, generatorOptionsFor());
 
   const runId = await recordGenerationRun(db, {
     businessId: command.businessId,

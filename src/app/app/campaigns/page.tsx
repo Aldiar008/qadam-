@@ -30,6 +30,19 @@ const contractStatusLabels: Record<string, string> = {
   failed: 'Ошибка',
 };
 
+/**
+ * Решение Margin Shield по-русски.
+ *
+ * На карточке стояло «Margin Shield: allowed» — два английских слова, одно из
+ * которых название механизма, а второе решение. Владелец кофейни читает это как
+ * шум и пролистывает; а решение здесь самое важное на всей карточке.
+ */
+const MARGIN_LABELS: Record<string, string> = {
+  allowed: 'проходит',
+  warning: 'проходит с оговоркой',
+  blocked: 'не проходит',
+};
+
 // KZT minor unit is the tenge itself in this schema — no division.
 const money = (minor: number | string | null | undefined) => `${Number(minor ?? 0).toLocaleString('ru-RU')} ₸`;
 
@@ -42,8 +55,10 @@ export default async function CampaignsPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Кампании</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Каждая кампания создаётся только из Growth Contract: экономика, Margin Shield и согласие
-            пересчитываются на сервере перед запуском.
+            Кампания — это предложение конкретным людям с посчитанной экономикой и способом проверить,
+            что оно сработало. Прежде чем уйти, каждая проходит три проверки на сервере: хватает ли
+            маржи, есть ли согласие у получателей и укладывается ли в ваши лимиты. Отклонённая кампания
+            говорит, что именно ей помешало.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -51,7 +66,7 @@ export default async function CampaignsPage() {
             href="/app/campaigns/new"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold"
           >
-            Быстрая кампания
+            Кампания из готового контракта
           </Link>
           <Link
             href="/app/campaigns/studio"
@@ -121,7 +136,7 @@ export default async function CampaignsPage() {
                         }`}
                       >
                         {decision.status === 'allowed' ? <ShieldCheck className="size-3.5" /> : <ShieldAlert className="size-3.5" />}
-                        Margin Shield: {decision.status ?? 'n/a'}
+                        Маржа: {MARGIN_LABELS[decision.status ?? ''] ?? 'не проверялась'}
                       </span>
                     </div>
                     <h2 className="mt-3 font-bold leading-6">{campaign.name}</h2>
@@ -143,7 +158,7 @@ export default async function CampaignsPage() {
                         {verified ? money(verified.value_minor) : forecast ? money(forecast.value_minor) : '—'}
                       </strong>
                       <span className="text-xs text-muted-foreground">
-                        {verified ? 'verified fact' : forecast ? 'forecast' : 'нет измерений'}
+                        {verified ? 'подтверждено замером' : forecast ? 'прогноз до запуска' : 'ещё не измеряли'}
                       </span>
                     </div>
                   </div>

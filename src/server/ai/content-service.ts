@@ -19,7 +19,7 @@ import { composeDeterministicSocialPack } from '@/ai/deterministic.ts';
 import { generateStructured } from '@/ai/generator.ts';
 import { buildContentPackPrompt, buildSocialPackPrompt } from '@/ai/prompt.ts';
 import { quietWindowFromMetricKey } from './campaign-ai-service.ts';
-import { createProvider, readProviderConfig } from '@/ai/providers.ts';
+import { generatorOptionsFor } from '@/ai/providers.ts';
 import { findBannedPhrases, loadBannedPhrases, loadBrandVoice } from './brand-voice.ts';
 import { recordGenerationRun } from './run-recorder.ts';
 
@@ -76,8 +76,6 @@ export async function generateContentPack(db: SupabaseClient, command: ContentGe
     durationDays: command.pack.durationDays,
     catalog: (catalog ?? []).map((item) => item.name_ru),
   });
-
-  const config = readProviderConfig();
   const result = await generateStructured<ContentAsset[]>({
     request: built.request,
     redactedPayload: built.redactedPayload,
@@ -88,12 +86,7 @@ export async function generateContentPack(db: SupabaseClient, command: ContentGe
     parse: (raw) => parseGeneratedPack(raw, command.pack),
     safetyTextOf: (assets) => assets.map((asset) => `${asset.body}\n${asset.cta}`).join('\n'),
     fallback: () => buildContentPack(command.pack),
-  }, {
-    provider: config ? createProvider(config) : null,
-    timeoutMs: config?.timeoutMs ?? 20_000,
-    maxAttempts: config?.maxAttempts ?? 3,
-    costCeilingMicros: config?.costCeilingMicros ?? 250_000,
-  });
+  }, generatorOptionsFor());
 
   // A phrase the owner banned is a rule about their own brand, and until now the
   // column holding it had no readers at all. Generated copy that breaks it goes
@@ -175,7 +168,6 @@ export async function generateSocialPack(
   };
 
   const built = buildSocialPackPrompt(input);
-  const config = readProviderConfig();
   const result = await generateStructured<SocialAsset[]>({
     request: built.request,
     redactedPayload: built.redactedPayload,
@@ -186,12 +178,7 @@ export async function generateSocialPack(
     parse: (raw) => parseSocialPack(raw, input),
     safetyTextOf: (assets) => assets.map((asset) => `${asset.title}\n${asset.body}\n${asset.cta}`).join('\n'),
     fallback: () => composeDeterministicSocialPack(input),
-  }, {
-    provider: config ? createProvider(config) : null,
-    timeoutMs: config?.timeoutMs ?? 25_000,
-    maxAttempts: config?.maxAttempts ?? 3,
-    costCeilingMicros: config?.costCeilingMicros ?? 400_000,
-  });
+  }, generatorOptionsFor());
 
   const combined = result.value.map((asset) => `${asset.title} ${asset.body} ${asset.cta}`).join('\n');
   const bannedHits = findBannedPhrases(combined, banned);

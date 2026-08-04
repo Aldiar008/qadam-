@@ -13,7 +13,7 @@ import { generateDeterministicProposal } from '../../ai/deterministic.ts';
 import { generateCampaignProposal } from '../../ai/generator.ts';
 import { buildCampaignPrompt } from '../../ai/prompt.ts';
 import { checkContentSafety, neutraliseInjection, redact, sanitiseForPrompt } from '../../ai/redaction.ts';
-import { readProviderConfig, thinkingConfigFor } from '../../ai/providers.ts';
+import { readProviderChain, readProviderConfig, thinkingConfigFor } from '../../ai/providers.ts';
 
 const INPUT: CampaignGenerationInput = {
   businessType: 'Кофейня',
@@ -444,4 +444,61 @@ test('gemini thinking is disabled in the shape each model generation accepts', (
   assert.deepEqual(thinkingConfigFor('gemini-2.5-flash'), { thinkingBudget: 0 });
   assert.deepEqual(thinkingConfigFor('gemini-2.0-flash'), { thinkingBudget: 0 });
   assert.equal(thinkingConfigFor('gemini-flash-latest'), undefined, 'an unversioned name must not guess');
+});
+
+// ---------------------------------------------------------------------------
+// Цепочка поставщиков: исчерпанная квота одного не выключает продукт
+// ---------------------------------------------------------------------------
+
+test('исчерпанная квота у первого поставщика передаёт запрос второму', async () => {
+  const first = { count: 0 };
+  const second = { count: 0 };
+  const result = await generateCampaignProposal(INPUT, {
+    ...OPTIONS,
+    provider: providerThrowing(new AiProviderError('rate_limited', 'quota exhausted', { retryable: true }), first),
+    fallbackProviders: [{ ...providerReturning(validPayload(), second), name: 'second-provider' }],
+  });
+  assert.equal(result.source, 'provider', 'ответ должен прийти от запасного поставщика, а не из шаблона');
+  assert.equal(result.telemetry.provider, 'second-provider');
+  assert.equal(first.count, OPTIONS.maxAttempts, 'основного спрашиваем столько раз, сколько разрешено');
+  assert.equal(second.count, 1);
+  assert.equal(result.telemetry.attempts, OPTIONS.maxAttempts + 1);
+});
+
+test('когда отказали все поставщики, ответ даёт шаблон и называет причину', async () => {
+  const first = { count: 0 };
+  const second = { count: 0 };
+  const result = await generateCampaignProposal(INPUT, {
+    ...OPTIONS,
+    provider: providerThrowing(new AiProviderError('rate_limited', 'quota exhausted', { retryable: true }), first),
+    fallbackProviders: [providerThrowing(new AiProviderError('server_error', 'down', { retryable: true }), second)],
+  });
+  assert.equal(result.source, 'deterministic_fallback');
+  assert.match(result.telemetry.fallbackReason ?? '', /All 2 configured providers failed/);
+  assert.ok(first.count > 0 && second.count > 0, 'спросить надо было обоих');
+});
+
+test('запасные поставщики берутся из окружения, а не из воздуха', () => {
+  const chain = readProviderChain({
+    QADAM_AI_PROVIDER: 'gemini',
+    GEMINI_API_KEY: 'g',
+    ANTHROPIC_API_KEY: 'a',
+    QADAM_AI_MODEL: 'gemini-3.6-flash',
+  });
+  assert.deepEqual(chain.map((item) => item.provider), ['gemini', 'anthropic']);
+  // Модель основного поставщика не должна утечь в запасного: такой модели у
+  // него нет, и попытка была бы гарантированной ошибкой.
+  assert.notEqual(chain[1].model, 'gemini-3.6-flash');
+  assert.equal(chain[1].apiKey, 'a');
+});
+
+test('без ключей запасных цепочка состоит из одного поставщика', () => {
+  const chain = readProviderChain({ QADAM_AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g' });
+  assert.deepEqual(chain.map((item) => item.provider), ['gemini']);
+  assert.deepEqual(readProviderChain({}), []);
+});
+
+test('демо-поставщик ни от кого не зависит и запасных не получает', () => {
+  const chain = readProviderChain({ QADAM_AI_PROVIDER: 'demo', ANTHROPIC_API_KEY: 'a', GEMINI_API_KEY: 'g' });
+  assert.deepEqual(chain.map((item) => item.provider), ['demo']);
 });

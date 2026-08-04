@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AlertTriangle, WandSparkles } from 'lucide-react';
 import { canMarket, getContentData } from '@/server/qadam/repository';
 import { ContentRefreshCard } from '@/components/app/ContentRefreshCard';
+import { PublishActions } from '@/components/app/PublishActions';
 import { generateCampaignContent, generateSocialContent, updateContentItem } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -157,6 +158,11 @@ export default async function ContentPage({
                           </button>
                         )}
                         {item.status === 'approved' && (
+                          <button name="status" value="published" className="min-h-11 rounded-xl border border-emerald-600/40 bg-emerald-500/10 px-4 text-sm font-bold text-emerald-800">
+                            Отметить опубликованным
+                          </button>
+                        )}
+                        {(item.status === 'approved' || item.status === 'published') && (
                           <button name="status" value="archived" className="min-h-11 rounded-xl border border-border px-4 text-sm font-bold">
                             В архив
                           </button>
@@ -166,6 +172,11 @@ export default async function ContentPage({
                   ) : (
                     <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{item.body}</p>
                   )}
+
+                  {/* Путь до публикации целиком: текст в буфер, ссылка на площадку,
+                      отметка о выходе. Кнопки «Опубликовать в Reels» здесь нет
+                      намеренно — см. пояснение под списком. */}
+                  <PublishActions kind={item.content_kind} body={item.body} cta={item.cta} />
 
                   {item.cta && <p className="mt-3 text-xs font-bold text-primary">CTA: {item.cta}</p>}
                   {item.alt_text && (
@@ -191,6 +202,33 @@ export default async function ContentPage({
                 Нажмите «Сгенерировать» — QADAM соберёт основной пост, короткую версию, три Stories,
                 15-секундный сценарий и сообщение в мессенджер на русском и казахском из брифа Growth Contract.
               </p>
+            </section>
+          )}
+
+          {data.content.length > 0 && (
+            <section className="rounded-3xl border border-border bg-surface p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-bold">Как это выходит в Instagram и TikTok</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Публикует человек, и это сказано прямо. Автопостинг в Instagram и TikTok идёт через
+                    бизнес-аккаунт, ревью приложения у самой площадки и выданный ею токен — ничего этого
+                    у QADAM сейчас нет, и кнопка «Опубликовать», которая на самом деле ничего не публикует,
+                    была бы обманом.
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Поэтому путь такой: скопировать текст, открыть площадку, выложить, вернуться и отметить
+                    материал опубликованным. Отметка нужна не для галочки — по ней Impact Ledger знает дату
+                    выхода и считает эффект от неё, а не от даты создания черновика.
+                  </p>
+                </div>
+                <a
+                  href={params.campaign ? `/api/content/export?campaign=${params.campaign}` : '/api/content/export'}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                >
+                  Скачать пакет материалов
+                </a>
+              </div>
             </section>
           )}
 

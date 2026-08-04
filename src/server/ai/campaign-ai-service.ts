@@ -18,7 +18,7 @@ import {
   type ProposedMechanic,
 } from '@/ai/contract.ts';
 import { generateCampaignProposal, type GenerationResult } from '@/ai/generator.ts';
-import { createProvider, readProviderConfig } from '@/ai/providers.ts';
+import { generatorOptionsFor } from '@/ai/providers.ts';
 import { readVoiceRules } from './brand-voice.ts';
 import { recordGenerationRun } from './run-recorder.ts';
 
@@ -176,14 +176,7 @@ export class CampaignAiService {
       currency: context.currency,
       locales: command.locales,
     };
-
-    const config = readProviderConfig();
-    const result = await generateCampaignProposal(input, {
-      provider: config ? createProvider(config) : null,
-      timeoutMs: config?.timeoutMs ?? 20_000,
-      maxAttempts: config?.maxAttempts ?? 3,
-      costCeilingMicros: config?.costCeilingMicros ?? 250_000,
-    });
+    const result = await generateCampaignProposal(input, generatorOptionsFor());
 
     const runId = await this.recordRun(command, result);
     const evaluated = this.evaluate(result, context, command);

@@ -34,8 +34,10 @@ export default async function LoyaltyPage({
             <h1 className="text-3xl font-extrabold tracking-tight">QR-лояльность</h1>
             {data.business.mode === 'demo' && <DemoBadge label="DEMO QR" />}
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Opaque token, rotation & revoke, separate consent, append-only ledger и atomic redeem.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Гость сканирует QR у кассы, получает штамп за визит и забирает награду, когда штампов
+            хватает. Заведение получает узнаваемого гостя вместо анонимного чека — и право написать
+            ему, если он сам это разрешил.
           </p>
         </div>
         <Link
@@ -45,6 +47,54 @@ export default async function LoyaltyPage({
           Открыть Mini-CRM
         </Link>
       </header>
+
+      {/* «Не совсем понятно, как работает этот раздел» — справедливо: раньше он
+          объяснял себя словами «opaque token, rotation & revoke, append-only
+          ledger». Всё это правда и ничего из этого не отвечает владельцу на
+          вопрос, зачем ему программа. Четыре ответа и результат в числах. */}
+      <section className="rounded-3xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-bold">Как это работает</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {[
+            ['Что получает гость', 'Штамп за каждый визит и бесплатную позицию, когда штампов набралось. Карта живёт в Telegram — носить с собой нечего, потерять нельзя.'],
+            ['Что получает заведение', 'Чек перестаёт быть анонимным: видно, кто пришёл, как часто ходит и что берёт. Из этого считается всё остальное — досье гостя, сегменты, возврат.'],
+            ['Как участвует гость', 'Сканирует QR у кассы, соглашается на участие. Согласие на рассылку — отдельное решение: карту можно завести и не разрешать писать.'],
+            ['Чем это ограничено', 'Штампы и награды пишутся в журнал, который нельзя переписать задним числом. Погашение атомарно: два одновременных сканирования не спишут награду дважды.'],
+          ].map(([title, body]) => (
+            <div key={title} className="rounded-2xl bg-surface-muted p-4">
+              <h3 className="text-sm font-bold">{title}</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted-foreground">Что это уже дало</h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['В программе', `${data.effect.members}`, 'гостей с картой'],
+            ['Выдано штампов', `${data.effect.stampsIssued}`, 'за всё время'],
+            ['Забрано наград', `${data.effect.rewardsRedeemed}`, 'погашений в журнале'],
+            [
+              'Повторные визиты',
+              data.effect.withCard ? `${data.effect.withCard.repeatRate}%` : '—',
+              data.effect.withCard && data.effect.withoutCard
+                ? `против ${data.effect.withoutCard.repeatRate}% у гостей без карты`
+                : 'сравнить пока не с чем',
+            ],
+          ].map(([label, value, note]) => (
+            <div key={label} className="rounded-2xl border border-border p-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="mt-2 font-mono text-2xl font-extrabold">{value}</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{note}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+          Разница в повторных визитах — наблюдение, а не доказательство: в программу чаще вступают те,
+          кто и так ходит. Причинный ответ даёт только замер кампании с контрольной группой, и он
+          считается отдельно в Impact Ledger.
+        </p>
+      </section>
 
       {(params.error || params.revoked) && (
         <div

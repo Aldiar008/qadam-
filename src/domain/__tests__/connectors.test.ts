@@ -145,8 +145,13 @@ test('every connector state has an owner-facing label and hint', () => {
 // Automation catalogue
 // ---------------------------------------------------------------------------
 
-test('all ten required automation rules exist and are versioned', () => {
-  const required = ['welcome', 'reactivation', 'quiet_hours', 'repeat_service', 'birthday', 'vip_care', 'content_queue', 'stop_loss', 'weekly_review', 'data_quality'];
+test('every required automation rule exists and is versioned', () => {
+  const required = [
+    'welcome', 'reactivation', 'quiet_hours', 'repeat_service', 'birthday', 'vip_care',
+    'content_queue', 'stop_loss', 'weekly_review', 'data_quality',
+    // Правила, которым хватает кассы и меню — их данные есть у любого заведения.
+    'second_visit', 'abandoned_item', 'check_drop', 'low_margin_item',
+  ];
   for (const code of required) {
     const template = findTemplate(code);
     assert.ok(template, `${code} must exist`);
