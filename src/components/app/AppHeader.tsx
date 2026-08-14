@@ -30,7 +30,17 @@ export function AppHeader({ breadcrumbs, userName, userEmail, unreadCount }: App
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = pathname.startsWith('/admin');
-  const mobileItems = isAdmin ? siteConfig.adminNav : siteConfig.appNav;
+  // На телефоне раздел и его подпункты идут одним списком с отступом: место
+  // экономит не сокрытие ссылок, а то, что их не приходится искать.
+  const mobileItems: { titleRu: string; titleKk: string; href: string; nested?: boolean }[] = isAdmin
+    ? [...siteConfig.adminNav]
+    : [
+        ...siteConfig.appNav.flatMap((item) => [
+          item,
+          ...('children' in item && item.children ? item.children.map((child) => ({ ...child, nested: true })) : []),
+        ]),
+        ...siteConfig.appServiceNav,
+      ];
 
   return (
     <header className="min-h-16 border-b border-border bg-surface/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-3 sticky top-0 z-30">
@@ -49,11 +59,11 @@ export function AppHeader({ breadcrumbs, userName, userEmail, unreadCount }: App
         {/* Search leads to the screen that actually searches, rather than
             imitating a search field that swallows what you type. */}
         <Link
-          href="/app/customers"
+          href="/app/inventory"
           className="hidden lg:flex min-h-11 items-center gap-2 px-3 rounded-full bg-surface-muted border border-border text-xs font-mono text-muted-foreground w-40 xl:w-56 hover:text-foreground hover:border-primary"
         >
           <Search className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Поиск клиентов</span>
+          <span>Поиск по остаткам</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1 bg-surface-muted p-1 rounded-full border text-xs font-semibold">
@@ -105,7 +115,7 @@ export function AppHeader({ breadcrumbs, userName, userEmail, unreadCount }: App
           <nav aria-label="Мобильная навигация кабинета" className="grid gap-1">
             {mobileItems.map((item) => {
               const active = item.href === '/admin' ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/');
-              return <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className={'min-h-11 rounded-xl px-4 flex items-center text-sm font-semibold ' + (active ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted')}>{language === 'ru' ? item.titleRu : item.titleKk}</Link>;
+              return <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className={'min-h-11 rounded-xl flex items-center text-sm font-semibold ' + (item.nested ? 'pl-9 pr-4 text-[13px] ' : 'px-4 ') + (active ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted')}>{language === 'ru' ? item.titleRu : item.titleKk}</Link>;
             })}
           </nav>
         </div>

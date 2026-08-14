@@ -56,15 +56,15 @@ export interface CinematicHeroProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 export function CinematicHero({
-  brandName = 'QADAM',
-  tagline1 = 'Самое выгодное действие —',
-  tagline2 = 'сегодня.',
-  cardHeading = 'Рост, рассчитанный до деталей.',
-  cardDescription = 'QADAM находит возможность, проверяет влияние на прибыль и собирает готовое действие.',
-  metricValue = 87,
-  metricLabel = 'Growth score',
-  ctaHeading = 'Превратите сигналы в рост.',
-  ctaDescription = 'Запустите QADAM на демонстрационных данных и получите первое безопасное действие.',
+  brandName = 'QOR',
+  tagline1 = 'Товар кончится в четверг.',
+  tagline2 = 'Вы узнаете сегодня.',
+  cardHeading = 'Свежие цветы вовремя. Деньги не в списании.',
+  cardDescription = 'QOR считает часы до пустой витрины и срок каждой партии, сравнивает поставщиков и собирает готовый заказ.',
+  metricValue = 18,
+  metricLabel = 'Часов до нуля',
+  ctaHeading = 'Полка пустеет предсказуемо.',
+  ctaDescription = 'Запустите QOR на демонстрационных данных и получите первую карточку решения.',
   primaryCtaLabel = 'Посмотреть демо',
   secondaryCtaLabel = 'Как это работает',
   primaryCtaHref = '/demo',
@@ -165,7 +165,7 @@ export function CinematicHero({
       <div className="cinematic-grid pointer-events-none absolute inset-0 z-0 opacity-50" aria-hidden="true" />
 
       <div className="hero-text-wrapper absolute z-10 flex w-full flex-col items-center justify-center px-4 text-center [transform-style:preserve-3d]">
-        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface/80 px-4 py-2 text-xs font-bold text-primary shadow-sm backdrop-blur-xl"><Sparkles className="size-4" aria-hidden="true" /> AI Growth OS для локального бизнеса</span>
+        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface/80 px-4 py-2 text-xs font-bold text-primary shadow-sm backdrop-blur-xl"><Sparkles className="size-4" aria-hidden="true" /> Автопилот снабжения для малого офлайн-бизнеса</span>
         <h1 className="text-track gsap-reveal cinematic-text-3d mb-2 text-5xl font-bold tracking-tight md:text-7xl lg:text-[6rem]">{tagline1}</h1>
         <span className="text-days gsap-reveal cinematic-text-silver text-5xl font-extrabold tracking-tighter md:text-7xl lg:text-[6rem]">{tagline2}</span>
       </div>
@@ -190,15 +190,15 @@ export function CinematicHero({
                   <div className="absolute inset-[7px] z-10 overflow-hidden rounded-[2.5rem] bg-[#050914] text-white shadow-[inset_0_0_15px_rgba(0,0,0,1)]">
                     <div className="absolute left-1/2 top-[5px] z-50 flex h-7 w-[100px] -translate-x-1/2 items-center justify-end rounded-full bg-black px-3"><div className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,.8)]" /></div>
                     <div className="relative flex h-full w-full flex-col px-5 pb-8 pt-12">
-                      <div className="phone-widget mb-8 flex items-center justify-between"><div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-emerald-300/60">Сегодня</span><span className="text-xl font-bold">Growth Engine</span></div><div className="grid size-9 place-items-center rounded-full border border-white/10 bg-white/5"><TrendingUp className="size-4 text-emerald-300" /></div></div>
+                      <div className="phone-widget mb-8 flex items-center justify-between"><div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-emerald-300/60">Сегодня</span><span className="text-xl font-bold">Роза красная 60 см</span></div><div className="grid size-9 place-items-center rounded-full border border-white/10 bg-white/5"><TrendingUp className="size-4 text-emerald-300" /></div></div>
                       <div className="phone-widget relative mx-auto mb-8 flex size-44 items-center justify-center"><svg className="absolute inset-0 size-full" aria-hidden="true"><circle cx="88" cy="88" r="64" fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="12" /><circle className="cinematic-progress" cx="88" cy="88" r="64" fill="none" stroke="#14b8a6" strokeWidth="12" /></svg><div className="z-10 flex flex-col items-center text-center"><span className="counter-val text-4xl font-extrabold tracking-tighter">0</span><span className="mt-1 text-[8px] font-bold uppercase tracking-[.12em] text-emerald-200/50">{metricLabel}</span></div></div>
-                      <div className="space-y-3"><div className="phone-widget cinematic-widget flex items-center rounded-2xl p-3"><div className="mr-3 grid size-10 place-items-center rounded-xl border border-emerald-400/20 bg-emerald-500/10"><Check className="size-4 text-emerald-300" /></div><div><p className="text-xs font-bold">Margin Shield</p><p className="mt-1 text-[9px] text-white/40">Маржа защищена</p></div></div><div className="phone-widget cinematic-widget flex items-center rounded-2xl p-3"><div className="mr-3 grid size-10 place-items-center rounded-xl border border-blue-400/20 bg-blue-500/10"><Sparkles className="size-4 text-blue-300" /></div><div><p className="text-xs font-bold">Growth Contract</p><p className="mt-1 text-[9px] text-white/40">Действие готово</p></div></div></div>
+                      <div className="space-y-3"><div className="phone-widget cinematic-widget flex items-center rounded-2xl p-3"><div className="mr-3 grid size-10 place-items-center rounded-xl border border-emerald-400/20 bg-emerald-500/10"><Check className="size-4 text-emerald-300" /></div><div><p className="text-xs font-bold">Ферма везёт 42 часа</p><p className="mt-1 text-[9px] text-white/40">Разрыв 13 часов</p></div></div><div className="phone-widget cinematic-widget flex items-center rounded-2xl p-3"><div className="mr-3 grid size-10 place-items-center rounded-xl border border-blue-400/20 bg-blue-500/10"><Sparkles className="size-4 text-blue-300" /></div><div><p className="text-xs font-bold">Заказ собран: 160 стеблей</p><p className="mt-1 text-[9px] text-white/40">Ждёт подтверждения</p></div></div></div>
                       <div className="absolute bottom-2 left-1/2 h-1 w-[120px] -translate-x-1/2 rounded-full bg-white/20" />
                     </div>
                   </div>
                 </div>
-                <div className="floating-badge cinematic-badge absolute -left-4 top-8 z-30 flex items-center gap-3 rounded-xl p-3 lg:-left-20 lg:top-12 lg:rounded-2xl lg:p-4"><div className="grid size-9 place-items-center rounded-full border border-emerald-400/30 bg-emerald-500/10"><TrendingUp className="size-4 text-emerald-300" /></div><div><p className="text-xs font-bold text-white lg:text-sm">+48 700 ₸</p><p className="text-[10px] text-emerald-100/50 lg:text-xs">Прогноз прироста</p></div></div>
-                <div className="floating-badge cinematic-badge absolute -right-4 bottom-14 z-30 flex items-center gap-3 rounded-xl p-3 lg:-right-20 lg:bottom-20 lg:rounded-2xl lg:p-4"><div className="grid size-9 place-items-center rounded-full border border-blue-400/30 bg-blue-500/10"><ShieldCheck className="size-4 text-blue-300" /></div><div><p className="text-xs font-bold text-white lg:text-sm">Проверено</p><p className="text-[10px] text-blue-100/50 lg:text-xs">Margin Shield</p></div></div>
+                <div className="floating-badge cinematic-badge absolute -left-4 top-8 z-30 flex items-center gap-3 rounded-xl p-3 lg:-left-20 lg:top-12 lg:rounded-2xl lg:p-4"><div className="grid size-9 place-items-center rounded-full border border-emerald-400/30 bg-emerald-500/10"><TrendingUp className="size-4 text-emerald-300" /></div><div><p className="text-xs font-bold text-white lg:text-sm">15 600 ₸</p><p className="text-[10px] text-emerald-100/50 lg:text-xs">Прогноз разницы с «всё быстро»</p></div></div>
+                <div className="floating-badge cinematic-badge absolute -right-4 bottom-14 z-30 flex items-center gap-3 rounded-xl p-3 lg:-right-20 lg:bottom-20 lg:rounded-2xl lg:p-4"><div className="grid size-9 place-items-center rounded-full border border-blue-400/30 bg-blue-500/10"><ShieldCheck className="size-4 text-blue-300" /></div><div><p className="text-xs font-bold text-white lg:text-sm">OTIF 94%</p><p className="text-[10px] text-blue-100/50 lg:text-xs">По факту 17 поставок</p></div></div>
               </div>
             </div>
             <div className="card-left-text gsap-reveal order-3 flex w-full flex-col justify-center px-4 text-center lg:order-1 lg:px-0 lg:text-left"><h3 className="text-2xl font-bold tracking-tight text-white md:text-3xl lg:mb-5 lg:text-4xl">{cardHeading}</h3><p className="hidden max-w-sm text-base leading-relaxed text-emerald-50/65 md:block lg:max-w-none lg:text-lg">{cardDescription}</p></div>

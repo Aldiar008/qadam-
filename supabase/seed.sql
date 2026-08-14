@@ -34,7 +34,12 @@ insert into public.business_types(id,code,name_ru,name_kk,status,is_public,is_mo
  ('01000000-0000-4000-8000-000000000001','cafe','Кофейня','Кофехана','published',true,true),
  ('01000000-0000-4000-8000-000000000002','beauty','Салон красоты','Сұлулық салоны','published',true,true),
  ('01000000-0000-4000-8000-000000000003','retail','Магазин','Дүкен','published',true,true),
- ('01000000-0000-4000-8000-000000000004','service','Сервисная точка','Сервис орны','published',true,true)
+ ('01000000-0000-4000-8000-000000000004','service','Сервисная точка','Сервис орны','published',true,true),
+ -- Цветочный магазин и сеть — разные профили, а не размер одного. У сети иначе
+ -- считается покрытие: излишек на одной точке спасает дефицит на другой, если
+ -- их разделяет полчаса, и не спасает, если полтора.
+ ('01000000-0000-4000-8000-000000000005','flower_shop','Цветочный магазин','Гүл дүкені','published',true,true),
+ ('01000000-0000-4000-8000-000000000006','flower_chain','Сеть цветочных','Гүл дүкендер желісі','published',true,true)
 on conflict(id) do update set name_ru=excluded.name_ru,name_kk=excluded.name_kk,status=excluded.status,is_mock=true;
 
 insert into public.plans(id,code,name,status,price_minor,currency,billing_period,is_public,is_mock)
@@ -42,7 +47,7 @@ values('02000000-0000-4000-8000-000000000001','demo','Demo','active',0,'KZT','mo
 on conflict(id) do update set status='active',is_mock=true;
 
 insert into public.businesses(id,created_by,business_type_id,name,currency,timezone,mode,status,is_mock) values
- ('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000101','01000000-0000-4000-8000-000000000001','TAMYR Coffee','KZT','Asia/Almaty','demo','active',true),
+ ('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000101','01000000-0000-4000-8000-000000000005','TAMYR Flowers','KZT','Asia/Almaty','demo','active',true),
  ('20000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000201','01000000-0000-4000-8000-000000000001','Tenant B Test Cafe','KZT','Asia/Almaty','demo','active',true)
 on conflict(id) do update set name=excluded.name,mode='demo',is_mock=true;
 
@@ -58,7 +63,7 @@ values('90000000-0000-4000-8000-000000000901','00000000-0000-4000-8000-000000000
 on conflict(user_id) do update set role='platform_admin',active=true;
 
 insert into public.business_locations(id,business_id,name,city,district,timezone,capacity,is_active,is_mock) values
- ('12000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','TAMYR Coffee · Бостандык','Алматы','Бостандыкский','Asia/Almaty',38,true,true),
+ ('12000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','TAMYR Flowers · Бостандык','Алматы','Бостандыкский','Asia/Almaty',38,true,true),
  ('22000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','Tenant B Location','Алматы','Медеуский','Asia/Almaty',20,true,true)
 on conflict(id) do update set capacity=excluded.capacity,is_mock=true;
 
@@ -489,26 +494,214 @@ on conflict(code) do update set category_id=excluded.category_id,name_ru=exclude
  description_ru=excluded.description_ru,description_kk=excluded.description_kk,route=excluded.route,
  status='published',is_public=true,is_mock=true;
 
+-- Двенадцать маркетинговых инструментов выше уходят в архив, а не удаляются.
+--
+-- Продукт сменил задачу: он больше не про кампании и лояльность, а про то,
+-- чтобы цветы были на витрине вовремя и не в мусоре. Показывать владельцу
+-- цветочного магазина «Студию кампаний» — значит предлагать инструмент, который
+-- ничего не решает в его дне. Но удалить строки нельзя: на них ссылаются записи
+-- активаций и избранного, и эта история — свидетельство, а не мусор.
+update public.tools set status='archived', is_public=false
+where code in ('signal_today','campaign_studio','content_studio','margin_shield','simulator',
+               'qr_loyalty','segments','winback','impact_ledger','customer_brief','automations','telegram_bot');
+
+-- Категории каталога под цветочный магазин. «Аналитика» уже есть выше и не
+-- дублируется: одна и та же полка не должна называться дважды.
+insert into public.tool_categories(id,code,name_ru,name_kk,status,sort_order,is_mock)
+select private.deterministic_uuid('tool-category-'||t.code),t.code,t.name_ru,t.name_kk,'published',t.ord,true
+from (values
+ ('stock',      'Остатки',     'Қалдықтар',    11),
+ ('purchasing', 'Закупки',     'Сатып алу',    12),
+ ('suppliers',  'Поставщики',  'Жеткізушілер', 13),
+ ('alerts',     'Уведомления', 'Хабарламалар', 15)
+) as t(code,name_ru,name_kk,ord)
+on conflict(code) do update set name_ru=excluded.name_ru,name_kk=excluded.name_kk,
+ sort_order=excluded.sort_order,status='published',is_mock=true;
+
+update public.tool_categories set sort_order=14 where code='analytics';
+
+-- Девять инструментов цветочного магазина. Каждый `route` ведёт в экран, где
+-- инструмент действительно работает, — включая якорь внутри экрана там, где
+-- инструмент живёт разделом, а не отдельной страницей. Карточка, которая ведёт
+-- «куда-то в раздел», заставляет искать глазами то, что только что включили.
+insert into public.tools(id,category_id,code,name_ru,name_kk,description_ru,description_kk,route,status,version,is_public,is_mock)
+select private.deterministic_uuid('flower-tool-'||g),
+ (select id from public.tool_categories where code=t.category),
+ t.code,t.name_ru,t.name_kk,t.description_ru,t.description_kk,t.route,'published',1,true,true
+from generate_series(1,9) g
+join (values
+ (1,'stock','freshness_inventory','Учёт свежести цветов','Гүл сергектігін есепке алу',
+  'Остаток по партиям со сроком: видно не только сколько цветов, но и сколько дней им осталось стоять.',
+  'Партиялар бойынша қалдық: гүлдің қаншасы бар және неше күн тұратыны көрінеді.','/app/inventory'),
+ (2,'analytics','flower_forecast','Прогноз спроса перед праздниками','Мереке алдындағы сұраныс болжамы',
+  'Сколько стеблей в день уйдёт с учётом дня недели и ближайшего повода — с проверкой на прошлых данных.',
+  'Аптаның күні мен жақын мерекені ескере отырып, күніне қанша сабақ кететіні.','/app/forecast'),
+ (3,'purchasing','decision_contract','Decision Contract','Decision Contract',
+  'Одно решение вместо десяти вкладок: что заказать, у кого, к какому сроку и чем это обосновано.',
+  'Он қойындының орнына бір шешім: нені, кімнен, қашанға және неге.','/app/decisions'),
+ (4,'suppliers','supplier_compare','Сравнение поставщиков','Жеткізушілерді салыстыру',
+  'Цена, срок, надёжность, свежесть и минимальная партия в одной таблице — с весами, которые видно.',
+  'Баға, мерзім, сенімділік, сергектік және ең аз партия бір кестеде.','/app/suppliers'),
+ (5,'purchasing','auto_order','Автозаказ','Автотапсырыс',
+  'Правило готовит черновик заказа, когда запас подходит к точке. Отправляет всё равно владелец.',
+  'Қор нүктеге жақындағанда ереже жоба дайындайды. Жіберетін — иесі.','/app/reorder-rules'),
+ (6,'purchasing','receiving_quality','Приёмка и контроль качества','Қабылдау және сапа бақылауы',
+  'Сколько привезли на самом деле, сколько брака и на сколько опоздали — это и становится рейтингом поставщика.',
+  'Шын мәнінде қанша әкелді, қанша ақау және қанша кешікті.','/app/receiving'),
+ (7,'stock','messenger_stock','Остатки из чата','Чаттан қалдықтар',
+  'Флорист пишет как обычно, продукт разбирает сообщение в позицию и количество. Витрину меняет подтверждение.',
+  'Флорист әдеттегідей жазады, өнім хабарламаны талдайды. Витринаны растау өзгертеді.','/app/messenger-stock'),
+ (8,'analytics','flower_calendar','Flower Calendar','Гүл күнтізбесі',
+  'Праздники и местные поводы с коэффициентом спроса. Пока повод не одобрен, прогноз он не двигает.',
+  'Мерекелер мен жергілікті себептер. Мақұлданбаған себеп болжамды жылжытпайды.','/app/forecast#calendar'),
+ (9,'suppliers','supplier_trust','Supplier Trust','Жеткізушіге сенім',
+  'Общий рейтинг поставщика по обезличенным поставкам других магазинов — с порогом, ниже которого он не публикуется.',
+  'Басқа дүкендердің жасырын жеткізілімдері бойынша жалпы рейтинг.','/app/suppliers#community')
+) as t(ord,category,code,name_ru,name_kk,description_ru,description_kk,route) on t.ord = g
+on conflict(code) do update set category_id=excluded.category_id,name_ru=excluded.name_ru,name_kk=excluded.name_kk,
+ description_ru=excluded.description_ru,description_kk=excluded.description_kk,route=excluded.route,
+ status='published',is_public=true,is_mock=true;
+
 -- Часть инструментов включена: раздел «Активные инструменты» на «Сегодня»
 -- показывает именно их, и активация перестала быть действием без следствия.
 insert into public.business_tools(id,business_id,tool_id,status,activated_by,is_mock)
 select private.deterministic_uuid('business-tool-'||t.code),'10000000-0000-4000-8000-000000000001',
  (select id from public.tools where code=t.code),'active','00000000-0000-4000-8000-000000000101',true
-from (values ('signal_today'),('campaign_studio'),('qr_loyalty'),('telegram_bot')) as t(code)
+from (values ('freshness_inventory'),('decision_contract'),('flower_forecast'),('messenger_stock')) as t(code)
 where exists(select 1 from public.tools where code=t.code)
 on conflict(id) do nothing;
 
--- Закупки: что кофейня покупает регулярно и какие цены у поставщиков.
--- Стаканы отмечены как закончившиеся — именно с этого начинается сценарий.
+-- Активации маркетинговых инструментов остаются строками, но перестают быть
+-- активными: закреплённая на «Сегодня» «QR-лояльность» показывала бы ссылку в
+-- раздел, которого больше нет в меню.
+update public.business_tools set status='disabled'
+where tool_id in (select id from public.tools where status='archived');
+
+-- ---------------------------------------------------------------------------
+-- Платформенные справочники цветочного магазина
+-- ---------------------------------------------------------------------------
+
+-- Семь категорий, из которых владелец выбирает при регистрации. `aliases` —
+-- то, как эти же категории называют у себя заведения: «пионы» в ассортименте
+-- TAMYR попадают в платформенные «сезонные цветы» без переименования товара.
+insert into public.flower_categories(id,code,name_ru,name_kk,aliases,sort_order,status,is_mock)
+select private.deterministic_uuid('flower-category-'||t.code),t.code,t.name_ru,t.name_kk,t.aliases,t.ord,'published',true
+from (values
+ ('roses',          'Розы',            'Раушандар',      array['розы'],                       1),
+ ('seasonal',       'Сезонные цветы',  'Маусымдық гүлдер',array['сезонные цветы','пионы'],    2),
+ ('chrysanthemums', 'Хризантемы',      'Хризантемалар',  array['хризантемы'],                 3),
+ ('tulips',         'Тюльпаны',        'Қызғалдақтар',   array['тюльпаны'],                   4),
+ ('greenery',       'Зелень',          'Көгалдар',       array['зелень'],                     5),
+ ('packaging',      'Упаковка',        'Қаптама',        array['упаковка'],                   6),
+ ('accessories',    'Аксессуары',      'Аксессуарлар',   array['аксессуары','лента'],         7)
+) as t(code,name_ru,name_kk,aliases,ord)
+on conflict(code) do update set name_ru=excluded.name_ru,name_kk=excluded.name_kk,
+ aliases=excluded.aliases,sort_order=excluded.sort_order,status='published',is_mock=true;
+
+-- Отраслевые значения по умолчанию. Три дня у пиона и «не портится» у бумаги —
+-- это и есть причина, по которой одинаковая ошибка закупки стоит по-разному.
+insert into public.product_policy_templates(
+  id,category_id,shelf_life_days,pack_size_milli,moq_milli,lead_time_p80_hours,
+  criticality,spoilage_tolerance_bps,unit,status,is_mock)
+select private.deterministic_uuid('flower-policy-'||t.code),
+ (select id from public.flower_categories where code=t.code),
+ t.shelf_life,t.pack,t.moq,t.lead,t.criticality,t.tolerance,t.unit,'published',true
+from (values
+ ('roses',          5::integer,    25000::bigint, 100000::bigint, 24, 'critical', 500,  'стебель'),
+ ('seasonal',       3::integer,    10000::bigint,  20000::bigint, 72, 'normal',   1200, 'стебель'),
+ ('chrysanthemums', 7::integer,    25000::bigint,  50000::bigint, 48, 'normal',   800,  'стебель'),
+ ('tulips',         4::integer,    50000::bigint, 100000::bigint, 48, 'normal',   800,  'стебель'),
+ ('greenery',       6::integer,    10000::bigint,  10000::bigint, 48, 'normal',   1000, 'пучок'),
+ ('packaging',      null::integer, 50000::bigint,  50000::bigint, 72, 'optional', 0,    'лист'),
+ ('accessories',    null::integer, 100000::bigint,100000::bigint, 72, 'optional', 0,    'метр')
+) as t(code,shelf_life,pack,moq,lead,criticality,tolerance,unit)
+on conflict(category_id) do update set shelf_life_days=excluded.shelf_life_days,
+ pack_size_milli=excluded.pack_size_milli,moq_milli=excluded.moq_milli,
+ lead_time_p80_hours=excluded.lead_time_p80_hours,criticality=excluded.criticality,
+ spoilage_tolerance_bps=excluded.spoilage_tolerance_bps,unit=excluded.unit,is_mock=true;
+
+-- Правила автозаказа платформы. Ни одно из них не отправляет заказ: они решают,
+-- когда позиция попадёт в очередь решений и на сколько дней считать покрытие.
+insert into public.auto_order_rule_templates(
+  id,code,name_ru,description_ru,business_type_codes,category_code,trigger,
+  threshold_hours,cover_days,round_to_pack,status,is_mock)
+select private.deterministic_uuid('auto-order-rule-'||t.code),t.code,t.name_ru,t.description_ru,
+ array['flower_shop','flower_chain'],t.category,t.trigger,t.threshold,t.cover,true,'published',true
+from (values
+ ('rose_stockout_clock','Роза заканчивается раньше поставки','roses','time_to_stockout',
+  36::integer,3::integer,
+  'Если запаса роз хватает меньше чем на 36 часов, а поставщик едет дольше, позиция уходит в решения сегодня.'),
+ ('holiday_lift_cover','Покрытие перед праздником',null,'holiday_lift',
+  null::integer,4::integer,
+  'За четыре дня до одобренного повода покрытие считается с учётом коэффициента, а не по обычному дню.'),
+ ('greenery_reorder_point','Зелень по точке заказа','greenery','reorder_point',
+  null::integer,3::integer,
+  'Зелень заказывается по точке пополнения: страховой запас плюс расход за время доставки.'),
+ ('spoilage_brake','Тормоз на списание',null,'spoilage_risk',
+  null::integer,2::integer,
+  'Если позиция уже под риском увядания, объём заказа режется до двухдневного покрытия.')
+) as t(code,name_ru,category,trigger,threshold,cover,description_ru)
+on conflict(code) do update set name_ru=excluded.name_ru,description_ru=excluded.description_ru,
+ category_code=excluded.category_code,trigger=excluded.trigger,threshold_hours=excluded.threshold_hours,
+ cover_days=excluded.cover_days,status='published',is_mock=true;
+
+-- Набор первого дня. Порядок в нём — это порядок, в котором владелец пройдёт
+-- продукт: сначала увидел остаток, потом спрос, потом решение, потом поставщика.
+insert into public.tool_bundles(id,code,name_ru,description_ru,business_type_id,status,is_mock) values
+ (private.deterministic_uuid('tool-bundle-flower-start'),'flower_start','Старт цветочного магазина',
+  'Семь инструментов первого дня: от остатка на витрине до подтверждённого заказа поставщику.',
+  '01000000-0000-4000-8000-000000000005','published',true),
+ (private.deterministic_uuid('tool-bundle-flower-chain'),'flower_chain_start','Старт сети цветочных',
+  'То же самое плюс сравнение точек: излишек на одной точке закрывает дефицит на другой.',
+  '01000000-0000-4000-8000-000000000006','published',true)
+on conflict(code) do update set name_ru=excluded.name_ru,description_ru=excluded.description_ru,
+ business_type_id=excluded.business_type_id,status='published',is_mock=true;
+
+insert into public.tool_bundle_items(id,bundle_id,tool_id,sort_order,is_mock)
+select private.deterministic_uuid('tool-bundle-item-'||b.code||'-'||t.code),
+ (select id from public.tool_bundles where code=b.code),
+ (select id from public.tools where code=t.code),t.ord,true
+from (values ('flower_start'),('flower_chain_start')) as b(code)
+cross join (values
+ ('freshness_inventory',1),('flower_forecast',2),('decision_contract',3),('supplier_compare',4),
+ ('auto_order',5),('flower_calendar',6),('messenger_stock',7)
+) as t(code,ord)
+where exists(select 1 from public.tools where code=t.code)
+on conflict(bundle_id,tool_id) do nothing;
+
+-- Профиль демо-магазина: то же, что владелец указал бы в анкете.
+insert into public.business_flower_profiles(
+  id,business_id,shop_kind,city,district,location_count,
+  category_codes,holiday_codes,supplier_names,spoilage_tolerance_bps,is_mock)
+values (
+  private.deterministic_uuid('flower-profile-tamyr'),
+  '10000000-0000-4000-8000-000000000001','single','Алматы','Бостандыкский',1,
+  array['roses','seasonal','chrysanthemums','tulips','greenery','packaging'],
+  array['march_8','february_14','september_1','graduation','nauryz'],
+  array['Алматы Флора Опт','Ferma Tulip KZ','Ферма Талгар','Green Line','Флора Пак'],
+  800,true)
+on conflict(business_id) do update set shop_kind=excluded.shop_kind,city=excluded.city,
+ district=excluded.district,location_count=excluded.location_count,
+ category_codes=excluded.category_codes,holiday_codes=excluded.holiday_codes,
+ supplier_names=excluded.supplier_names,spoilage_tolerance_bps=excluded.spoilage_tolerance_bps,is_mock=true;
+
+-- Ассортимент цветочного магазина: что закупается регулярно и почём.
+-- Роза и зелень отмечены как заканчивающиеся — с этого начинается сценарий.
 insert into public.supply_items(id,business_id,name_ru,unit,current_price_minor,current_supplier,monthly_quantity,needed,is_mock)
 select private.deterministic_uuid('supply-'||t.code),'10000000-0000-4000-8000-000000000001',
  t.name,t.unit,t.price,t.supplier,t.qty,t.needed,true
 from (values
- ('cups','Стаканы 400 мл с крышкой','шт',62,'Алма Пак',1800,true),
- ('beans','Зерно арабика 1 кг','кг',5400,'Coffee Trade KZ',24,false),
- ('milk','Молоко 3,2% 1 л','л',480,'Молочный дом',260,true),
- ('napkins','Салфетки барные','упак',390,'Алма Пак',40,false),
- ('syrup','Сироп карамель 1 л','шт',3200,'Barista Supply',8,false)
+ -- Справочная цена — та, по которой магазин берёт розу у своего основного
+ -- поставщика. Раньше здесь стояло 420 при предложениях от 640 до 820, и
+ -- «стоимость того, чего не хватит» выходила почти вдвое меньше настоящей.
+ ('rose_red','Роза красная 60 см','стебель',750,'Алматы Флора Опт',3200,true),
+ ('tulip','Тюльпан микс','стебель',260,'Ferma Tulip KZ',1800,false),
+ ('chrysanthemum','Хризантема кустовая','стебель',380,'Алматы Флора Опт',900,false),
+ ('peony','Пион розовый','стебель',1150,'Ферма Талгар',300,false),
+ ('gypsophila','Гипсофила','пучок',900,'Green Line',180,false),
+ ('eucalyptus','Эвкалипт зелень','пучок',1100,'Green Line',220,true),
+ ('wrap','Бумага упаковочная','лист',180,'Флора Пак',600,false),
+ ('ribbon','Лента атласная 25 мм','метр',95,'Флора Пак',400,false)
 ) as t(code,name,unit,price,supplier,qty,needed)
 on conflict(business_id,name_ru) do update set current_price_minor=excluded.current_price_minor,
  current_supplier=excluded.current_supplier,monthly_quantity=excluded.monthly_quantity,needed=excluded.needed,is_mock=true;
@@ -517,14 +710,15 @@ insert into public.supply_offers(id,business_id,supply_item_id,supplier,price_mi
 select private.deterministic_uuid('supply-offer-'||o.code),'10000000-0000-4000-8000-000000000001',
  private.deterministic_uuid('supply-'||o.item),o.supplier,o.price,o.pack,o.url,o.source,o.verified,now()-((o.days||' days')::interval),true
 from (values
- ('cups-a','cups','Алма Пак',6200,100,null,'owner',true,20),
- ('cups-b','cups','PackLine Almaty',5400,100,'https://example.kz/packline/cups-400','owner',true,3),
- ('cups-c','cups','Оптовик Барыс',11600,200,'https://example.kz/barys/cups','owner',false,1),
- ('beans-a','beans','Coffee Trade KZ',5400,1,null,'owner',true,30),
- ('beans-b','beans','Kaffa Roasters',4950,1,'https://example.kz/kaffa/arabica','owner',true,5),
- ('milk-a','milk','Молочный дом',480,1,null,'owner',true,25),
- ('milk-b','milk','Dairy Opt',5100,12,'https://example.kz/dairyopt/milk','owner',false,2),
- ('syrup-a','syrup','Barista Supply',3200,1,null,'owner',true,40)
+ ('rose-a','rose_red','Алматы Флора Опт',10500,25,null,'owner',true,14),
+ ('rose-b','rose_red','Ferma Rose Talgar',9750,25,'https://example.kz/talgar/rose-60','owner',true,3),
+ ('rose-c','rose_red','Оптовая база Барыс',21000,50,'https://example.kz/barys/roses','owner',false,1),
+ ('tulip-a','tulip','Ferma Tulip KZ',13000,50,null,'owner',true,20),
+ ('tulip-b','tulip','Алматы Флора Опт',14000,50,'https://example.kz/flora/tulip','owner',true,6),
+ ('chrys-a','chrysanthemum','Алматы Флора Опт',9500,25,null,'owner',true,12),
+ ('peony-a','peony','Ферма Талгар',11500,10,null,'owner',true,9),
+ ('euc-a','eucalyptus','Green Line',11000,10,null,'owner',true,8),
+ ('wrap-a','wrap','Флора Пак',9000,50,null,'owner',true,30)
 ) as o(code,item,supplier,price,pack,url,source,verified,days)
 on conflict(id) do nothing;
 
@@ -689,10 +883,404 @@ on conflict (business_id) do update set next_refresh_at = now(), interval_hours 
 -- инструменты (первая — тип заведения). Онбординг пишет эту строку сам; для
 -- демо-стенда она нужна в seed, иначе подбор откатывается к умолчанию и
 -- «подобрано кофейне с целью…» перестаёт быть правдой о конкретном заведении.
+-- Цель заведения определяет порядок подбора инструментов. У цветочного магазина
+-- она одна и не про маркетинг: держать витрину полной и свежей. Пока здесь
+-- стояло «вернуть спящих», подбор искал маркетинговые инструменты, все они
+-- ушли в архив вместе с продуктом — и блок «с чего начать» просто исчезал.
 insert into public.business_goals(business_id,code,priority,status,is_mock)
-select b.id,'reactivate',1,'active',b.mode='demo'
+select b.id,
+       case when bt.code in ('flower_shop','flower_chain') then 'freshness' else 'reactivate' end,
+       1,'active',b.mode='demo'
 from public.businesses b
+left join public.business_types bt on bt.id = b.business_type_id
 where b.status='active' and not exists (
   select 1 from public.business_goals g where g.business_id=b.id and g.status='active');
+
+-- ---------------------------------------------------------------------------
+-- Цветочный магазин: политика, календарь спроса и 28 дней движения
+-- ---------------------------------------------------------------------------
+--
+-- Ассортимент выше описан позициями и ценами. Здесь к нему добавляется то, из
+-- чего считается заказ и риск: срок свежести, кратность пачки, минимальная
+-- партия, критичность и допустимая доля списания.
+--
+-- Сроки взяты разные не для красоты. Пион стоит три дня, роза пять, хризантема
+-- неделю, а упаковочная бумага не портится вовсе — и именно из-за этой разницы
+-- одна и та же ошибка закупки стоит по-разному.
+update public.supply_items set
+  category = t.category,
+  pack_size_milli = t.pack,
+  moq_milli = t.moq,
+  shelf_life_days = t.shelf_life,
+  lead_time_p80_hours = t.lead_hours,
+  min_stock_milli = t.min_stock,
+  criticality = t.criticality,
+  spoilage_tolerance_bps = t.tolerance
+from (values
+ ('rose_red',      'розы',       25000::bigint, 100000::bigint, 5,    24, 50000::bigint, 'critical', 500),
+ ('tulip',         'тюльпаны',   50000::bigint, 100000::bigint, 4,    48, 0::bigint,     'normal',   800),
+ ('chrysanthemum', 'хризантемы', 25000::bigint,  50000::bigint, 7,    48, 0::bigint,     'normal',   800),
+ ('peony',         'пионы',      10000::bigint,  20000::bigint, 3,    72, 0::bigint,     'normal',  1200),
+ ('gypsophila',    'зелень',     10000::bigint,  10000::bigint, 6,    48, 0::bigint,     'normal',  1000),
+ ('eucalyptus',    'зелень',     10000::bigint,  10000::bigint, 5,    48, 5000::bigint,  'normal',  1000),
+ ('wrap',          'упаковка',   50000::bigint,  50000::bigint, null::integer, 72, 0::bigint, 'optional', 0),
+ ('ribbon',        'упаковка',  100000::bigint, 100000::bigint, null::integer, 72, 0::bigint, 'optional', 0)
+) as t(code,category,pack,moq,shelf_life,lead_hours,min_stock,criticality,tolerance)
+where supply_items.id = private.deterministic_uuid('supply-'||t.code);
+
+-- Календарь спроса.
+--
+-- Восьмое марта не выводится из истории продаж за 28 дней: прошлогоднее в окно
+-- не попадает. Поэтому праздники лежат отдельно, с источником и признаком того,
+-- проверен ли коэффициент фактом. Даты — ближайшие к сегодняшнему дню, чтобы
+-- стенд показывал работающий календарь, а не прошлогодний.
+insert into public.demand_events(business_id,code,name_ru,event_date,lead_days,lift_ppm,categories,source,verified,is_mock)
+values
+ (null,'valentine','14 февраля',      (date_trunc('year', now()) + interval '1 year' + interval '44 days')::date, 7, 3200000, array['розы','тюльпаны'],           'отраслевой шаблон', false, false),
+ (null,'march8','8 марта',            (date_trunc('year', now()) + interval '1 year' + interval '66 days')::date, 10, 3800000, array['розы','тюльпаны','хризантемы'], 'отраслевой шаблон', false, false),
+ (null,'nauryz','Наурыз',             (date_trunc('year', now()) + interval '1 year' + interval '80 days')::date, 5, 1900000, array['тюльпаны','зелень'],           'отраслевой шаблон', false, false),
+ -- Выпускные: короткое окно в конце мая, но по объёму сопоставимо с праздником.
+ (null,'graduation','Выпускные',           (date_trunc('year', now()) + interval '1 year' + interval '145 days')::date,                    4, 2400000, array['розы','хризантемы','упаковка'], 'отраслевой шаблон', false, false),
+ (null,'first_september','1 сентября',(date_trunc('year', now()) + interval '243 days')::date,                    6, 2600000, array['розы','хризантемы','упаковка'], 'отраслевой шаблон', false, false),
+ (null,'teachers_day','День учителя', (date_trunc('year', now()) + interval '277 days')::date,                    4, 1700000, array['розы','хризантемы'],           'отраслевой шаблон', false, false)
+on conflict (business_id,code,event_date) do nothing;
+
+-- Локальное событие магазина: две свадьбы в ближайшую субботу. Оно всегда
+-- попадает в окно, поэтому стенд показывает работающий коэффициент в любой
+-- день, а не только в марте.
+insert into public.demand_events(business_id,code,name_ru,event_date,lead_days,lift_ppm,categories,source,verified,is_mock)
+values ('10000000-0000-4000-8000-000000000001','weddings','Две свадьбы в субботу',
+        ((now() at time zone 'Asia/Almaty')::date + 3), 5, 2100000,
+        array['розы','пионы','зелень'], 'заявка от организатора', true, true)
+on conflict (business_id,code,event_date) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Поставщики цветочного магазина и история поставок
+-- ---------------------------------------------------------------------------
+--
+-- У базы и фермы разная логистика, и это не деталь оформления. База в городе
+-- привозит за часы, но цветок у неё уже постоял день-два; ферма везёт сутки с
+-- лишним, зато отдаёт срез. На этой разнице и строится разделение заказа.
+insert into public.suppliers(id,business_id,name,kind,contact,payment_terms_days,is_active,is_mock)
+select private.deterministic_uuid('supplier-'||s.code),'10000000-0000-4000-8000-000000000001',
+ s.name,s.kind,s.contact,s.terms,true,true
+from (values
+ ('barys','Оптовая база «Барыс»','wholesale','+7 707 000 00 01', 0),
+ ('flora','Алматы Флора Опт','wholesale','+7 707 000 00 02', 7),
+ ('talgar','Ферма «Талгар»','farm','+7 707 000 00 03', 14),
+ ('tulipkz','Ferma Tulip KZ','farm','+7 707 000 00 04', 14),
+ ('greenline','Green Line','local','+7 707 000 00 05', 0),
+ ('florapak','Флора Пак','local','+7 707 000 00 06', 30)
+) as s(code,name,kind,contact,terms)
+on conflict(business_id,name) do update set kind=excluded.kind,payment_terms_days=excluded.payment_terms_days,is_mock=true;
+
+-- Условия по позициям. Роза есть у трёх поставщиков с разным сроком, ценой и
+-- свежестью на приёмке — это и есть материал для сравнения и разделения.
+insert into public.supplier_offers(
+  id,business_id,supplier_id,supply_item_id,unit_price_minor,pack_size_milli,moq_milli,
+  available_milli,lead_time_p80_hours,freshness_on_arrival_days,matches_variety,variety_note,is_mock)
+select private.deterministic_uuid('offer-'||o.code),'10000000-0000-4000-8000-000000000001',
+ private.deterministic_uuid('supplier-'||o.supplier),
+ private.deterministic_uuid('supply-'||o.item),
+ o.price,o.pack,o.moq,o.available,o.lead,o.freshness,o.matches,o.note,true
+-- Цены в тенге за единицу — в той же шкале, что и `supply_items.current_price_minor`.
+--
+-- Раньше здесь были сотые доли тенге, а три экрана делили на сто при выводе.
+-- Пока обе шкалы жили на разных страницах, это никому не мешало. Но приёмка
+-- кладёт цену строки заказа в себестоимость партии, а стартовый остаток кладёт
+-- туда же цену позиции — и в одной колонке `inventory_lots.unit_cost_minor`
+-- оказались числа, различающиеся в сто раз. Итог: «может уйти в мусор» на
+-- главном экране превышал стоимость всей витрины. Одна шкала на весь продукт.
+from (values
+ -- роза: быстрая база, средняя база, дальняя ферма
+ ('rose-barys','barys','rose_red',          820::bigint, 10000::bigint, 10000::bigint, 200000::bigint, 10, 4::smallint, true,  'красная, 60 см, в наличии'),
+ ('rose-flora','flora','rose_red',          750::bigint, 25000::bigint, 25000::bigint, 300000::bigint, 20, 4::smallint, true,  'красная, 60 см'),
+ ('rose-talgar','talgar','rose_red',        690::bigint, 10000::bigint, 20000::bigint, 400000::bigint, 42, 6::smallint, true,  'срез, красная, 60–70 см'),
+ -- Не проходит по сорту: у поставщика осталась только пятидесятка. Он должен
+ -- остаться в списке отклонённых с причиной, а не молча исчезнуть — иначе
+ -- владелец решит, что система его не заметила.
+ ('rose-green','greenline','rose_red',      640::bigint, 10000::bigint, 10000::bigint, 150000::bigint, 18, 3::smallint, false, 'только 50 см, красной 60 нет'),
+ -- тюльпан
+ ('tulip-tulipkz','tulipkz','tulip',        260::bigint, 50000::bigint, 50000::bigint, 500000::bigint, 36, 5::smallint, true,  'микс, срез'),
+ ('tulip-flora','flora','tulip',            290::bigint, 50000::bigint, 50000::bigint, 200000::bigint, 20, 3::smallint, true,  'микс'),
+ -- хризантема
+ ('chrys-flora','flora','chrysanthemum',    380::bigint, 25000::bigint, 25000::bigint, 250000::bigint, 24, 6::smallint, true,  'кустовая'),
+ ('chrys-barys','barys','chrysanthemum',    410::bigint, 25000::bigint, 25000::bigint, 100000::bigint, 12, 5::smallint, true,  'кустовая'),
+ -- пион: сезонный, у фермы
+ ('peony-talgar','talgar','peony',         1150::bigint, 10000::bigint, 20000::bigint,  80000::bigint, 48, 3::smallint, true,  'розовый, срез'),
+ ('peony-barys','barys','peony',           1320::bigint, 10000::bigint, 10000::bigint,  30000::bigint, 12, 1::smallint, true,  'розовый, уже раскрылся'),
+ -- зелень
+ ('euc-greenline','greenline','eucalyptus', 1100::bigint, 10000::bigint, 10000::bigint, 60000::bigint, 24, 5::smallint, true, 'эвкалипт, пучок'),
+ ('gyps-greenline','greenline','gypsophila', 900::bigint, 10000::bigint, 10000::bigint, 80000::bigint, 24, 6::smallint, true, 'гипсофила, пучок'),
+ -- упаковка
+ ('wrap-florapak','florapak','wrap',        180::bigint, 50000::bigint, 50000::bigint, 400000::bigint, 72, null::smallint, true, 'крафт, 70×70'),
+ ('ribbon-florapak','florapak','ribbon',     95::bigint,100000::bigint,100000::bigint, 600000::bigint, 72, null::smallint, true, 'атлас, 25 мм')
+) as o(code,supplier,item,price,pack,moq,available,lead,freshness,matches,note)
+on conflict(business_id,supplier_id,supply_item_id) do update set
+ unit_price_minor=excluded.unit_price_minor,lead_time_p80_hours=excluded.lead_time_p80_hours,
+ freshness_on_arrival_days=excluded.freshness_on_arrival_days,available_milli=excluded.available_milli,is_mock=true;
+
+/**
+ * История поставок за прошлые недели.
+ *
+ * Без неё рейтинг поставщика — пустая строка, а сравнение опирается только на
+ * цену. Здесь у каждого поставщика своя манера: «Барыс» возит быстро и точно,
+ * «Флора» иногда недовозит, «Талгар» задерживает, но отдаёт свежий срез.
+ *
+ * Заказы создаются уже принятыми: приёмка вызывает ту же функцию, что и
+ * интерфейс, поэтому остатки, партии и рейтинг считаются одним и тем же кодом.
+ */
+do $$
+declare
+  v_biz uuid := '10000000-0000-4000-8000-000000000001';
+  v_row record;
+  v_order uuid;
+  v_item uuid;
+  v_line uuid;
+  v_n integer;
+begin
+  for v_row in
+    select * from (values
+      -- поставщик, позиция, поставок, объём, недовоз каждые N, задержка каждые N, свежесть
+      -- Объёмы небольшие: это доборы между основными поставками окна, а не
+      -- вторая параллельная жизнь магазина. Их приход вычитается из стартового
+      -- остатка ниже, иначе один и тот же цветок оказался бы на витрине дважды.
+      ('barys',    'rose_red',       6,  5000::bigint, 0, 0,  4::smallint),
+      ('flora',    'rose_red',       5,  6000::bigint, 2, 4,  4::smallint),
+      ('talgar',   'rose_red',       4, 10000::bigint, 0, 2,  6::smallint),
+      ('tulipkz',  'tulip',          5, 15000::bigint, 3, 3,  5::smallint),
+      ('flora',    'chrysanthemum',  4,  8000::bigint, 2, 0,  6::smallint),
+      ('greenline','eucalyptus',     5,  2000::bigint, 0, 5,  5::smallint),
+      ('florapak', 'wrap',           3, 10000::bigint, 0, 0,  null::smallint)
+    ) as t(supplier, item, deliveries, size, shortfall_every, delay_every, freshness)
+  loop
+    v_item := private.deterministic_uuid('supply-'||v_row.item);
+
+    for v_n in 1..v_row.deliveries loop
+      insert into public.purchase_orders(
+        business_id, supplier_id, status, is_urgent, expected_at, sent_at,
+        total_cost_minor, idempotency_key, is_mock)
+      values (
+        v_biz, private.deterministic_uuid('supplier-'||v_row.supplier), 'confirmed', false,
+        now() - ((v_row.deliveries - v_n + 1) * 4 || ' days')::interval,
+        now() - ((v_row.deliveries - v_n + 1) * 4 + 1 || ' days')::interval,
+        0, 'seed-po-'||v_row.supplier||'-'||v_row.item||'-'||v_n, true)
+      returning id into v_order;
+
+      insert into public.purchase_order_items(
+        business_id, purchase_order_id, supply_item_id, quantity_milli, unit_price_minor, cost_minor, is_mock)
+      select v_biz, v_order, v_item, v_row.size,
+             coalesce(so.unit_price_minor, 500),
+             (v_row.size * coalesce(so.unit_price_minor, 500) / 1000)::bigint, true
+      from public.supplier_offers so
+      where so.business_id = v_biz
+        and so.supplier_id = private.deterministic_uuid('supplier-'||v_row.supplier)
+        and so.supply_item_id = v_item
+      returning id into v_line;
+
+      -- Приёмка: у каждого поставщика своя доля недовоза и задержек.
+      perform private.receive_order_item(
+        v_line,
+        case when v_row.shortfall_every > 0 and v_n % v_row.shortfall_every = 0
+             then (v_row.size * 9 / 10)::bigint else v_row.size end,
+        0,
+        v_row.freshness,
+        case when v_row.delay_every > 0 and v_n % v_row.delay_every = 0 then 14 else 0 end,
+        case when v_row.shortfall_every > 0 and v_n % v_row.shortfall_every = 0
+             then 'недовоз по накладной' else null end);
+    end loop;
+  end loop;
+end $$;
+
+/**
+ * 28 дней жизни магазина: продажи, поставки и списания.
+ *
+ * Расход варьируется детерминированно — стенд обязан воспроизводиться бит в бит
+ * после сброса, иначе `seed-determinism` перестаёт что-либо проверять. Поэтому
+ * здесь нет `random()`: колебание считается из номера дня.
+ *
+ * Поставки идут два-три раза в неделю и продолжаются до сегодняшнего дня:
+ * магазин, который неделю не завозил розы, — это не демонстрация продукта, а
+ * демонстрация закрытого магазина. Размер обычной поставки равен расходу за
+ * период, а вот последняя машина у каждой позиции своя — и именно она создаёт
+ * ту картину, которую показывает очередь решений:
+ *
+ *   роза и эвкалипт — завезли мало, витрина опустеет раньше следующей поставки;
+ *   тюльпан и пион  — завезли с запасом, часть не успеет продаться до срока;
+ *   остальные       — привезли ровно столько, сколько расходится.
+ */
+do $$
+declare
+  v_biz uuid := '10000000-0000-4000-8000-000000000001';
+  v_item uuid;
+  v_row record;
+  v_day integer;
+  v_daily bigint;
+  v_waste bigint;
+  v_total bigint;
+  v_deliveries integer;
+  v_size bigint;
+  v_amount bigint;
+  v_last_delivery integer;
+  v_received bigint;
+  v_opening bigint;
+  v_when timestamptz;
+begin
+  for v_row in
+    select * from (values
+      -- code, дневная продажа, каждые N дней поставка, доля списания %, множитель последней машины
+      ('rose_red',      95000::bigint, 3,  4, 0.20::numeric),
+      ('tulip',         60000::bigint, 3,  9, 3.20::numeric),
+      ('chrysanthemum', 30000::bigint, 4,  5, 1.00::numeric),
+      ('peony',          9000::bigint, 3, 11, 2.60::numeric),
+      ('gypsophila',     6000::bigint, 4,  6, 1.00::numeric),
+      ('eucalyptus',     7000::bigint, 4,  7, 0.25::numeric),
+      ('wrap',          20000::bigint, 7,  0, 1.00::numeric),
+      ('ribbon',        13000::bigint, 7,  0, 1.00::numeric)
+    ) as t(code, daily_milli, every_days, waste_pct, final_mult)
+  loop
+    v_item := private.deterministic_uuid('supply-'||v_row.code);
+
+    -- Сколько уйдёт за окно и сколько будет поставок: размер обычной машины
+    -- считается из этого, а не назначается на глаз.
+    v_total := 0;
+    v_deliveries := 0;
+    v_last_delivery := 0;
+    for v_day in 0..27 loop
+      v_daily := v_row.daily_milli + ((((v_day * 37) % 11) - 5) * (v_row.daily_milli / 20));
+      v_total := v_total + v_daily;
+      if v_row.waste_pct > 0 and v_day % 7 = 6 then
+        v_total := v_total + greatest(1000, (v_daily * v_row.waste_pct) / 100);
+      end if;
+      if v_day > 0 and v_day % v_row.every_days = 0 then
+        v_deliveries := v_deliveries + 1;
+        v_last_delivery := v_day;
+      end if;
+    end loop;
+
+    v_size := (v_total / greatest(1, v_deliveries))::bigint;
+
+    -- Стартовый остаток: одна поставка плюс запас на колебание расхода, чтобы
+    -- витрина не уходила в минус между машинами.
+    --
+    -- Из него вычитается всё, что уже пришло по истории заказов выше: те
+    -- приёмки — настоящие события журнала, и без вычитания один и тот же
+    -- цветок оказался бы на витрине дважды.
+    select coalesce(sum(e.quantity_delta_milli), 0) into v_received
+    from public.inventory_events e
+    where e.business_id = v_biz and e.supply_item_id = v_item and e.source = 'receiving';
+
+    v_opening := greatest(1000, (v_size * 13 / 10)::bigint - v_received);
+
+    perform private.record_inventory_event(
+      v_biz, v_item, null, 'receive', v_opening, 'seed',
+      'seed-'||v_row.code||'-open',
+      (((now() at time zone 'Asia/Almaty')::date - 28 + time '07:00') at time zone 'Asia/Almaty'),
+      'остаток на начало окна');
+
+    for v_day in 0..27 loop
+      v_when := ((((now() at time zone 'Asia/Almaty')::date - (27 - v_day)) + time '19:00')
+                 at time zone 'Asia/Almaty');
+      v_daily := v_row.daily_milli + ((((v_day * 37) % 11) - 5) * (v_row.daily_milli / 20));
+
+      -- Поставка приходит утром и создаёт партию со своим сроком свежести.
+      if v_day > 0 and v_day % v_row.every_days = 0 then
+        v_amount := case when v_day = v_last_delivery
+                         then greatest(1000, (v_size * v_row.final_mult)::bigint)
+                         else v_size end;
+        perform private.record_inventory_event(
+          v_biz, v_item, null, 'receive', v_amount, 'seed',
+          'seed-'||v_row.code||'-recv-'||v_day,
+          v_when - interval '10 hours', 'поставка с базы');
+      end if;
+
+      -- Продажа за день.
+      perform private.record_inventory_event(
+        v_biz, v_item, null, 'consume', -v_daily, 'manual',
+        'seed-'||v_row.code||'-sold-'||v_day, v_when, null);
+
+      -- Списание увядшего по вечерней ревизии витрины.
+      if v_row.waste_pct > 0 and v_day % 7 = 6 then
+        v_waste := greatest(1000, (v_daily * v_row.waste_pct) / 100);
+        perform private.record_inventory_event(
+          v_biz, v_item, null, 'waste', -v_waste, 'manual',
+          'seed-'||v_row.code||'-waste-'||v_day,
+          v_when + interval '2 hours', 'вечерняя ревизия витрины',
+          false, null, 'withered');
+      end if;
+    end loop;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Тонкие части: чат флориста, одобрение календаря, общий рейтинг
+-- ---------------------------------------------------------------------------
+--
+-- Локальное событие магазина одобрено владельцем — на нём и держится
+-- праздничный коэффициент в демонстрации. Шаблонные праздники остаются
+-- предложениями: они видны в календаре, но прогноз не двигают, пока владелец
+-- их не принял. Так видно разницу между «система предлагает» и «я согласился».
+update public.demand_events
+set approved = true, approved_at = now()
+where code = 'weddings';
+
+-- Несколько сообщений из чата в разных состояниях: одно ждёт подтверждения,
+-- одно требует уточнения, одно уже подтверждено.
+insert into public.stock_messages(
+  id, business_id, channel, external_id, author, body, received_at,
+  parsed_item_id, parsed_quantity_milli, parsed_unit, confidence_ppm, candidates,
+  status, is_simulated, is_mock)
+values
+ (private.deterministic_uuid('msg-1'), '10000000-0000-4000-8000-000000000001',
+  'simulator', 'sim-0001', 'Айгуль (флорист)', 'осталось 70 красных роз',
+  now() - interval '25 minutes',
+  private.deterministic_uuid('supply-rose_red'), 70000, 'стебель', 1000000, '[]'::jsonb,
+  'proposed', true, true),
+ (private.deterministic_uuid('msg-2'), '10000000-0000-4000-8000-000000000001',
+  'simulator', 'sim-0002', 'Данияр (сборка)', 'выбросили 12 завядших',
+  now() - interval '12 minutes',
+  null, 12000, null, 0, '[]'::jsonb,
+  'needs_clarification', true, true),
+ (private.deterministic_uuid('msg-3'), '10000000-0000-4000-8000-000000000001',
+  'simulator', 'sim-0003', 'Айгуль (флорист)', 'зелени осталось 8 пучков',
+  now() - interval '3 hours',
+  private.deterministic_uuid('supply-eucalyptus'), 8000, 'пучок', 1000000, '[]'::jsonb,
+  'confirmed', true, true)
+on conflict (business_id, channel, external_id) do nothing;
+
+/**
+ * Общий рейтинг: агрегат по синтетическим магазинам.
+ *
+ * У «Барыса» и «Талгара» выборки хватает, у «Дала Сүт» — нет, и это видно на
+ * экране прямым текстом. Ни одной строки, по которой можно было бы узнать
+ * чужой магазин, здесь нет: только каноническое имя поставщика, регион,
+ * категория и счётчики.
+ */
+insert into public.community_supplier_metrics(
+  canonical_supplier, region, category, window_days,
+  n_orders, n_tenants, delivery_reliability_ppm, fill_rate_ppm, freshness_score_ppm,
+  evidence, is_mock)
+values
+ ('Оптовая база «Барыс»', 'Алматы', 'roses', 90, 148, 23, 940000, 970000, 790000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ ('Ферма «Талгар»', 'Алматы', 'roses', 90, 96, 17, 880000, 990000, 930000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ ('Алматы Флора Опт', 'Алматы', 'roses', 90, 121, 19, 830000, 910000, 800000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ ('Ferma Tulip KZ', 'Алматы', 'tulips', 90, 74, 12, 900000, 950000, 900000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ ('Green Line', 'Алматы', 'greenery', 90, 58, 11, 910000, 960000, 880000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ ('Флора Пак', 'Алматы', 'packaging', 90, 44, 14, 980000, 990000, 1000000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true),
+ -- Ниже порога: рейтинг не публикуется, и экран говорит, чего не хватает.
+ ('Дала Сүт', 'Алматы', 'roses', 90, 11, 4, 700000, 800000, 600000,
+  jsonb_build_object('source', 'синтетические магазины стенда', 'method', 'bayesian smoothing, alpha=20'), true)
+on conflict (canonical_supplier, region, category, window_days) do update set
+ n_orders = excluded.n_orders, n_tenants = excluded.n_tenants,
+ delivery_reliability_ppm = excluded.delivery_reliability_ppm,
+ fill_rate_ppm = excluded.fill_rate_ppm,
+ freshness_score_ppm = excluded.freshness_score_ppm,
+ computed_at = now();
 
 commit;

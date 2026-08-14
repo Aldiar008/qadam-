@@ -149,13 +149,40 @@ export async function getToolsData(filters: { q?: string; category?: string; fav
   // Подбор считается по всему опубликованному каталогу — до фильтров. Иначе
   // «рекомендуем» менялось бы вместе с выбранной категорией, и владелец видел бы
   // разные рекомендации на одном и том же профиле.
-  const businessType = (typeRow?.code ?? 'cafe') as BusinessTypeCode;
-  const goal = (goalRow?.code ?? 'reactivate') as GoalCode;
+  const businessType = (typeRow?.code ?? 'flower_shop') as BusinessTypeCode;
+  const isFlower = businessType === 'flower_shop' || businessType === 'flower_chain';
+  const goal = (goalRow?.code ?? (isFlower ? 'freshness' : 'reactivate')) as GoalCode;
   const suggestions = recommendTools({
     businessType,
     goal,
     tools: rows.map((tool) => ({ code: tool.code, nameRu: tool.name_ru, route: tool.route, active: tool.activationStatus === 'active' })),
+    // Семь инструментов первого дня против четырёх у прежнего профиля: у
+    // цветочного магазина цикл длиннее — остаток, спрос, решение, поставщик,
+    // заказ, приёмка, чат, — и обрывать его на четвёртом шаге значит показать
+    // половину продукта тому, кто только что рассказал о себе всё.
+    limit: isFlower ? 7 : 4,
   });
+
+  // Набор первого дня задаёт администратор платформы, а не код: он же решает,
+  // что включается новому магазину, и список не должен расходиться между
+  // регистрацией и каталогом.
+  const { data: bundleRow } = await ctx.supabase
+    .from('tool_bundles')
+    .select('code,name_ru,description_ru,business_types!inner(code),tool_bundle_items(sort_order,tools(code,name_ru,route))')
+    .eq('status', 'published')
+    .eq('business_types.code', businessType)
+    .maybeSingle();
+
+  const bundle = bundleRow
+    ? {
+        name: bundleRow.name_ru,
+        description: bundleRow.description_ru,
+        tools: [...(bundleRow.tool_bundle_items ?? [])]
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((item) => item.tools)
+          .filter((tool): tool is { code: string; name_ru: string; route: string } => Boolean(tool)),
+      }
+    : null;
 
   if (filters.category) rows = rows.filter((tool) => tool.category?.code === filters.category);
   if (filters.favorites) rows = rows.filter((tool) => tool.favorite);
@@ -174,6 +201,7 @@ export async function getToolsData(filters: { q?: string; category?: string; fav
       summary: profileSummary(businessType, goal),
       tools: suggestions,
       mechanics: recommendMechanics(businessType),
+      bundle,
     },
   };
 }

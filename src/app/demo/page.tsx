@@ -27,8 +27,8 @@ export default function DemoPage() {
           <div className="space-y-4">
             <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
               {language === 'ru'
-                ? 'Демонстрационный стенд QADAM Growth OS'
-                : 'QADAM Growth OS демонстрациялық стенді'}
+                ? 'Демонстрационный стенд QOR Autopilot'
+                : 'QOR Autopilot демонстрациялық стенді'}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
               {language === 'ru'
@@ -46,22 +46,22 @@ export default function DemoPage() {
                 <h3 className="text-xl font-bold text-foreground">
                   {language === 'ru' ? 'Тестовое окружение готово' : 'Тестілеу ортасы дайын'}
                 </h3>
-                <p className="text-xs font-mono text-muted-foreground">Demo Business: Surf Coffee Almaty</p>
+                <p className="text-xs font-mono text-muted-foreground">Демо-бизнес: кофейня TAMYR, Алматы</p>
               </div>
             </div>
 
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Загружен реальный сигнал: Снижение выручки 15:00-18:00 на 27%</span>
+                <span>Загружены остатки по 64 позициям и история продаж за 28 дней</span>
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Сформирован безопасный Growth Contract (Подарок от 3 500 ₸)</span>
+                <span>Три карточки решения ждут подтверждения, одна — с разделением заказа</span>
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Активирован симулятор Margin Shield и Multilingual Content Studio</span>
+                <span>Подключены четыре поставщика с историей поставок и рейтингом</span>
               </div>
             </div>
 

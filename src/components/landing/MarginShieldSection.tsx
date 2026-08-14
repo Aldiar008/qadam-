@@ -20,7 +20,7 @@ export function MarginShieldSection() {
         <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-danger/10 border border-danger/20 text-danger text-xs font-mono font-bold">
             <ShieldAlert className="w-4 h-4" />
-            <span>Margin Shield Engine</span>
+            <span>Split-order Rescue</span>
           </div>
           <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-foreground tracking-tight">
             {t.marginShieldTitle}
@@ -35,11 +35,11 @@ export function MarginShieldSection() {
           {/* Scenario Toggle Header */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-8 border-b border-border">
             <div className="space-y-1 text-center sm:text-left">
-              <span className="text-xs font-mono text-muted-foreground uppercase">Тестирование гипотезы</span>
+              <span className="text-xs font-mono text-muted-foreground uppercase">Тюльпаны: 240 стеблей на витрине, срок 4 дня, спрос 50 в день</span>
               <h3 className="text-lg font-bold text-foreground">
                 {selectedScenario === 'dangerous'
-                  ? 'Опасный вариант: Скидка -20% для всех'
-                  : 'Защищенный вариант QADAM: Подарок от 3 500 ₸'}
+                  ? 'Обычный вариант: взять с запасом, чтобы точно хватило'
+                  : 'Решение QOR: заказать столько, сколько успеет продаться'}
               </h3>
             </div>
 
@@ -53,7 +53,7 @@ export function MarginShieldSection() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                1. Скидка -20% (Стандарт)
+                1. С запасом (как обычно)
               </button>
               <button
                 type="button"
@@ -64,7 +64,7 @@ export function MarginShieldSection() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                2. Margin Shield (Безопасно)
+                2. Split-order (QOR)
               </button>
             </div>
           </div>
@@ -85,10 +85,10 @@ export function MarginShieldSection() {
                   <AlertTriangle className="w-6 h-6 text-danger shrink-0 mt-0.5" />
                   <div className="space-y-1 text-sm">
                     <p className="font-bold text-danger">
-                      Внимание: прямая скидка 20% уничтожает маржинальный доход
+                      Внимание: 40 стеблей не доживут до продажи
                     </p>
                     <p className="text-muted-foreground leading-relaxed">
-                      При скидке 20% постоянные клиенты совершат покупки со скидкой, которые совершили бы и по полной цене. Маржа упадет с 62% до 34.2%, а чистый убыток акции составит -24 500 ₸.
+                      На витрине 240 стеблей, срок партии 4 дня, спрос 50 в день. До истечения успеет уйти 200. Оставшиеся 40 — это 10 400 ₸, уже потраченные и превращающиеся в мусор. Ваш порог списаний — 8%, здесь получается 17%.
                     </p>
                   </div>
                 </div>
@@ -96,19 +96,19 @@ export function MarginShieldSection() {
                 {/* Metrics Breakdown Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Вклад-маржа</span>
-                    <span className="text-2xl font-bold text-danger">34.2%</span>
-                    <span className="text-xs text-danger block mt-1">Падение на 27.8%</span>
+                    <span className="text-xs text-muted-foreground block">Не успеет продаться</span>
+                    <span className="text-2xl font-bold text-danger">40 стеблей</span>
+                    <span className="text-xs text-danger block mt-1">17% партии при пороге 8%</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Канибализация базы</span>
-                    <span className="text-2xl font-bold text-danger">78%</span>
-                    <span className="text-xs text-muted-foreground block mt-1">Высокий риск</span>
+                    <span className="text-xs text-muted-foreground block">Замороженные деньги</span>
+                    <span className="text-2xl font-bold text-foreground">10 400 ₸</span>
+                    <span className="text-xs text-muted-foreground block mt-1">260 ₸ × 40 стеблей</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Финансовый итог</span>
-                    <span className="text-2xl font-bold text-danger">-24 500 ₸</span>
-                    <span className="text-xs text-danger block mt-1">Убыток</span>
+                    <span className="text-xs text-muted-foreground block">Уйдёт в мусор</span>
+                    <span className="text-2xl font-bold text-danger">−10 400 ₸</span>
+                    <span className="text-xs text-danger block mt-1">Закупочная стоимость, не выручка</span>
                   </div>
                 </div>
 
@@ -119,8 +119,8 @@ export function MarginShieldSection() {
                       <X className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground">QADAM заблокировал скидку 20%</p>
-                      <p className="text-xs text-muted-foreground">Система предлагает безопасную альтернативу</p>
+                      <p className="text-sm font-bold text-foreground">QOR поднял тревогу по этой партии</p>
+                      <p className="text-xs text-muted-foreground">Доля под списанием выше вашего порога</p>
                     </div>
                   </div>
 
@@ -128,7 +128,7 @@ export function MarginShieldSection() {
                     onClick={() => setSelectedScenario('safe')}
                     className="w-full sm:w-auto min-h-11 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
-                    <span>Переключить на безопасный вариант</span>
+                    <span>Показать решение радара</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -147,10 +147,10 @@ export function MarginShieldSection() {
                   <ShieldCheck className="w-6 h-6 text-success shrink-0 mt-0.5" />
                   <div className="space-y-1 text-sm">
                     <p className="font-bold text-primary">
-                      Безопасный вариант утверждён: подарок при чеке от 3 500 ₸
+                      Объём урезан до двухдневного покрытия: 100 стеблей вместо 240
                     </p>
                     <p className="text-muted-foreground leading-relaxed">
-                      Вместо скидки 20% дарим миндальный круассан (себестоимость 450 ₸) только при достижении чека 3 500 ₸. Средний чек растет, маржа защищена на уровне 49.1%, а приращенная прибыль составит +18 200 ₸.
+                      Радар считает не остаток, а сколько из него успеет продаться до срока каждой партии. Спрос, потраченный на раннюю партию, уже не спасёт позднюю — поэтому объём режется до двух дней покрытия, а следующая машина придёт в четверг.
                     </p>
                   </div>
                 </div>
@@ -158,19 +158,19 @@ export function MarginShieldSection() {
                 {/* Metrics Breakdown Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Защищенная маржа</span>
-                    <span className="text-2xl font-bold text-primary">49.1%</span>
-                    <span className="text-xs text-primary block mt-1">Оптимальный уровень</span>
+                    <span className="text-xs text-muted-foreground block">Не успеет продаться</span>
+                    <span className="text-2xl font-bold text-primary">0 стеблей</span>
+                    <span className="text-xs text-primary block mt-1">Ниже вашего порога 8%</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Целевая аудитория</span>
-                    <span className="text-2xl font-bold text-primary">18 чел</span>
-                    <span className="text-xs text-muted-foreground block mt-1">Точечный выбор</span>
+                    <span className="text-xs text-muted-foreground block">Заказано вместо 240</span>
+                    <span className="text-2xl font-bold text-foreground">100 стеблей</span>
+                    <span className="text-xs text-muted-foreground block mt-1">двухдневное покрытие</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-surface-muted border border-border">
-                    <span className="text-xs text-muted-foreground block">Приращенная маржа</span>
-                    <span className="text-2xl font-bold text-primary">+18 200 ₸</span>
-                    <span className="text-xs text-primary block mt-1">Чистый профит</span>
+                    <span className="text-xs text-muted-foreground block">Не ушло в мусор</span>
+                    <span className="text-2xl font-bold text-primary">10 400 ₸</span>
+                    <span className="text-xs text-primary block mt-1">Прогноз, не факт</span>
                   </div>
                 </div>
 
@@ -181,8 +181,8 @@ export function MarginShieldSection() {
                       <Check className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground">Growth Contract готовит запуск</p>
-                      <p className="text-xs text-muted-foreground">Проверено на модели Margin Shield v2.4</p>
+                      <p className="text-sm font-bold text-foreground">Карточка решения готова к подтверждению</p>
+                      <p className="text-xs text-muted-foreground">Упаковка, минимальная партия и бюджет соблюдены</p>
                     </div>
                   </div>
 
@@ -190,7 +190,7 @@ export function MarginShieldSection() {
                     href="#growth-contract"
                     className="w-full sm:w-auto min-h-11 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
-                    <span>Принять безопасный вариант</span>
+                    <span>Открыть карточку решения</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
                 </div>

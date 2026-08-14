@@ -16,8 +16,8 @@
  * `src/components` и `src/app`), только данные.
  */
 
-export type BusinessTypeCode = 'cafe' | 'beauty' | 'retail' | 'service' | 'dental';
-export type GoalCode = 'reactivate' | 'acquire' | 'average_check' | 'quiet_hours';
+export type BusinessTypeCode = 'cafe' | 'beauty' | 'retail' | 'service' | 'dental' | 'flower_shop' | 'flower_chain';
+export type GoalCode = 'reactivate' | 'acquire' | 'average_check' | 'quiet_hours' | 'freshness';
 
 /** Механики, которые действительно умеет Студия кампаний. */
 export type MechanicKind =
@@ -52,6 +52,8 @@ const TYPE_LABEL: Record<BusinessTypeCode, string> = {
   retail: 'магазину',
   service: 'сервисной точке',
   dental: 'стоматологии',
+  flower_shop: 'цветочному магазину',
+  flower_chain: 'сети цветочных',
 };
 
 const GOAL_LABEL: Record<GoalCode, string> = {
@@ -59,6 +61,7 @@ const GOAL_LABEL: Record<GoalCode, string> = {
   acquire: 'привлечь новых',
   average_check: 'поднять средний чек',
   quiet_hours: 'заполнить тихие часы',
+  freshness: 'держать витрину свежей и полной',
 };
 
 /**
@@ -73,6 +76,21 @@ const BY_GOAL: Record<GoalCode, string[]> = {
   acquire: ['qr_loyalty', 'content_studio', 'campaign_studio', 'telegram_bot', 'impact_ledger'],
   average_check: ['campaign_studio', 'margin_shield', 'simulator', 'customer_brief', 'impact_ledger'],
   quiet_hours: ['signal_today', 'campaign_studio', 'content_studio', 'automations', 'qr_loyalty'],
+  // Порядок цветочного магазина — это порядок его дня, а не важность в целом:
+  // сначала узнать, что на витрине, потом сколько уйдёт, потом что заказать,
+  // и только потом у кого. Обратный порядок заставляет выбирать поставщика для
+  // заказа, объём которого ещё не посчитан.
+  freshness: [
+    'freshness_inventory',
+    'flower_forecast',
+    'decision_contract',
+    'supplier_compare',
+    'auto_order',
+    'flower_calendar',
+    'messenger_stock',
+    'receiving_quality',
+    'supplier_trust',
+  ],
 };
 
 /** Почему именно этот инструмент — с опорой на тип заведения. */
@@ -102,6 +120,37 @@ const WHY: Record<string, Partial<Record<BusinessTypeCode, string>> & { any: str
   simulator: { any: 'три сценария до запуска: осторожный, базовый, оптимистичный' },
   customer_brief: { any: 'что знать об этом госте и что предложить ему дальше' },
   signal_today: { any: 'одна проблема или возможность на сегодня, с источником' },
+
+  // Цветочный магазин. Причина каждый раз называет не пользу вообще, а то, что
+  // именно теряется без этого инструмента: «удобно» — не причина включать.
+  freshness_inventory: {
+    any: 'остаток по партиям со сроком: видно не сколько цветов, а сколько дней им осталось',
+    flower_chain: 'по каждой точке отдельно — иначе излишек на одной прячет дефицит на другой',
+  },
+  flower_forecast: {
+    any: 'сколько стеблей уйдёт завтра с учётом дня недели и ближайшего повода',
+  },
+  decision_contract: {
+    any: 'что заказать, у кого и к какому сроку — одним решением вместо десяти вкладок',
+  },
+  supplier_compare: {
+    any: 'цена, срок, надёжность и свежесть в одной таблице, с весами, которые видно',
+  },
+  auto_order: {
+    any: 'черновик заказа готовится сам, когда запас подходит к точке; отправляете вы',
+  },
+  flower_calendar: {
+    any: 'восьмое марта и выпускные попадают в прогноз заранее, а не в день, когда розы кончились',
+  },
+  messenger_stock: {
+    any: 'флорист пишет остаток в чат между двумя покупателями — это быстрее любой таблицы',
+  },
+  receiving_quality: {
+    any: 'недовоз и брак фиксируются при приёмке и становятся рейтингом поставщика',
+  },
+  supplier_trust: {
+    any: 'как этот поставщик возит другим магазинам — обезличенно и только выше порога',
+  },
 };
 
 /**
@@ -139,7 +188,7 @@ export function profileSummary(businessType: BusinessTypeCode, goal: GoalCode): 
   return `Подобрано ${TYPE_LABEL[businessType] ?? 'заведению'} с целью «${GOAL_LABEL[goal] ?? GOAL_LABEL.reactivate}»`;
 }
 
-const MECHANICS: Record<BusinessTypeCode, MechanicSuggestion[]> = {
+const MECHANICS: Partial<Record<BusinessTypeCode, MechanicSuggestion[]>> = {
   cafe: [
     { kind: '2_plus_1', title: '2+1 на кофе', reason: 'третий напиток за счёт заведения — привычная механика кофейни, себестоимость чашки известна' },
     { kind: 'gift_with_threshold', title: 'Подарок от суммы чека', reason: 'круассан при чеке от порога поднимает чек, не давая скидку деньгами' },
@@ -164,5 +213,9 @@ const MECHANICS: Record<BusinessTypeCode, MechanicSuggestion[]> = {
 
 /** Маркетинговые решения под тип заведения — те, что Студия действительно умеет. */
 export function recommendMechanics(businessType: BusinessTypeCode): MechanicSuggestion[] {
-  return MECHANICS[businessType] ?? MECHANICS.cafe;
+  // У цветочного магазина их нет, и подставлять сюда механики кофейни было бы
+  // хуже пустоты: «2+1 на кофе» — это предложение, ведущее в раздел, которого
+  // в его меню больше нет.
+  if (businessType === 'flower_shop' || businessType === 'flower_chain') return [];
+  return MECHANICS[businessType] ?? MECHANICS.cafe ?? [];
 }

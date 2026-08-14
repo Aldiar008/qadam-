@@ -25,12 +25,32 @@ import {
   PackageSearch,
   History,
   MessagesSquare,
+  Boxes,
+  Truck,
+  ClipboardList,
+  PackageCheck,
+  FileCheck,
+  Scale,
+  Workflow,
+  Flower2,
+  CalendarDays,
+  Layers,
+  Timer,
   type LucideIcon,
 } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { useLanguage } from '@/context/LanguageContext';
 import { siteConfig } from '@/config/site';
+
+/** Пункт меню. Подпункты есть только у разделов кабинета, у админки — нет. */
+interface NavItem {
+  titleRu: string;
+  titleKk: string;
+  href: string;
+  icon: string;
+  children?: readonly NavItem[];
+}
 
 interface AppSidebarProps {
   isAdmin?: boolean;
@@ -40,7 +60,7 @@ interface AppSidebarProps {
   showAdmin?: boolean;
 }
 
-export function AppSidebar({ isAdmin = false, businessName = 'QADAM Business', locationLabel = 'Основная точка', demo = false, showAdmin = false }: AppSidebarProps) {
+export function AppSidebar({ isAdmin = false, businessName = 'QOR Business', locationLabel = 'Основная точка', demo = false, showAdmin = false }: AppSidebarProps) {
   const pathname = usePathname();
   const { language } = useLanguage();
 
@@ -64,12 +84,36 @@ export function AppSidebar({ isAdmin = false, businessName = 'QADAM Business', l
     PackageSearch,
     History,
     MessagesSquare,
+    Boxes,
+    Truck,
+    ClipboardList,
+    PackageCheck,
+    FileCheck,
+    Scale,
+    Workflow,
+    Store,
+    Flower2,
+    CalendarDays,
+    Layers,
+    Timer,
   };
 
-  const navItems = isAdmin ? siteConfig.adminNav : siteConfig.appNav;
+  const navItems: NavItem[] = isAdmin ? siteConfig.adminNav : siteConfig.appNav;
+  const serviceItems: NavItem[] = isAdmin ? [] : siteConfig.appServiceNav;
+
+  /** Раздел активен и тогда, когда открыт его подпункт: иначе подсветка гаснет. */
+  const isOpen = (item: NavItem) =>
+    matches(item.href) || (item.children ?? []).some((child) => matches(child.href));
+
+  function matches(href: string) {
+    if (href === '/admin') return pathname === href;
+    return pathname === href || pathname.startsWith(href + '/');
+  }
+
+  const label = (item: NavItem) => (language === 'ru' ? item.titleRu : item.titleKk);
 
   return (
-    <aside className="w-64 bg-surface border-r border-border h-screen sticky top-0 flex flex-col justify-between p-4 hidden md:flex shrink-0">
+    <aside className="w-64 bg-surface border-r border-border h-screen sticky top-0 flex flex-col justify-between overflow-y-auto p-4 hidden md:flex shrink-0">
       <div className="space-y-6">
         {/* Logo & Demo Badge */}
         <div className="space-y-3 pb-4 border-b border-border">
@@ -98,26 +142,74 @@ export function AppSidebar({ isAdmin = false, businessName = 'QADAM Business', l
 
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || Sparkles;
-            const isActive = item.href === '/admin'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + '/');
-            const title = language === 'ru' ? item.titleRu : item.titleKk;
+            const open = isOpen(item);
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>{title}</span>
-              </Link>
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  aria-current={matches(item.href) ? 'page' : undefined}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
+                    matches(item.href)
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : open
+                        ? 'text-foreground bg-surface-muted'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>{label(item)}</span>
+                </Link>
+
+                {/* Подпункты раскрыты только у открытого раздела. Раскрытые
+                    всегда — это те же восемнадцать строк, только с отступами. */}
+                {open && item.children && (
+                  <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        aria-current={matches(child.href) ? 'page' : undefined}
+                        className={`flex min-h-9 items-center rounded-xl px-3 text-[13px] font-semibold transition-all ${
+                          matches(child.href)
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
+                        }`}
+                      >
+                        {label(child)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
+
+          {serviceItems.length > 0 && (
+            <>
+              <div className="px-3 pb-2 pt-5 text-[10px] font-mono text-muted-foreground uppercase tracking-wider font-bold">
+                Сервис
+              </div>
+              {serviceItems.map((item) => {
+                const Icon = iconMap[item.icon] || Sparkles;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={matches(item.href) ? 'page' : undefined}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-2xl text-[13px] font-semibold transition-all ${
+                      matches(item.href)
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span>{label(item)}</span>
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
       </div>
 

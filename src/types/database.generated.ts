@@ -232,6 +232,57 @@ export type Database = {
           },
         ]
       }
+      auto_order_rule_templates: {
+        Row: {
+          business_type_codes: string[]
+          category_code: string | null
+          code: string
+          cover_days: number
+          created_at: string
+          description_ru: string
+          id: string
+          is_mock: boolean
+          name_ru: string
+          round_to_pack: boolean
+          status: string
+          threshold_hours: number | null
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          business_type_codes?: string[]
+          category_code?: string | null
+          code: string
+          cover_days?: number
+          created_at?: string
+          description_ru: string
+          id?: string
+          is_mock?: boolean
+          name_ru: string
+          round_to_pack?: boolean
+          status?: string
+          threshold_hours?: number | null
+          trigger: string
+          updated_at?: string
+        }
+        Update: {
+          business_type_codes?: string[]
+          category_code?: string | null
+          code?: string
+          cover_days?: number
+          created_at?: string
+          description_ru?: string
+          id?: string
+          is_mock?: boolean
+          name_ru?: string
+          round_to_pack?: boolean
+          status?: string
+          threshold_hours?: number | null
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       automation_runs: {
         Row: {
           attempt: number
@@ -565,6 +616,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "business_execution_state_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_flower_profiles: {
+        Row: {
+          business_id: string
+          category_codes: string[]
+          city: string
+          created_at: string
+          district: string | null
+          holiday_codes: string[]
+          id: string
+          is_mock: boolean
+          location_count: number
+          shop_kind: string
+          spoilage_tolerance_bps: number
+          supplier_names: string[]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          category_codes?: string[]
+          city?: string
+          created_at?: string
+          district?: string | null
+          holiday_codes?: string[]
+          id?: string
+          is_mock?: boolean
+          location_count?: number
+          shop_kind?: string
+          spoilage_tolerance_bps?: number
+          supplier_names?: string[]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          category_codes?: string[]
+          city?: string
+          created_at?: string
+          district?: string | null
+          holiday_codes?: string[]
+          id?: string
+          is_mock?: boolean
+          location_count?: number
+          shop_kind?: string
+          spoilage_tolerance_bps?: number
+          supplier_names?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_flower_profiles_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
             referencedRelation: "businesses"
@@ -1442,6 +1549,54 @@ export type Database = {
           },
         ]
       }
+      community_supplier_metrics: {
+        Row: {
+          canonical_supplier: string
+          category: string
+          computed_at: string
+          delivery_reliability_ppm: number
+          evidence: Json
+          fill_rate_ppm: number
+          freshness_score_ppm: number
+          id: string
+          is_mock: boolean
+          n_orders: number
+          n_tenants: number
+          region: string
+          window_days: number
+        }
+        Insert: {
+          canonical_supplier: string
+          category: string
+          computed_at?: string
+          delivery_reliability_ppm?: number
+          evidence?: Json
+          fill_rate_ppm?: number
+          freshness_score_ppm?: number
+          id?: string
+          is_mock?: boolean
+          n_orders?: number
+          n_tenants?: number
+          region?: string
+          window_days?: number
+        }
+        Update: {
+          canonical_supplier?: string
+          category?: string
+          computed_at?: string
+          delivery_reliability_ppm?: number
+          evidence?: Json
+          fill_rate_ppm?: number
+          freshness_score_ppm?: number
+          id?: string
+          is_mock?: boolean
+          n_orders?: number
+          n_tenants?: number
+          region?: string
+          window_days?: number
+        }
+        Relationships: []
+      }
       content_items: {
         Row: {
           alt_text: string | null
@@ -1684,66 +1839,73 @@ export type Database = {
           answered_at: string | null
           answered_by: string | null
           answered_interaction_id: string | null
-          category: string | null
-          draft_reply: string | null
-          sentiment: string | null
-          status: string | null
-          urgency: number | null
           body: string
           business_id: string
+          category: string | null
           channel: string
           created_at: string
           customer_id: string | null
           direction: string
+          draft_reply: string | null
           id: string
           is_mock: boolean
           kind: string
           metadata: Json
           occurred_at: string
+          sentiment: string | null
+          status: string | null
+          urgency: number | null
         }
         Insert: {
           answered_at?: string | null
           answered_by?: string | null
           answered_interaction_id?: string | null
-          category?: string | null
-          draft_reply?: string | null
-          sentiment?: string | null
-          status?: string | null
-          urgency?: number | null
           body: string
           business_id: string
+          category?: string | null
           channel: string
           created_at?: string
           customer_id?: string | null
           direction: string
+          draft_reply?: string | null
           id?: string
           is_mock?: boolean
           kind: string
           metadata?: Json
           occurred_at?: string
+          sentiment?: string | null
+          status?: string | null
+          urgency?: number | null
         }
         Update: {
           answered_at?: string | null
           answered_by?: string | null
           answered_interaction_id?: string | null
-          category?: string | null
-          draft_reply?: string | null
-          sentiment?: string | null
-          status?: string | null
-          urgency?: number | null
           body?: string
           business_id?: string
+          category?: string | null
           channel?: string
           created_at?: string
           customer_id?: string | null
           direction?: string
+          draft_reply?: string | null
           id?: string
           is_mock?: boolean
           kind?: string
           metadata?: Json
           occurred_at?: string
+          sentiment?: string | null
+          status?: string | null
+          urgency?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_interactions_answered_interaction_id_fkey"
+            columns: ["answered_interaction_id"]
+            isOneToOne: false
+            referencedRelation: "customer_interactions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_interactions_business_id_fkey"
             columns: ["business_id"]
@@ -2117,6 +2279,309 @@ export type Database = {
         }
         Relationships: []
       }
+      decision_contracts: {
+        Row: {
+          business_id: string
+          confidence_ppm: number
+          consequence: string
+          counterfactual: Json
+          created_at: string
+          daily_forecast_milli: number
+          decided_at: string | null
+          decided_by: string | null
+          evidence: Json
+          expected_cost_minor: number
+          forecast_id: string | null
+          headline: string
+          id: string
+          is_mock: boolean
+          location_id: string | null
+          location_key: string | null
+          model_version: string
+          on_hand_milli: number
+          override_reason: string | null
+          plan: Json
+          recommended_quantity_milli: number
+          rejected_offers: Json
+          risk_id: string | null
+          risk_type: string
+          shelf_life_days: number | null
+          snoozed_until: string | null
+          spoilage_at_risk_milli: number
+          status: string
+          supply_item_id: string
+          time_to_stockout_hours: number | null
+          updated_at: string
+          urgent_quantity_milli: number
+          version: number
+        }
+        Insert: {
+          business_id: string
+          confidence_ppm: number
+          consequence: string
+          counterfactual?: Json
+          created_at?: string
+          daily_forecast_milli: number
+          decided_at?: string | null
+          decided_by?: string | null
+          evidence?: Json
+          expected_cost_minor?: number
+          forecast_id?: string | null
+          headline: string
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          location_key?: string | null
+          model_version: string
+          on_hand_milli: number
+          override_reason?: string | null
+          plan?: Json
+          recommended_quantity_milli: number
+          rejected_offers?: Json
+          risk_id?: string | null
+          risk_type?: string
+          shelf_life_days?: number | null
+          snoozed_until?: string | null
+          spoilage_at_risk_milli?: number
+          status?: string
+          supply_item_id: string
+          time_to_stockout_hours?: number | null
+          updated_at?: string
+          urgent_quantity_milli?: number
+          version?: number
+        }
+        Update: {
+          business_id?: string
+          confidence_ppm?: number
+          consequence?: string
+          counterfactual?: Json
+          created_at?: string
+          daily_forecast_milli?: number
+          decided_at?: string | null
+          decided_by?: string | null
+          evidence?: Json
+          expected_cost_minor?: number
+          forecast_id?: string | null
+          headline?: string
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          location_key?: string | null
+          model_version?: string
+          on_hand_milli?: number
+          override_reason?: string | null
+          plan?: Json
+          recommended_quantity_milli?: number
+          rejected_offers?: Json
+          risk_id?: string | null
+          risk_type?: string
+          shelf_life_days?: number | null
+          snoozed_until?: string | null
+          spoilage_at_risk_milli?: number
+          status?: string
+          supply_item_id?: string
+          time_to_stockout_hours?: number | null
+          updated_at?: string
+          urgent_quantity_milli?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_contracts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_contracts_forecast_id_fkey"
+            columns: ["forecast_id"]
+            isOneToOne: false
+            referencedRelation: "demand_forecasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_contracts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_contracts_risk_id_fkey"
+            columns: ["risk_id"]
+            isOneToOne: false
+            referencedRelation: "supply_risks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_contracts_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demand_events: {
+        Row: {
+          actual_lift_ppm: number | null
+          approved: boolean
+          approved_at: string | null
+          approved_by: string | null
+          business_id: string | null
+          categories: string[]
+          code: string
+          confidence_ppm: number
+          created_at: string
+          event_date: string
+          id: string
+          is_mock: boolean
+          lead_days: number
+          lift_ppm: number
+          name_ru: string
+          region: string
+          source: string
+          updated_at: string
+          verified: boolean
+        }
+        Insert: {
+          actual_lift_ppm?: number | null
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string | null
+          categories?: string[]
+          code: string
+          confidence_ppm?: number
+          created_at?: string
+          event_date: string
+          id?: string
+          is_mock?: boolean
+          lead_days?: number
+          lift_ppm: number
+          name_ru: string
+          region?: string
+          source?: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Update: {
+          actual_lift_ppm?: number | null
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string | null
+          categories?: string[]
+          code?: string
+          confidence_ppm?: number
+          created_at?: string
+          event_date?: string
+          id?: string
+          is_mock?: boolean
+          lead_days?: number
+          lift_ppm?: number
+          name_ru?: string
+          region?: string
+          source?: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demand_forecasts: {
+        Row: {
+          assumptions: Json
+          baseline_milli: number
+          business_id: string
+          computed_at: string
+          confidence_ppm: number
+          created_at: string
+          daily_forecast_milli: number
+          days_with_demand: number
+          id: string
+          is_mock: boolean
+          location_id: string | null
+          model_version: string
+          sample_days: number
+          sigma_daily_milli: number
+          supply_item_id: string
+          target_date: string
+          wape_ppm: number | null
+          weekday_factor_ppm: number
+        }
+        Insert: {
+          assumptions?: Json
+          baseline_milli: number
+          business_id: string
+          computed_at?: string
+          confidence_ppm: number
+          created_at?: string
+          daily_forecast_milli: number
+          days_with_demand: number
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          model_version: string
+          sample_days: number
+          sigma_daily_milli?: number
+          supply_item_id: string
+          target_date: string
+          wape_ppm?: number | null
+          weekday_factor_ppm: number
+        }
+        Update: {
+          assumptions?: Json
+          baseline_milli?: number
+          business_id?: string
+          computed_at?: string
+          confidence_ppm?: number
+          created_at?: string
+          daily_forecast_milli?: number
+          days_with_demand?: number
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          model_version?: string
+          sample_days?: number
+          sigma_daily_milli?: number
+          supply_item_id?: string
+          target_date?: string
+          wape_ppm?: number | null
+          weekday_factor_ppm?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_forecasts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demand_forecasts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demand_forecasts_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entitlements: {
         Row: {
           created_at: string
@@ -2226,6 +2691,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      flower_categories: {
+        Row: {
+          aliases: string[]
+          code: string
+          created_at: string
+          id: string
+          is_mock: boolean
+          name_kk: string
+          name_ru: string
+          sort_order: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          code: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          name_kk: string
+          name_ru: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          code?: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          name_kk?: string
+          name_ru?: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       forecast_runs: {
         Row: {
@@ -2575,6 +3079,226 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_balances: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          inbound_milli: number
+          is_mock: boolean
+          last_event_at: string | null
+          location_id: string | null
+          location_key: string | null
+          on_hand_milli: number
+          supply_item_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          inbound_milli?: number
+          is_mock?: boolean
+          last_event_at?: string | null
+          location_id?: string | null
+          location_key?: string | null
+          on_hand_milli?: number
+          supply_item_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          inbound_milli?: number
+          is_mock?: boolean
+          last_event_at?: string | null
+          location_id?: string | null
+          location_key?: string | null
+          on_hand_milli?: number
+          supply_item_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_balances_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_balances_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_balances_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_events: {
+        Row: {
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          event_type: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string
+          is_mock: boolean
+          location_id: string | null
+          note: string | null
+          occurred_at: string
+          quantity_delta_milli: number
+          source: string
+          supply_item_id: string
+          unit: string
+          waste_reason: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          business_id: string
+          created_at?: string
+          event_type: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key: string
+          is_mock?: boolean
+          location_id?: string | null
+          note?: string | null
+          occurred_at?: string
+          quantity_delta_milli: number
+          source?: string
+          supply_item_id: string
+          unit?: string
+          waste_reason?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          business_id?: string
+          created_at?: string
+          event_type?: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string
+          is_mock?: boolean
+          location_id?: string | null
+          note?: string | null
+          occurred_at?: string
+          quantity_delta_milli?: number
+          source?: string
+          supply_item_id?: string
+          unit?: string
+          waste_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_events_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_events_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_lots: {
+        Row: {
+          business_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_mock: boolean
+          location_id: string | null
+          quantity_milli: number
+          received_at: string
+          received_event_id: string | null
+          remaining_milli: number
+          supply_item_id: string
+          unit_cost_minor: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          quantity_milli: number
+          received_at?: string
+          received_event_id?: string | null
+          remaining_milli: number
+          supply_item_id: string
+          unit_cost_minor?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_mock?: boolean
+          location_id?: string | null
+          quantity_milli?: number
+          received_at?: string
+          received_event_id?: string | null
+          remaining_milli?: number
+          supply_item_id?: string
+          unit_cost_minor?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_lots_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_lots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_lots_received_event_id_fkey"
+            columns: ["received_event_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_lots_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
             referencedColumns: ["id"]
           },
         ]
@@ -3150,6 +3874,160 @@ export type Database = {
           },
         ]
       }
+      order_discrepancies: {
+        Row: {
+          actual_value: string
+          business_id: string
+          created_at: string
+          expected_value: string
+          id: string
+          is_mock: boolean
+          kind: string
+          note: string | null
+          receipt_id: string
+          supplier_id: string
+        }
+        Insert: {
+          actual_value: string
+          business_id: string
+          created_at?: string
+          expected_value: string
+          id?: string
+          is_mock?: boolean
+          kind: string
+          note?: string | null
+          receipt_id: string
+          supplier_id: string
+        }
+        Update: {
+          actual_value?: string
+          business_id?: string
+          created_at?: string
+          expected_value?: string
+          id?: string
+          is_mock?: boolean
+          kind?: string
+          note?: string | null
+          receipt_id?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_discrepancies_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_discrepancies_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "order_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_discrepancies_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_receipts: {
+        Row: {
+          business_id: string
+          created_at: string
+          damaged_milli: number
+          delay_hours: number
+          expected_milli: number
+          freshness_days: number | null
+          id: string
+          inventory_event_id: string | null
+          is_mock: boolean
+          purchase_order_id: string
+          purchase_order_item_id: string
+          reason: string | null
+          received_at: string
+          received_by: string | null
+          received_milli: number
+          supply_item_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          damaged_milli?: number
+          delay_hours?: number
+          expected_milli: number
+          freshness_days?: number | null
+          id?: string
+          inventory_event_id?: string | null
+          is_mock?: boolean
+          purchase_order_id: string
+          purchase_order_item_id: string
+          reason?: string | null
+          received_at?: string
+          received_by?: string | null
+          received_milli: number
+          supply_item_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          damaged_milli?: number
+          delay_hours?: number
+          expected_milli?: number
+          freshness_days?: number | null
+          id?: string
+          inventory_event_id?: string | null
+          is_mock?: boolean
+          purchase_order_id?: string
+          purchase_order_item_id?: string
+          reason?: string | null
+          received_at?: string
+          received_by?: string | null
+          received_milli?: number
+          supply_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_receipts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_receipts_inventory_event_id_fkey"
+            columns: ["inventory_event_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_receipts_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_receipts_purchase_order_item_id_fkey"
+            columns: ["purchase_order_item_id"]
+            isOneToOne: true
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_receipts_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outbox_events: {
         Row: {
           aggregate_id: string
@@ -3424,6 +4302,62 @@ export type Database = {
           },
         ]
       }
+      product_policy_templates: {
+        Row: {
+          category_id: string
+          created_at: string
+          criticality: string
+          id: string
+          is_mock: boolean
+          lead_time_p80_hours: number
+          moq_milli: number
+          pack_size_milli: number
+          shelf_life_days: number | null
+          spoilage_tolerance_bps: number
+          status: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          criticality?: string
+          id?: string
+          is_mock?: boolean
+          lead_time_p80_hours?: number
+          moq_milli?: number
+          pack_size_milli?: number
+          shelf_life_days?: number | null
+          spoilage_tolerance_bps?: number
+          status?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          criticality?: string
+          id?: string
+          is_mock?: boolean
+          lead_time_p80_hours?: number
+          moq_milli?: number
+          pack_size_milli?: number
+          shelf_life_days?: number | null
+          spoilage_tolerance_bps?: number
+          status?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_policy_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: true
+            referencedRelation: "flower_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -3577,6 +4511,150 @@ export type Database = {
             columns: ["delivery_id"]
             isOneToOne: false
             referencedRelation: "campaign_deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          business_id: string
+          cost_minor: number
+          created_at: string
+          id: string
+          is_mock: boolean
+          purchase_order_id: string
+          quantity_milli: number
+          supply_item_id: string
+          unit_price_minor: number
+        }
+        Insert: {
+          business_id: string
+          cost_minor: number
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          purchase_order_id: string
+          quantity_milli: number
+          supply_item_id: string
+          unit_price_minor: number
+        }
+        Update: {
+          business_id?: string
+          cost_minor?: number
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          purchase_order_id?: string
+          quantity_milli?: number
+          supply_item_id?: string
+          unit_price_minor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          business_id: string
+          created_at: string
+          decision_id: string | null
+          delivered_at: string | null
+          expected_at: string | null
+          id: string
+          idempotency_key: string
+          is_mock: boolean
+          is_urgent: boolean
+          location_id: string | null
+          note: string | null
+          sent_at: string | null
+          status: string
+          supplier_id: string
+          total_cost_minor: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          decision_id?: string | null
+          delivered_at?: string | null
+          expected_at?: string | null
+          id?: string
+          idempotency_key: string
+          is_mock?: boolean
+          is_urgent?: boolean
+          location_id?: string | null
+          note?: string | null
+          sent_at?: string | null
+          status?: string
+          supplier_id: string
+          total_cost_minor?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          decision_id?: string | null
+          delivered_at?: string | null
+          expected_at?: string | null
+          id?: string
+          idempotency_key?: string
+          is_mock?: boolean
+          is_urgent?: boolean
+          location_id?: string | null
+          note?: string | null
+          sent_at?: string | null
+          status?: string
+          supplier_id?: string
+          total_cost_minor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "decision_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -4250,6 +5328,104 @@ export type Database = {
           },
         ]
       }
+      stock_messages: {
+        Row: {
+          author: string
+          body: string
+          business_id: string
+          candidates: Json
+          channel: string
+          confidence_ppm: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          external_id: string
+          id: string
+          inventory_event_id: string | null
+          is_mock: boolean
+          is_simulated: boolean
+          location_id: string | null
+          parsed_item_id: string | null
+          parsed_quantity_milli: number | null
+          parsed_unit: string | null
+          received_at: string
+          status: string
+        }
+        Insert: {
+          author: string
+          body: string
+          business_id: string
+          candidates?: Json
+          channel?: string
+          confidence_ppm?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          external_id: string
+          id?: string
+          inventory_event_id?: string | null
+          is_mock?: boolean
+          is_simulated?: boolean
+          location_id?: string | null
+          parsed_item_id?: string | null
+          parsed_quantity_milli?: number | null
+          parsed_unit?: string | null
+          received_at?: string
+          status?: string
+        }
+        Update: {
+          author?: string
+          body?: string
+          business_id?: string
+          candidates?: Json
+          channel?: string
+          confidence_ppm?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          external_id?: string
+          id?: string
+          inventory_event_id?: string | null
+          is_mock?: boolean
+          is_simulated?: boolean
+          location_id?: string | null
+          parsed_item_id?: string | null
+          parsed_quantity_milli?: number | null
+          parsed_unit?: string | null
+          received_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_messages_inventory_event_id_fkey"
+            columns: ["inventory_event_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_messages_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_messages_parsed_item_id_fkey"
+            columns: ["parsed_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           business_id: string
@@ -4316,49 +5492,259 @@ export type Database = {
           },
         ]
       }
+      supplier_offers: {
+        Row: {
+          available_milli: number
+          business_id: string
+          created_at: string
+          freshness_on_arrival_days: number | null
+          id: string
+          is_mock: boolean
+          lead_time_p80_hours: number
+          matches_variety: boolean
+          moq_milli: number
+          pack_size_milli: number
+          supplier_id: string
+          supply_item_id: string
+          unit_price_minor: number
+          updated_at: string
+          variety_note: string | null
+        }
+        Insert: {
+          available_milli?: number
+          business_id: string
+          created_at?: string
+          freshness_on_arrival_days?: number | null
+          id?: string
+          is_mock?: boolean
+          lead_time_p80_hours?: number
+          matches_variety?: boolean
+          moq_milli?: number
+          pack_size_milli?: number
+          supplier_id: string
+          supply_item_id: string
+          unit_price_minor: number
+          updated_at?: string
+          variety_note?: string | null
+        }
+        Update: {
+          available_milli?: number
+          business_id?: string
+          created_at?: string
+          freshness_on_arrival_days?: number | null
+          id?: string
+          is_mock?: boolean
+          lead_time_p80_hours?: number
+          matches_variety?: boolean
+          moq_milli?: number
+          pack_size_milli?: number
+          supplier_id?: string
+          supply_item_id?: string
+          unit_price_minor?: number
+          updated_at?: string
+          variety_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_offers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_offers_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_performance: {
+        Row: {
+          avg_delay_hours: number
+          avg_freshness_days: number | null
+          business_id: string
+          id: string
+          is_mock: boolean
+          last_delivery_at: string | null
+          orders_on_time_in_full: number
+          orders_total: number
+          p80_delay_hours: number
+          shortfall_rate_ppm: number
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_delay_hours?: number
+          avg_freshness_days?: number | null
+          business_id: string
+          id?: string
+          is_mock?: boolean
+          last_delivery_at?: string | null
+          orders_on_time_in_full?: number
+          orders_total?: number
+          p80_delay_hours?: number
+          shortfall_rate_ppm?: number
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_delay_hours?: number
+          avg_freshness_days?: number | null
+          business_id?: string
+          id?: string
+          is_mock?: boolean
+          last_delivery_at?: string | null
+          orders_on_time_in_full?: number
+          orders_total?: number
+          p80_delay_hours?: number
+          shortfall_rate_ppm?: number
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_performance_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_performance_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          business_id: string
+          contact: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          is_mock: boolean
+          kind: string
+          name: string
+          payment_terms_days: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          contact?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_mock?: boolean
+          kind?: string
+          name: string
+          payment_terms_days?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          contact?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_mock?: boolean
+          kind?: string
+          name?: string
+          payment_terms_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supply_items: {
         Row: {
           business_id: string
+          category: string | null
           created_at: string
+          criticality: string
           current_price_minor: number | null
           current_supplier: string | null
           id: string
           is_mock: boolean
+          lead_time_p80_hours: number
+          min_stock_milli: number
           monthly_quantity: number | null
+          moq_milli: number
           name_ru: string
           needed: boolean
           notes: string | null
+          pack_size_milli: number
           search_query: string | null
+          service_level_z_milli: number
+          shelf_life_days: number | null
+          spoilage_tolerance_bps: number
           unit: string
           updated_at: string
         }
         Insert: {
           business_id: string
+          category?: string | null
           created_at?: string
+          criticality?: string
           current_price_minor?: number | null
           current_supplier?: string | null
           id?: string
           is_mock?: boolean
+          lead_time_p80_hours?: number
+          min_stock_milli?: number
           monthly_quantity?: number | null
+          moq_milli?: number
           name_ru: string
           needed?: boolean
           notes?: string | null
+          pack_size_milli?: number
           search_query?: string | null
+          service_level_z_milli?: number
+          shelf_life_days?: number | null
+          spoilage_tolerance_bps?: number
           unit?: string
           updated_at?: string
         }
         Update: {
           business_id?: string
+          category?: string | null
           created_at?: string
+          criticality?: string
           current_price_minor?: number | null
           current_supplier?: string | null
           id?: string
           is_mock?: boolean
+          lead_time_p80_hours?: number
+          min_stock_milli?: number
           monthly_quantity?: number | null
+          moq_milli?: number
           name_ru?: string
           needed?: boolean
           notes?: string | null
+          pack_size_milli?: number
           search_query?: string | null
+          service_level_z_milli?: number
+          shelf_life_days?: number | null
+          spoilage_tolerance_bps?: number
           unit?: string
           updated_at?: string
         }
@@ -4431,6 +5817,134 @@ export type Database = {
           },
           {
             foreignKeyName: "supply_offers_supply_item_id_fkey"
+            columns: ["supply_item_id"]
+            isOneToOne: false
+            referencedRelation: "supply_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supply_risks: {
+        Row: {
+          at_risk_cost_minor: number | null
+          at_risk_milli: number
+          at_risk_share_ppm: number | null
+          business_id: string
+          confidence_ppm: number
+          coverage_gap_hours: number | null
+          created_at: string
+          daily_forecast_milli: number
+          detected_at: string
+          evidence: Json
+          forecast_id: string | null
+          id: string
+          inbound_milli: number
+          is_mock: boolean
+          lead_time_p80_hours: number
+          level: string
+          location_id: string | null
+          location_key: string | null
+          model_version: string
+          nearest_expiry_hours: number | null
+          on_hand_milli: number
+          reason: string
+          reorder_point_milli: number
+          resolved_at: string | null
+          risk_type: string
+          safety_stock_milli: number
+          shortfall_milli: number
+          status: string
+          supply_item_id: string
+          time_to_stockout_hours: number | null
+        }
+        Insert: {
+          at_risk_cost_minor?: number | null
+          at_risk_milli?: number
+          at_risk_share_ppm?: number | null
+          business_id: string
+          confidence_ppm: number
+          coverage_gap_hours?: number | null
+          created_at?: string
+          daily_forecast_milli: number
+          detected_at?: string
+          evidence?: Json
+          forecast_id?: string | null
+          id?: string
+          inbound_milli?: number
+          is_mock?: boolean
+          lead_time_p80_hours: number
+          level: string
+          location_id?: string | null
+          location_key?: string | null
+          model_version: string
+          nearest_expiry_hours?: number | null
+          on_hand_milli: number
+          reason: string
+          reorder_point_milli?: number
+          resolved_at?: string | null
+          risk_type?: string
+          safety_stock_milli?: number
+          shortfall_milli?: number
+          status?: string
+          supply_item_id: string
+          time_to_stockout_hours?: number | null
+        }
+        Update: {
+          at_risk_cost_minor?: number | null
+          at_risk_milli?: number
+          at_risk_share_ppm?: number | null
+          business_id?: string
+          confidence_ppm?: number
+          coverage_gap_hours?: number | null
+          created_at?: string
+          daily_forecast_milli?: number
+          detected_at?: string
+          evidence?: Json
+          forecast_id?: string | null
+          id?: string
+          inbound_milli?: number
+          is_mock?: boolean
+          lead_time_p80_hours?: number
+          level?: string
+          location_id?: string | null
+          location_key?: string | null
+          model_version?: string
+          nearest_expiry_hours?: number | null
+          on_hand_milli?: number
+          reason?: string
+          reorder_point_milli?: number
+          resolved_at?: string | null
+          risk_type?: string
+          safety_stock_milli?: number
+          shortfall_milli?: number
+          status?: string
+          supply_item_id?: string
+          time_to_stockout_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supply_risks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_risks_forecast_id_fkey"
+            columns: ["forecast_id"]
+            isOneToOne: false
+            referencedRelation: "demand_forecasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_risks_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_risks_supply_item_id_fkey"
             columns: ["supply_item_id"]
             isOneToOne: false
             referencedRelation: "supply_items"
@@ -4705,6 +6219,92 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tool_bundle_items: {
+        Row: {
+          bundle_id: string
+          created_at: string
+          id: string
+          is_mock: boolean
+          sort_order: number
+          tool_id: string
+        }
+        Insert: {
+          bundle_id: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          sort_order?: number
+          tool_id: string
+        }
+        Update: {
+          bundle_id?: string
+          created_at?: string
+          id?: string
+          is_mock?: boolean
+          sort_order?: number
+          tool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "tool_bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_bundle_items_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_bundles: {
+        Row: {
+          business_type_id: string | null
+          code: string
+          created_at: string
+          description_ru: string
+          id: string
+          is_mock: boolean
+          name_ru: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_type_id?: string | null
+          code: string
+          created_at?: string
+          description_ru: string
+          id?: string
+          is_mock?: boolean
+          name_ru: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_type_id?: string | null
+          code?: string
+          created_at?: string
+          description_ru?: string
+          id?: string
+          is_mock?: boolean
+          name_ru?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_bundles_business_type_id_fkey"
+            columns: ["business_type_id"]
+            isOneToOne: false
+            referencedRelation: "business_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tool_categories: {
         Row: {
@@ -5082,6 +6682,37 @@ export type Database = {
         Args: { p_answered_by: string; p_body: string; p_inquiry_id: string }
         Returns: string
       }
+      approve_decision: {
+        Args: {
+          p_decision_id: string
+          p_expected_version: number
+          p_override_reason?: string
+        }
+        Returns: {
+          business_id: string
+          created_at: string
+          decision_id: string | null
+          delivered_at: string | null
+          expected_at: string | null
+          id: string
+          idempotency_key: string
+          is_mock: boolean
+          is_urgent: boolean
+          location_id: string | null
+          note: string | null
+          sent_at: string | null
+          status: string
+          supplier_id: string
+          total_cost_minor: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "purchase_orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       assistant_context: {
         Args: { p_business_id: string; p_customer_id?: string }
         Returns: Json
@@ -5132,6 +6763,14 @@ export type Database = {
         Args: { p_chat_id: string; p_code: string }
         Returns: Json
       }
+      complete_flower_onboarding: {
+        Args: {
+          p_expected_version: number
+          p_idempotency_key: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       complete_onboarding: {
         Args: {
           p_expected_version: number
@@ -5139,6 +6778,43 @@ export type Database = {
           p_session_id: string
         }
         Returns: Json
+      }
+      confirm_stock_message: {
+        Args: {
+          p_event_type?: string
+          p_item_id: string
+          p_message_id: string
+          p_quantity_milli: number
+          p_unit?: string
+        }
+        Returns: {
+          author: string
+          body: string
+          business_id: string
+          candidates: Json
+          channel: string
+          confidence_ppm: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          external_id: string
+          id: string
+          inventory_event_id: string | null
+          is_mock: boolean
+          is_simulated: boolean
+          location_id: string | null
+          parsed_item_id: string | null
+          parsed_quantity_milli: number | null
+          parsed_unit: string | null
+          received_at: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       consume_entitlement: {
         Args: {
@@ -5177,6 +6853,19 @@ export type Database = {
         Returns: {
           business_id: string
           customer_id: string
+        }[]
+      }
+      daily_demand: {
+        Args: {
+          p_business_id: string
+          p_days?: number
+          p_location_id: string
+          p_supply_item_id: string
+          p_timezone?: string
+        }
+        Returns: {
+          demand_date: string
+          quantity_milli: number
         }[]
       }
       demo_time_jump: {
@@ -5224,6 +6913,10 @@ export type Database = {
       }
       expand_campaign_audience: {
         Args: { p_campaign_id: string; p_idempotency_key: string }
+        Returns: Json
+      }
+      flower_platform_overview: {
+        Args: { p_from: string; p_to: string }
         Returns: Json
       }
       import_customers: {
@@ -5358,6 +7051,40 @@ export type Database = {
         Args: { p_reason: string; p_version_id: string }
         Returns: Json
       }
+      receive_order_item: {
+        Args: {
+          p_damaged_milli?: number
+          p_delay_hours?: number
+          p_freshness_days?: number
+          p_order_item_id: string
+          p_reason?: string
+          p_received_milli: number
+        }
+        Returns: {
+          business_id: string
+          created_at: string
+          damaged_milli: number
+          delay_hours: number
+          expected_milli: number
+          freshness_days: number | null
+          id: string
+          inventory_event_id: string | null
+          is_mock: boolean
+          purchase_order_id: string
+          purchase_order_item_id: string
+          reason: string | null
+          received_at: string
+          received_by: string | null
+          received_milli: number
+          supply_item_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "order_receipts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       recommend_from_signals: { Args: { p_business_id: string }; Returns: Json }
       recompute_campaign_impact: {
         Args: { p_campaign_id: string; p_measurement_version: string }
@@ -5439,6 +7166,47 @@ export type Database = {
           p_signal_type: string
         }
         Returns: Json
+      }
+      record_inventory_event: {
+        Args: {
+          p_allow_negative?: boolean
+          p_business_id: string
+          p_event_type: string
+          p_expires_at?: string
+          p_idempotency_key: string
+          p_location_id: string
+          p_note?: string
+          p_occurred_at?: string
+          p_quantity_delta_milli: number
+          p_source: string
+          p_supply_item_id: string
+          p_unit_cost_minor?: number
+          p_waste_reason?: string
+        }
+        Returns: {
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          event_type: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string
+          is_mock: boolean
+          location_id: string | null
+          note: string | null
+          occurred_at: string
+          quantity_delta_milli: number
+          source: string
+          supply_item_id: string
+          unit: string
+          waste_reason: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventory_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       redeem_reward_for_customer: {
         Args: {

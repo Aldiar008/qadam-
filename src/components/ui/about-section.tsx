@@ -51,7 +51,7 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
   };
 
   return (
-    <section id="about-qadam" className="bg-background px-4 py-20 sm:px-6 sm:py-28" ref={heroRef}>
+    <section id="about-qor" className="bg-background px-4 py-20 sm:px-6 sm:py-28" ref={heroRef}>
       <div className="mx-auto max-w-6xl">
         <div className="relative">
           <div className="absolute left-4 right-4 top-3 z-10 flex items-center justify-between sm:left-6 sm:right-6 sm:top-5">
@@ -97,7 +97,7 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
           >
             <Image
               src="/images/qadam-local-business.webp"
-              alt="Владелец локальной кофейни общается с постоянной гостьей"
+              alt="Владелец небольшого цветочного магазина за рабочим столом"
               fill
               sizes="(max-width: 640px) 100vw, 1152px"
               className="object-cover object-center"
@@ -106,9 +106,9 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
 
           <div className="grid gap-3 border-b border-border py-5 sm:grid-cols-3">
             {[
-              { value: "4", label: "стадии Growth Loop" },
-              { value: "RU / KK", label: "языка контента" },
-              { value: "1", label: "действие на сегодня" },
+              { value: "4", label: "этапа цикла снабжения" },
+              { value: "RU / KK", label: "языка интерфейса" },
+              { value: "1", label: "подтверждение на заказ" },
             ].map((stat, index) => (
               <TimelineContent
                 key={stat.label}
@@ -135,7 +135,7 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
                 reverse
                 transition={{ type: "spring", stiffness: 250, damping: 30, delay: 0.18 }}
               >
-                Технология, которая усиливает человеческое преимущество локального бизнеса.
+                Технология, которая даёт маленькой точке снабжение уровня большой сети.
               </VerticalCutReveal>
             </Heading>
 
@@ -147,10 +147,10 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
               className="grid gap-6 text-base leading-7 text-muted-foreground md:grid-cols-2"
             >
               <p>
-                Большие платформы выигрывают масштабом, ценой и логистикой. Локальный бизнес выигрывает доверием, знанием клиентов и личными отношениями.
+                Крупные сети держат цену и наличие не за счёт удачи: у них посчитан расход каждой позиции, известна надёжность каждого поставщика и есть правило перезаказа.
               </p>
               <p>
-                QADAM превращает эти отношения в понятные сигналы, безопасные Growth Contracts и измеримые действия — без CRM-хаоса и слепых скидок.
+                QOR собирает то же самое для точки с одним владельцем: остатки, прогноз спроса, сравнение поставщиков и готовый заказ — без ERP и без склада в тетради.
               </p>
             </TimelineContent>
           </div>
@@ -165,10 +165,10 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
             >
               <div className="flex items-center gap-2 text-primary">
                 <ShieldCheck className="size-5" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-[0.16em]">Принцип QADAM</span>
+                <span className="text-xs font-bold uppercase tracking-[0.16em]">Принцип QOR</span>
               </div>
               <p className="mt-5 text-xl font-semibold leading-8 text-foreground">
-                От сигнала к прибыли за одно подтверждение.
+                От риска дефицита к готовому заказу за одно подтверждение.
               </p>
               <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
                 <Languages className="size-4 text-primary" aria-hidden="true" />
@@ -178,7 +178,7 @@ export default function AboutSection3({ headingLevel = "h1" }: AboutSection3Prop
                 href="/demo"
                 className="mt-8 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover"
               >
-                Посмотреть QADAM в действии
+                Посмотреть QOR в действии
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </TimelineContent>

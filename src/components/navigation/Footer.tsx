@@ -17,8 +17,8 @@ export function Footer() {
             <Logo size="lg" />
             <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
               {language === 'ru'
-                ? 'AI Growth Operating System для малого офлайн-бизнеса. От сигнала к прибыли за одно подтверждение.'
-                : 'Офлайн бизнеске арналған AI Growth Operating System. Бір растау арқылы белгіден пайдаға.'}
+                ? 'Автопилот снабжения для малого офлайн-бизнеса. От риска дефицита к готовому заказу за одно подтверждение.'
+                : 'Шағын офлайн-бизнеске арналған жабдықтау автопилоты. Тапшылық тәуекелінен дайын тапсырысқа бір растаумен.'}
             </p>
           </div>
 
@@ -34,23 +34,23 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/features/margin-shield" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Margin Shield
+                <Link href="/features/decision-contract" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Карточка решения' : 'Шешім картасы'}
                 </Link>
               </li>
               <li>
-                <Link href="/features/qr-loyalty" className="text-muted-foreground hover:text-foreground transition-colors">
-                  QR Loyalty
+                <Link href="/features/stockout-clock" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Часы до нуля' : 'Нөлге дейінгі сағат'}
                 </Link>
               </li>
               <li>
-                <Link href="/features/growth-contract" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Growth Contract
+                <Link href="/features/supplier-compare" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Сравнение поставщиков' : 'Жеткізушілерді салыстыру'}
                 </Link>
               </li>
               <li>
-                <Link href="/features/content-studio" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Content Studio
+                <Link href="/features/messenger-stock" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Остатки из чата' : 'Чаттан қалдықтар'}
                 </Link>
               </li>
             </ul>
@@ -63,23 +63,23 @@ export function Footer() {
             </h2>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/solutions/cafe" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {language === 'ru' ? 'Кофейни и общепит' : 'Кофеханалар'}
+                <Link href="/solutions/flower-shop" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Цветочный магазин' : 'Гүл дүкені'}
                 </Link>
               </li>
               <li>
-                <Link href="/solutions/beauty" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {language === 'ru' ? 'Салоны красоты' : 'Сұлулық салондары'}
+                <Link href="/solutions/holidays" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Подготовка к праздникам' : 'Мерекеге дайындық'}
                 </Link>
               </li>
               <li>
-                <Link href="/solutions/retail" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {language === 'ru' ? 'Ритейл и магазины' : 'Дүкендер'}
+                <Link href="/solutions/freshness" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Скоропортящийся ассортимент' : 'Тез бүлінетін ассортимент'}
                 </Link>
               </li>
               <li>
-                <Link href="/solutions/service-center" className="text-muted-foreground hover:text-foreground transition-colors">
-                  {language === 'ru' ? 'Сервисные центры' : 'Сервис орталықтары'}
+                <Link href="/solutions/chain" className="text-muted-foreground hover:text-foreground transition-colors">
+                  {language === 'ru' ? 'Сеть цветочных' : 'Гүл дүкендер желісі'}
                 </Link>
               </li>
               <li>
@@ -122,7 +122,7 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <p>© 2026 QADAM Growth OS. Все права защищены.</p>
+          <p>© 2026 QOR Autopilot. Все права защищены.</p>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5">

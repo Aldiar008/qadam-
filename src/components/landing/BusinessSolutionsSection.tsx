@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Coffee, Scissors, ShoppingBag, Wrench, Store, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flower2, Leaf, Package, CalendarHeart, Store, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export function BusinessSolutionsSection() {
@@ -11,64 +11,64 @@ export function BusinessSolutionsSection() {
 
   const solutions = [
     {
-      id: 'cafe',
-      icon: Coffee,
-      titleRu: 'Кофейни и кафе',
-      titleKk: 'Кофеханалар мен кафелер',
-      tag: 'Сегмент: Общепит',
-      oppRu: 'Рост чека в полуденный спад 15:00-18:00 на +24% через комбо-подарок к выпечке.',
-      oppKk: 'Пісірілген өнімге комбо-сыйлық арқылы 15:00-18:00 түскі төмендеуде чектің +24%-ға өсуі.',
-      metricsRu: '48 700 ₸ доп. выручка в неделю • 145 мин сэкономлено',
-      metricsKk: 'Аптасына 48 700 ₸ қосымша түсім • 145 мин үнемделді',
-      route: '/solutions/cafe',
+      id: 'shop',
+      icon: Flower2,
+      titleRu: 'Цветочный магазин у дома',
+      titleKk: 'Үй жанындағы гүл дүкені',
+      tag: 'Сегмент: Одна точка',
+      oppRu: 'Розы, тюльпаны и зелень держат почти всю выручку и заканчиваются первыми. Учёт партиями со сроком показывает не только сколько стеблей, но и сколько дней им осталось.',
+      oppKk: 'Раушан, қызғалдақ және көгал түсімнің барлығын дерлік ұстайды әрі бірінші бітеді. Мерзімі бар партиялық есеп неше сабақ бар екенін де, неше күн қалғанын да көрсетеді.',
+      metricsRu: '29 ч до пустой витрины видно заранее • списание считается до того, как случилось',
+      metricsKk: 'Бос витринаға дейінгі 29 сағат алдын ала көрінеді • есептен шығару болмай тұрып есептеледі',
+      route: '/solutions/flower-shop',
     },
     {
-      id: 'beauty',
-      icon: Scissors,
-      titleRu: 'Салоны красоты & SPA',
-      titleKk: 'Сұлулық салондары',
-      tag: 'Сегмент: Услуги',
-      oppRu: 'Заполнение горящих вечерних окон с помощью персональных приглашений постоянным клиентам.',
-      oppKk: 'Тұрақты клиенттерге жеке шақырулар арқылы кешкі бос уақыттарды толтыру.',
-      metricsRu: '86 000 ₸ приращенный чек • 92% заполняемость',
-      metricsKk: '86 000 ₸ қосымша чек • 92% толтырылу',
-      route: '/solutions/beauty',
+      id: 'holiday',
+      icon: CalendarHeart,
+      titleRu: 'Подготовка к праздникам',
+      titleKk: 'Мерекеге дайындық',
+      tag: 'Сегмент: 8 марта и выпускные',
+      oppRu: 'Восьмое марта делает месячную выручку и месячное списание. Повод попадает в прогноз за четыре дня — с коэффициентом, источником и пометкой, что это гипотеза.',
+      oppKk: '8 наурыз айлық түсімді де, айлық есептен шығаруды да жасайды. Себеп болжамға төрт күн бұрын түседі.',
+      metricsRu: '×1,8 к спросу на розы • коэффициент не двигает прогноз без вашего одобрения',
+      metricsKk: 'Раушан сұранысына ×1,8 • коэффициент сіз мақұлдамай болжамды жылжытпайды',
+      route: '/solutions/holidays',
     },
     {
-      id: 'retail',
-      icon: ShoppingBag,
-      titleRu: 'Магазины и ритейл',
-      titleKk: 'Дүкендер мен ритейл',
-      tag: 'Сегмент: Торговля',
-      oppRu: 'Реактивация "спящей" базы к выходу новой коллекции без потери маржинальности.',
-      oppKk: 'Маржиналдылықты жоғалтпай жаңа коллекцияға "ұйықтаған" базаны қайта белсендіру.',
-      metricsRu: '124 500 ₸ приращенная маржа • 18% реактивация',
-      metricsKk: '124 500 ₸ қосымша маржа • 18% қайта белсендіру',
-      route: '/solutions/retail',
+      id: 'freshness',
+      icon: Leaf,
+      titleRu: 'Скоропортящийся ассортимент',
+      titleKk: 'Тез бүлінетін ассортимент',
+      tag: 'Сегмент: Свежесть',
+      oppRu: 'Пион стоит три дня, роза пять, хризантема неделю. Заказ дробится на несколько поставок, чтобы поздняя партия не осталась непроданной.',
+      oppKk: 'Пион үш күн, раушан бес күн, хризантема бір апта тұрады. Тапсырыс бірнеше жеткізілімге бөлінеді.',
+      metricsRu: 'Порог списаний задаёте вы • тревога только выше него',
+      metricsKk: 'Есептен шығару шегін өзіңіз белгілейсіз • дабыл тек одан жоғары',
+      route: '/solutions/freshness',
     },
     {
-      id: 'service',
-      icon: Wrench,
-      titleRu: 'Сервисные центры',
-      titleKk: 'Сервис орталықтары',
-      tag: 'Сегмент: Сервис',
-      oppRu: 'Автоматическое напомнинание о ТО и повторном обслуживании через 90 дней.',
-      oppKk: '90 күннен кейін ТҚК және қайта қызмет көрсету туралы автоматты еске салу.',
-      metricsRu: '210 000 ₸ доп. выручка • 68% возвратность',
-      metricsKk: '210 000 ₸ қосымша түсім • 68% қайтарымдылық',
-      route: '/solutions/service-center',
+      id: 'packaging',
+      icon: Package,
+      titleRu: 'Упаковка и аксессуары',
+      titleKk: 'Қаптама және аксессуарлар',
+      tag: 'Сегмент: Расходники',
+      oppRu: 'Не портятся, но заканчиваются в самый неподходящий момент. Их выгоднее брать редко и крупно — и продукт про это знает.',
+      oppKk: 'Бүлінбейді, бірақ ең қолайсыз сәтте бітеді. Оларды сирек әрі көп алған тиімді.',
+      metricsRu: 'Заказ раз в две недели вместо еженедельного • срок не считается там, где его нет',
+      metricsKk: 'Апта сайын емес, екі аптада бір тапсырыс • мерзімі жоқ жерде ол есептелмейді',
+      route: '/solutions/packaging',
     },
     {
       id: 'chain',
       icon: Store,
-      titleRu: 'Небольшие сети (2-5 точек)',
-      titleKk: 'Шағын желілер (2-5 нүкте)',
+      titleRu: 'Сеть цветочных (2-5 точек)',
+      titleKk: 'Гүл дүкендер желісі (2-5 нүкте)',
       tag: 'Сегмент: Сеть',
-      oppRu: 'Сравнительный анализ филиалов и кросс-локационные акции для выравнивания трафика.',
-      oppKk: 'Трафикті теңестіру үшін филиалдарды салыстырмалы талдау және кросс-локациялық акциялар.',
-      metricsRu: '+34% кросс-посещения • 100% единая аналитика',
-      metricsKk: '+34% кросс-сапарлар • 100% бірыңғай аналитика',
-      route: '/solutions',
+      oppRu: 'Сначала перемещение излишка между точками, только потом закупка: на соседней точке розы часто уже есть, и они не доживут до завтра там, где не продаются.',
+      oppKk: 'Алдымен нүктелер арасында артық қорды ауыстыру, содан кейін ғана сатып алу.',
+      metricsRu: '4 из 10 заказов закрыты перемещением • единая витрина по сети',
+      metricsKk: '10 тапсырыстың 4-і ауыстырумен жабылды • желі бойынша бірыңғай витрина',
+      route: '/solutions/chain',
     },
   ];
 
@@ -90,7 +90,7 @@ export function BusinessSolutionsSection() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
           <div className="space-y-4 max-w-2xl">
             <span className="text-xs font-mono font-bold text-primary uppercase tracking-widest">
-              Industry Tailored
+              Профили бизнеса
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight">
               {t.solutionsTitle}
@@ -146,7 +146,7 @@ export function BusinessSolutionsSection() {
 
               <div className="p-6 rounded-2xl bg-surface border border-border space-y-3">
                 <span className="text-xs font-mono font-bold text-primary uppercase">
-                  {language === 'ru' ? 'Типовая возможность роста:' : 'Типтік өсу мүмкіндігі:'}
+                  {language === 'ru' ? 'Что настраивается сразу:' : 'Бірден бапталатыны:'}
                 </span>
                 <p className="text-base sm:text-lg font-semibold text-foreground leading-relaxed">
                   {language === 'ru' ? current.oppRu : current.oppKk}
@@ -160,7 +160,7 @@ export function BusinessSolutionsSection() {
 
           <div className="pt-6 mt-6 border-t border-border flex items-center justify-between">
             <span className="text-xs font-mono text-muted-foreground">
-              {language === 'ru' ? 'Персонализировано под локальный бизнес' : 'Жергілікті бизнеске бейімделген'}
+              {language === 'ru' ? 'Пороги и категории подставляются по типу бизнеса' : 'Шектер мен санаттар бизнес түріне қарай қойылады'}
             </span>
             <a
               href={current.route}

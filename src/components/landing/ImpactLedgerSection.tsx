@@ -15,19 +15,19 @@ export function ImpactLedgerSection() {
       case 'forecast':
         return (
           <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 font-mono text-[10px] font-bold border border-blue-500/20 uppercase">
-            Forecast
+            Прогноз
           </span>
         );
       case 'demo_result':
         return (
           <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 font-mono text-[10px] font-bold border border-amber-500/20 uppercase">
-            Demo Result
+            Демо-данные
           </span>
         );
       case 'verified_fact':
         return (
           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 font-mono text-[10px] font-bold border border-emerald-500/20 uppercase">
-            Verified Fact
+            Подтверждено
           </span>
         );
       default:
@@ -83,7 +83,13 @@ export function ImpactLedgerSection() {
 
               <div className="pt-3 border-t border-border/80 flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
                 <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                <span>Simulated Model Output</span>
+                <span>
+                  {m.type === 'verified_fact'
+                    ? 'В демо равен нулю: пилота не было'
+                    : m.type === 'forecast'
+                      ? 'Прогноз, а не факт экономии'
+                      : 'Расчёт по демонстрационным данным'}
+                </span>
               </div>
             </motion.div>
           ))}

@@ -22,10 +22,10 @@ export default function HomePage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'QADAM Growth OS',
+    name: 'QOR Autopilot',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
-    description: 'AI Growth Operating System для малого офлайн-бизнеса.',
+    description: 'Автопилот снабжения для цветочного магазина: свежесть партий, прогноз спроса к празднику, разделённый заказ и контроль поставщиков.',
     inLanguage: ['ru', 'kk'],
   };
   return (

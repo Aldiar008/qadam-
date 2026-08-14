@@ -6,8 +6,12 @@ import { toggleFavorite, toggleToolActivation } from '../actions';
 export const dynamic = 'force-dynamic';
 
 const filterLabels: Record<string, string> = {
-  marketing: 'Маркетинг', sales: 'Продажи', retention: 'Удержание', analytics: 'Аналитика', automation: 'Автоматизация',
+  stock: 'Остатки', purchasing: 'Закупки', suppliers: 'Поставщики', analytics: 'Аналитика', alerts: 'Уведомления',
+  marketing: 'Маркетинг', sales: 'Продажи', retention: 'Удержание', automation: 'Автоматизация',
 };
+
+/** Порядок вкладок повторяет цикл: витрина → закупка → поставщик → цифры. */
+const FILTER_ORDER = ['stock', 'purchasing', 'suppliers', 'analytics', 'alerts'];
 
 /**
  * Где именно живёт инструмент.
@@ -19,6 +23,16 @@ const filterLabels: Record<string, string> = {
  * a wall of cards.
  */
 const WHERE: Record<string, { action: string; hint: string }> = {
+  freshness_inventory: { action: 'Открыть витрину', hint: 'Остаток по партиям: сколько стеблей и сколько дней им осталось стоять.' },
+  flower_forecast: { action: 'Открыть прогноз', hint: 'Сколько уйдёт в день, с проверкой модели на прошлых неделях.' },
+  decision_contract: { action: 'Открыть решения', hint: 'Очередь на сегодня: риск, сумма, срок и одно действие на карточке.' },
+  supplier_compare: { action: 'Открыть поставщиков', hint: 'Таблица предложений с весами: цена, срок, надёжность, свежесть.' },
+  auto_order: { action: 'Открыть правила', hint: 'Когда позиция попадает в очередь и на сколько дней считать покрытие.' },
+  receiving_quality: { action: 'Открыть приёмку', hint: 'Отметьте, сколько привезли и сколько брака — рейтинг поставщика пересчитается сам.' },
+  messenger_stock: { action: 'Открыть чат', hint: 'Напишите «осталось 70 роз» — разбор предложит запись, менять остаток будете вы.' },
+  flower_calendar: { action: 'Открыть календарь', hint: 'Раздел «Поводы спроса» на экране прогноза: одобрите повод, и он начнёт двигать цифры.' },
+  supplier_trust: { action: 'Открыть общий рейтинг', hint: 'Раздел внизу экрана поставщиков: обезличенные поставки других магазинов.' },
+
   signal_today: { action: 'Открыть «Сегодня»', hint: 'Сигнал дня и одно предложенное действие — на главном экране.' },
   campaign_studio: { action: 'Открыть студию', hint: 'Семь шагов: цель, аудитория, механика, симулятор, контракт.' },
   content_studio: { action: 'Открыть контент', hint: 'Выберите кампанию и нажмите «Сгенерировать» — тексты появятся на двух языках.' },
@@ -33,7 +47,7 @@ const WHERE: Record<string, { action: string; hint: string }> = {
   telegram_bot: { action: 'Открыть автоматизации', hint: 'Там код привязки чата: бот пришлёт сводку и примет подтверждение.' },
 };
 
-export default async function ToolsPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; favorites?: string; suggested?: string }> }) {
+export default async function ToolsPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; favorites?: string; suggested?: string; onboarding?: string }> }) {
   const params = await searchParams;
   const data = await getToolsData({
     q: params.q,
@@ -44,6 +58,17 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-6xl space-y-7">
+      {/* Первый экран после регистрации. Владелец только что рассказал о себе и
+          вправе увидеть, что из этого следует, прежде чем продукт начнёт
+          советовать. */}
+      {params.onboarding === 'complete' && (
+        <p role="status" className="rounded-3xl border border-emerald-600/30 bg-emerald-500/10 p-5 text-sm leading-6">
+          <strong className="block text-base font-bold">Магазин настроен.</strong>
+          Ниже — инструменты, которые включены вам по профилю. Каждый уже работает: остальные из каталога можно добавить
+          в любой момент.
+        </p>
+      )}
+
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Инструменты</h1>
@@ -57,6 +82,27 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
         </Link>
       </header>
 
+      {/* Набор первого дня. Его состав задаёт администратор платформы, поэтому
+          здесь он показан как есть — с пометкой, что это включено, а не
+          предложено. Разница существенная: предложенное надо выбирать, а
+          включённое уже работает. */}
+      {data.profile.bundle && data.profile.bundle.tools.length > 0 && (
+        <section className="rounded-3xl border border-border bg-surface p-6">
+          <h2 className="text-xl font-bold">{data.profile.bundle.name}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{data.profile.bundle.description}</p>
+          <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+            {data.profile.bundle.tools.map((tool, index) => (
+              <li key={tool.code} className="flex items-center gap-3 rounded-2xl bg-surface-muted px-4 py-2">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface font-mono text-xs font-bold">{index + 1}</span>
+                <Link href={tool.route} className="flex min-h-11 flex-1 items-center text-sm font-semibold underline-offset-4 hover:underline">
+                  {tool.name_ru}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* Подбор под профиль: тип заведения и цель, выбранные при регистрации.
           Порядок и причина — из `src/domain/tool-recommendations.ts`; каталог
           при этом остаётся полным, ничего не прячется. */}
@@ -64,7 +110,11 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
         <section className="rounded-3xl border border-primary/30 bg-primary/5 p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold">С чего начать именно вам</h2>
+              <h2 className="text-xl font-bold">
+                {data.profile.bundle && data.profile.bundle.tools.length > 0
+                  ? 'Что добавить к набору'
+                  : 'С чего начать именно вам'}
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">{data.profile.summary}. Профиль меняется в настройках.</p>
             </div>
             <Link href="/app/tools?suggested=1" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold">
@@ -91,18 +141,22 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
             ))}
           </ul>
 
-          <h3 className="mt-6 text-sm font-bold">Механики, которые подходят вашему типу заведения</h3>
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-            {data.profile.mechanics.map((mechanic) => (
-              <li key={mechanic.kind} className="rounded-2xl border border-border bg-surface p-4">
-                <p className="text-sm font-bold">{mechanic.title}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{mechanic.reason}</p>
-                <Link href={`/app/campaigns/studio?step=3&mechanic=${mechanic.kind}`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold">
-                  Собрать акцию <ArrowRight className="size-4" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {data.profile.mechanics.length > 0 && (
+            <>
+              <h3 className="mt-6 text-sm font-bold">Механики, которые подходят вашему типу заведения</h3>
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                {data.profile.mechanics.map((mechanic) => (
+                  <li key={mechanic.kind} className="rounded-2xl border border-border bg-surface p-4">
+                    <p className="text-sm font-bold">{mechanic.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{mechanic.reason}</p>
+                    <Link href={`/app/campaigns/studio?step=3&mechanic=${mechanic.kind}`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-bold">
+                      Собрать акцию <ArrowRight className="size-4" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       )}
 
@@ -119,7 +173,10 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       <nav aria-label="Категории инструментов" className="flex gap-2 overflow-x-auto pb-2">
         <Link href="/app/tools" className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (!params.category && params.suggested !== '1' ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>Все</Link>
         <Link href="/app/tools?suggested=1" className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (params.suggested === '1' ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>Рекомендуемые</Link>
-        {data.categories.slice(0, 5).map((category) => (
+        {[...data.categories]
+          .filter((category) => FILTER_ORDER.includes(category.code))
+          .sort((a, b) => FILTER_ORDER.indexOf(a.code) - FILTER_ORDER.indexOf(b.code))
+          .map((category) => (
           <Link key={category.id} href={`/app/tools?category=${category.code}`} className={'whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ' + (params.category === category.code ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface')}>
             {filterLabels[category.code] ?? category.name_ru}
           </Link>

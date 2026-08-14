@@ -2,42 +2,45 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, ShieldCheck, QrCode, FileCheck, Sparkles, BarChart3, Sliders } from 'lucide-react';
+import { ArrowRight, FileCheck, Clock, TrendingUp, Scale, Split, MessagesSquare, Boxes, Sliders, BarChart3 } from 'lucide-react';
 import { PublicPageTemplate } from '@/components/templates/PublicPageTemplate';
 
 export default function FeaturesIndexPage() {
   const featureList = [
-    { title: 'Margin Shield', href: '/features/margin-shield', icon: ShieldCheck, desc: 'Защитник маржи и калькулятор безопасных скидок' },
-    { title: 'QR Loyalty & Mini-CRM', href: '/features/qr-loyalty', icon: QrCode, desc: 'Оцифровка гостей на кассе без скачивания приложений' },
-    { title: 'Growth Contract', href: '/features/growth-contract', icon: FileCheck, desc: 'Прозрачная сборка проверенных рекомендаций' },
-    { title: 'Multilingual Content Studio', href: '/features/content-studio', icon: Sparkles, desc: 'Генерация постов, сообщений и видео на RU / KK' },
-    { title: 'Сегодня (Today Hub)', href: '/features/today', icon: Sliders, desc: 'Дашборд сигналов роста с оценкой Opportunity Score' },
-    { title: 'Impact Ledger Analytics', href: '/features/analytics', icon: BarChart3, desc: 'Раздельный учет прогнозов и фактической прибыли' },
+    { title: 'Карточка решения', href: '/features/decision-contract', icon: FileCheck, desc: 'Готовое действие вместо таблицы остатков — главная функция' },
+    { title: 'Часы до нуля', href: '/features/stockout-clock', icon: Clock, desc: 'Остаток во времени и разрыв до ближайшей поставки' },
+    { title: 'Прогноз спроса', href: '/features/local-pulse', icon: TrendingUp, desc: 'История продаж плюс Наурыз, жара и начало учебного года' },
+    { title: 'Сравнение поставщиков', href: '/features/supplier-compare', icon: Scale, desc: 'Цена, срок, надёжность, партия и условия в одной оценке' },
+    { title: 'Разделение заказа', href: '/features/split-order', icon: Split, desc: 'Срочная часть у быстрого, основная — у выгодного' },
+    { title: 'Остатки из чата', href: '/features/messenger-stock', icon: MessagesSquare, desc: 'Сообщение, голос или фото превращаются в остаток' },
+    { title: 'Рейтинг поставщиков', href: '/features/community-trust', icon: Boxes, desc: 'Обезличенная статистика поставок всех точек' },
+    { title: 'Симулятор сценариев', href: '/features/what-if', icon: Sliders, desc: 'Что будет, если спрос вырастет или поставка опоздает' },
+    { title: 'Доказанный эффект', href: '/features/impact-ledger', icon: BarChart3, desc: 'Прогноз, влияние и подтверждённый факт лежат отдельно' },
   ];
 
   return (
     <PublicPageTemplate
       breadcrumbs={[{ label: 'Возможности' }]}
-      tag="Full Feature Directory"
-      titleRu="Все модули системы QADAM Growth OS"
-      titleKk="QADAM Growth OS жүйесінің барлық модульдері"
-      subtitleRu="Исследуйте глубокую архитектуру каждого модуля: от защиты маржи до автоматической сборки договоренностей."
-      subtitleKk="Әр модульдің терең архитектурасын зерттеңіз: маржаны қорғаудан бастап келісімдерді автоматты түрде жинауға дейін."
-      problemRu="Разрозненные сервисы рассылок, CRM и Excel-таблицы создают хаос и не позволяют оценить реальную прибыль акций."
-      problemKk="Бытыраңқы хабарлама жіберу сервистері, CRM және Excel кестелері хаос тудырады және акциялардың нақты пайдасын бағалауға мүмкіндік бермейді."
-      solutionRu="Модульная экосистема QADAM объединяет все инструменты роста в единый сквозной процесс."
-      solutionKk="QADAM модульдік экожүйесі барлық өсу құралдарын бірыңғай үздіксіз процеске біріктіреді."
+      tag="Все модули платформы"
+      titleRu="Все модули QOR Autopilot"
+      titleKk="QOR Autopilot-тың барлық модульдері"
+      subtitleRu="Один цикл: остаток → прогноз → риск → решение → заказ → приёмка → рейтинг поставщика. Каждый модуль — шаг этого цикла."
+      subtitleKk="Бір цикл: қалдық → болжам → тәуекел → шешім → тапсырыс → қабылдау → жеткізуші рейтингі."
+      problemRu="Учёт в тетради и переписке, закупка на глаз и выбор поставщика по одной лишь цене — три места, где малый бизнес теряет деньги на снабжении."
+      problemKk="Дәптердегі есеп, көзбен сатып алу және тек баға бойынша жеткізушіні таңдау — шағын бизнес ақша жоғалтатын үш орын."
+      solutionRu="Модули не живут по отдельности: остаток питает прогноз, прогноз — риск, риск — решение, а приёмка возвращает факт обратно в рейтинг поставщика."
+      solutionKk="Модульдер бөлек өмір сүрмейді: қалдық болжамды, болжам тәуекелді, тәуекел шешімді қоректендіреді."
       featuresRu={[
-        'Полная независимость от тяжелых сторонних CRM',
-        'Интерактивные симуляторы перед каждым запуском',
-        'Встроенная поддержка двух языков (RU / KK)',
-        'Готовая подготовка к backend-интеграции Supabase',
+        'Работает без ERP, кассовой интеграции и склада в тетради',
+        'Каждое число раскрывается до формулы, источника и свежести',
+        'Демонстрационные данные помечены и не выдаются за факт',
+        'Два языка интерфейса: русский и казахский',
       ]}
       featuresKk={[
-        'Ауыр үшінші тарап CRM-дерінен толық тәуелсіздік',
-        'Әрбір іске қосу алдындағы интерактивті симуляторлар',
-        'Екі тілді кірістірілген қолдау (RU / KK)',
-        'Supabase backend интеграциясына дайындық',
+        'ERP-сіз, касса интеграциясынсыз жұмыс істейді',
+        'Әр сан формула, дереккөз және жаңалығына дейін ашылады',
+        'Демонстрациялық деректер белгіленген және факт ретінде берілмейді',
+        'Интерфейстің екі тілі: орыс және қазақ',
       ]}
       mockupNode={
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -62,9 +65,9 @@ export default function FeaturesIndexPage() {
           })}
         </div>
       }
-      nextFeatureHref="/features/margin-shield"
-      nextFeatureLabelRu="Открыть Margin Shield"
-      nextFeatureLabelKk="Margin Shield ашу"
+      nextFeatureHref="/features/decision-contract"
+      nextFeatureLabelRu="Открыть карточку решения"
+      nextFeatureLabelKk="Шешім картасын ашу"
     />
   );
 }

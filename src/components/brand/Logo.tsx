@@ -21,9 +21,9 @@ export function Logo({ className = '', size = 'md', href = '/' }: LogoProps) {
       <QadamSignal size={iconSizes[size]} />
       <div className="flex flex-col">
         <span className={`font-sans text-foreground leading-none ${textSizes[size]}`}>
-          QADAM
+          QOR
           <span className="text-primary font-mono ml-1 text-xs px-1.5 py-0.5 rounded bg-primary/10 tracking-normal font-semibold">
-            OS
+            AUTOPILOT
           </span>
         </span>
       </div>

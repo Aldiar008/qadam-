@@ -4,24 +4,92 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { FileCheck, Shield, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { mockGrowthContract } from '@/mock-data/signals';
 
+/**
+ * Карточка решения — главная функция продукта.
+ *
+ * Остальные экраны показывают данные; этот показывает готовое действие вместе
+ * с доказательствами, на которых оно построено, и с тем, что произойдёт, если
+ * ничего не делать. Ниже — поля одной такой карточки целиком: жюри должно
+ * увидеть, что за кнопкой «подтвердить» стоит проверяемый расчёт, а не текст
+ * от модели.
+ */
 export function GrowthContractSection() {
   const { t, language } = useLanguage();
-  const gc = mockGrowthContract;
 
   const fields = [
-    { labelRu: 'Сигнал', labelKk: 'Белгі', valRu: gc.signalDescriptionRu, valKk: gc.signalDescriptionKk },
-    { labelRu: 'Причина', labelKk: 'Себеп', valRu: gc.reasonRu, valKk: gc.reasonKk },
-    { labelRu: 'Уровень доверия (Confidence)', labelKk: 'Сенімділік деңгейі', valRu: `${gc.confidenceScore}% (Анализ по 142 чекам)`, valKk: `${gc.confidenceScore}% (142 чек бойынша талдау)` },
-    { labelRu: 'Цель', labelKk: 'Мақсат', valRu: gc.targetGoal, valKk: gc.targetGoal },
-    { labelRu: 'Аудитория', labelKk: 'Аудитория', valRu: gc.targetAudience, valKk: gc.targetAudience },
-    { labelRu: 'Оффер', labelKk: 'Оффер', valRu: language === 'ru' ? gc.offerDescriptionRu : gc.offerDescriptionKk, valKk: gc.offerDescriptionKk },
-    { labelRu: 'Экономика', labelKk: 'Экономика', valRu: `Мин. чек: ${gc.economics.minCheck} ₸ • Сейф-маржа: ${gc.economics.marginAfterPercent}% • Ожидаемый прирост: +${gc.economics.projectedContributionProfit} ₸`, valKk: `Мин. чек: ${gc.economics.minCheck} ₸ • Маржа: ${gc.economics.marginAfterPercent}%` },
-    { labelRu: 'Канал связи', labelKk: 'Байланыс арнасы', valRu: `${gc.channel} (Персональный шаблон)`, valKk: `${gc.channel} (Жеке үлгі)` },
-    { labelRu: 'Срок действия', labelKk: 'Қолданылу мерзімі', valRu: `${gc.validityDays} дней со дня получения`, valKk: `Алынған күннен бастап ${gc.validityDays} күн` },
-    { labelRu: 'Stop-rule', labelKk: 'Тоқтату ережесі', valRu: gc.stopRule, valKk: gc.stopRule },
-    { labelRu: 'Способ измерения', labelKk: 'Өлшеу әдісі', valRu: gc.measurementMethod, valKk: gc.measurementMethod },
+    {
+      labelRu: 'Риск',
+      labelKk: 'Тәуекел',
+      valRu: 'Красная роза закончится через 29 часов',
+      valKk: 'Қызыл раушан 29 сағаттан кейін бітеді',
+    },
+    {
+      labelRu: 'Откуда известно',
+      labelKk: 'Қайдан белгілі',
+      valRu: 'На витрине 70 стеблей · праздничный спрос 58 в день · 28 дней истории продаж',
+      valKk: 'Витринада 70 сабақ · мерекелік сұраныс күніне 58 · 28 күндік сатылым тарихы',
+    },
+    {
+      labelRu: 'Учтён повод',
+      labelKk: 'Ескерілген себеп',
+      valRu: '8 марта через 4 дня · ×1,8 · отраслевой шаблон, одобрен владельцем',
+      valKk: '8 наурызға 4 күн · ×1,8 · салалық үлгі, иесі мақұлдаған',
+    },
+    {
+      labelRu: 'Уверенность прогноза',
+      labelKk: 'Болжам сенімділігі',
+      valRu: '82% · WAPE 12% на скользящем бэктесте',
+      valKk: '82% · жылжымалы бэктестте WAPE 12%',
+    },
+    {
+      labelRu: 'Что сделать',
+      labelKk: 'Не істеу керек',
+      valRu: 'Заказать 160 стеблей: 40 срочно, 120 плановой поставкой',
+      valKk: '160 сабаққа тапсырыс: 40 жедел, 120 жоспарлы жеткізіліммен',
+    },
+    {
+      labelRu: 'У кого',
+      labelKk: 'Кімнен',
+      valRu: 'База «Барыс» — 10 ч, 820 ₸/шт, OTIF 96% · Ферма «Талгар» — 42 ч, 690 ₸/шт, свежесть 6 дн.',
+      valKk: '«Барыс» базасы — 10 сағ, 820 ₸/дана, OTIF 96% · «Талғар» фермасы — 42 сағ, 690 ₸/дана, сергектігі 6 күн',
+    },
+    {
+      labelRu: 'Сумма заказа',
+      labelKk: 'Тапсырыс сомасы',
+      valRu: '32 800 ₸ + 82 800 ₸ = 115 600 ₸',
+      valKk: '32 800 ₸ + 82 800 ₸ = 115 600 ₸',
+    },
+    {
+      labelRu: 'Ограничения соблюдены',
+      labelKk: 'Шектеулер сақталды',
+      valRu: 'Кратность 10 стеблей · минимальная партия 20 · сорт «красная 60 см» подтверждён у обоих',
+      valKk: 'Еселігі 10 сабақ · ең аз партия 20 · сұрып «қызыл 60 см» екеуінде де расталған',
+    },
+    {
+      labelRu: 'Альтернатива, которую отклонили',
+      labelKk: 'Қабылданбаған балама',
+      valRu: 'Всё у «Барыса»: 131 200 ₸ — на 15 600 ₸ дороже. Всё у «Талгара»: дешевле, но 13 часов пустой витрины',
+      valKk: 'Барлығы «Барыстан»: 131 200 ₸ — 15 600 ₸ қымбат. Барлығы «Талғардан»: арзан, бірақ 13 сағат бос витрина',
+    },
+    {
+      labelRu: 'Разница со сценарием «всё быстро»',
+      labelKk: '«Барлығы жылдам» сценарийімен айырма',
+      valRu: '15 600 ₸ — прогноз, а не фактическая экономия',
+      valKk: '15 600 ₸ — болжам, нақты үнемдеу емес',
+    },
+    {
+      labelRu: 'Кто подтверждает',
+      labelKk: 'Кім растайды',
+      valRu: 'Владелец или управляющий · отправка поставщику — отдельным действием',
+      valKk: 'Иесі немесе басқарушы · жеткізушіге жіберу — бөлек әрекет',
+    },
+    {
+      labelRu: 'Как проверим',
+      labelKk: 'Қалай тексереміз',
+      valRu: 'Приёмка сверит факт с заказом и пересчитает рейтинг поставщика',
+      valKk: 'Қабылдау фактіні тапсырыспен салыстырып, рейтингті қайта санайды',
+    },
   ];
 
   return (
@@ -31,7 +99,7 @@ export function GrowthContractSection() {
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
             <FileCheck className="w-4 h-4" />
-            <span>Growth Contract Architecture</span>
+            <span>Split-order Flower Rescue</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight">
             {t.contractTitle}
@@ -41,27 +109,29 @@ export function GrowthContractSection() {
           </p>
         </div>
 
-        {/* Unified Growth Contract Document Frame */}
+        {/* Unified Decision Contract Document Frame */}
         <div className="bg-background rounded-3xl md:rounded-[40px] border border-border p-6 sm:p-10 shadow-2xl space-y-8 relative">
           {/* Document Header */}
           <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-mono font-bold">
-                GC
+                DC
               </div>
               <div>
                 <h3 className="font-bold text-foreground text-lg sm:text-xl">
-                  {language === 'ru' ? gc.titleRu : gc.titleKk}
+                  {language === 'ru'
+                    ? 'Заказать розы: 40 стеблей срочно + 120 планово'
+                    : 'Раушанға тапсырыс: 40 сабақ жедел + 120 жоспарлы'}
                 </h3>
                 <p className="text-xs font-mono text-muted-foreground">
-                  ID: {gc.id} • Signed & Executable
+                  ID: dc-2026-0814-03 • Ждёт подтверждения владельца
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 text-xs font-mono font-bold border border-emerald-500/20">
               <Shield className="w-3.5 h-3.5" />
-              <span>Margin Verified</span>
+              <span>Данные свежие: 2 мин</span>
             </div>
           </div>
 
@@ -90,14 +160,14 @@ export function GrowthContractSection() {
           <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs font-mono text-emerald-700">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Готов к отправке за 1 клик</span>
+              <span>Одно подтверждение — и заказ собран</span>
             </div>
 
             <a
               href="/demo"
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary-hover transition-all flex items-center justify-center gap-2"
             >
-              <span>{language === 'ru' ? 'Запустить контракт' : 'Келісімшартты іске қосу'}</span>
+              <span>{language === 'ru' ? 'Подтвердить заказ' : 'Тапсырысты растау'}</span>
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>

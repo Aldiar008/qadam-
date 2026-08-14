@@ -21,7 +21,7 @@ export default function ContactPage() {
           <div className="space-y-4 max-w-2xl">
             <span className="text-xs font-mono font-bold text-primary uppercase">Связаться с командой</span>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
-              {language === 'ru' ? 'Контакты QADAM Growth OS' : 'QADAM Growth OS байланыстары'}
+              {language === 'ru' ? 'Контакты QOR Autopilot' : 'QOR Autopilot байланыстары'}
             </h1>
             <p className="text-lg text-muted-foreground">
               {language === 'ru'

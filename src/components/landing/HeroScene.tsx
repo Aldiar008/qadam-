@@ -122,14 +122,14 @@ export function HeroScene() {
                       {t.todayCardTitle}
                     </h3>
                     <p className="text-xs font-mono text-muted-foreground">
-                      QADAM Growth Engine • Live Data
+                      QOR Supply Engine • Обновлено 2 мин назад
                     </p>
                   </div>
                 </div>
 
-                {/* Opportunity Score Pill */}
+                {/* Confidence Pill */}
                 <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 font-mono font-bold text-sm">
-                  <span>Growth Opportunity:</span>
+                  <span>Уверенность:</span>
                   <span className="text-lg text-emerald-600">87</span>
                   <span className="text-xs font-sans text-emerald-800">/ 100</span>
                 </div>
@@ -142,9 +142,9 @@ export function HeroScene() {
                   <div className="flex items-center justify-between text-rose-600 text-xs font-mono font-semibold">
                     <span className="flex items-center gap-1.5">
                       <TrendingDown className="w-4 h-4" />
-                      {language === 'ru' ? 'Сигнал выручки' : 'Түсім белгісі'}
+                      {language === 'ru' ? 'Риск дефицита' : 'Тапшылық тәуекелі'}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-rose-500/10 font-bold">-27%</span>
+                    <span className="px-2 py-0.5 rounded bg-rose-500/10 font-bold">18 ч</span>
                   </div>
                   <p className="text-sm font-semibold text-foreground">
                     {t.todayCardSignal}
@@ -156,9 +156,9 @@ export function HeroScene() {
                   <div className="flex items-center justify-between text-amber-800 text-xs font-mono font-semibold">
                     <span className="flex items-center gap-1.5">
                       <Users className="w-4 h-4" />
-                      {language === 'ru' ? 'Аудитория' : 'Аудитория'}
+                      {language === 'ru' ? 'Поставка' : 'Жеткізілім'}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/10 font-bold">64 чел</span>
+                    <span className="px-2 py-0.5 rounded bg-amber-500/10 font-bold">48 ч</span>
                   </div>
                   <p className="text-sm font-semibold text-foreground">
                     {t.todayCardSleeping}
@@ -170,9 +170,9 @@ export function HeroScene() {
                   <div className="flex items-center justify-between text-emerald-700 text-xs font-mono font-semibold">
                     <span className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" />
-                      {language === 'ru' ? 'Безопасный оффер' : 'Қауіпсіз оффер'}
+                      {language === 'ru' ? 'Готовые решения' : 'Дайын шешімдер'}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 font-bold">18 target</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 font-bold">3 шт</span>
                   </div>
                   <p className="text-sm font-semibold text-foreground">
                     {t.todayCardTarget}
@@ -185,16 +185,16 @@ export function HeroScene() {
                 <div className="space-y-1 text-left w-full sm:w-auto">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono uppercase font-bold text-primary tracking-wider">
-                      {language === 'ru' ? 'Рекомендованное действие' : 'Усынылған әрекет'}
+                      {language === 'ru' ? 'Рекомендованное действие' : 'Ұсынылған әрекет'}
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">
-                      Margin Shield Verified
+                      Ограничения соблюдены
                     </span>
                   </div>
                   <p className="text-sm font-bold text-foreground">
                     {language === 'ru'
-                      ? 'Миндальный круассан в подарок при чеке от 3 500 ₸ в 15:00-18:00'
-                      : '15:00-18:00 аралығында 3 500 ₸ чегі үшін миндаль круассаны сыйлыққа'}
+                      ? 'Роза красная: 40 стеблей срочно у «Барыса» + 120 планово у «Талгара»'
+                      : 'Қызыл раушан: «Барыстан» 40 сабақ жедел + «Талғардан» 120 жоспарлы'}
                   </p>
                 </div>
 
@@ -214,11 +214,11 @@ export function HeroScene() {
               className="hidden lg:flex absolute -top-8 -left-12 z-30 bg-surface rounded-2xl p-4 shadow-xl border border-border items-center gap-3"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 font-bold">
-                +48.7k₸
+                −42k₸
               </div>
               <div>
-                <p className="text-xs font-mono text-muted-foreground uppercase">Прогноз прироста</p>
-                <p className="text-sm font-bold text-foreground">Simulated Incremental</p>
+                <p className="text-xs font-mono text-muted-foreground uppercase">Если не заказать</p>
+                <p className="text-sm font-bold text-foreground">Прогноз, не факт</p>
               </div>
             </motion.div>
 
@@ -232,9 +232,9 @@ export function HeroScene() {
                 <ShieldAlert className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs font-mono text-muted-foreground uppercase">Margin Shield</p>
+                <p className="text-xs font-mono text-muted-foreground uppercase">Ферма «Талгар»</p>
                 <p className="text-sm font-bold text-emerald-600">
-                  {language === 'ru' ? 'Скидка 20% заблокирована' : '20% жеңілдік бұғатталды'}
+                  {language === 'ru' ? 'Вовремя и полностью: 88%' : 'Уақытында әрі толық: 88%'}
                 </p>
               </div>
             </motion.div>

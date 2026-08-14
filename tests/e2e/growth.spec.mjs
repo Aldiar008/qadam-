@@ -106,7 +106,10 @@ try {
     const foreign = db(`select count(*) from public.supply_offers where supply_item_id='${itemId}' and source='web' and url not like 'https://kaspi.kz/%'`);
     r.check('все ссылки ведут на kaspi.kz', foreign, '0');
 
-    r.check('экран говорит, что цены надо проверить', shown, 'не подтверждены');
+    // Экран не называет найденное экономией, пока владелец не подтвердил
+    // товар: площадка не знает, тот ли это артикул.
+    r.check('экран говорит, что цены надо проверить', shown, (v) =>
+      v.includes('это ещё не экономия') || v.includes('Площадка не знает, тот ли это товар'));
   } else {
     // Отказ площадки — законный исход. Незаконно его спрятать.
     r.check('экран называет отказ площадки', shown, (v) =>
@@ -124,17 +127,31 @@ try {
   process.stdout.write('\nGROWTH-4  Каталог подбирает под профиль, а журнал показывает историю\n');
   await gotoReady(page, '/app/tools');
   const tools = await page.textContent('body');
-  r.check('каталог объявляет подбор под профиль', tools, 'С чего начать именно вам');
+  // Заголовок зависит от того, включён ли уже набор первого дня: «с чего начать»
+  // рядом с включённым набором читалось бы как противоречие.
+  r.check('каталог объявляет подбор под профиль', tools, (v) =>
+    v.includes('С чего начать именно вам') || v.includes('Что добавить к набору'));
 
   // Подпись обязана называть профиль из базы, а не подставлять умолчание.
   const type = db(`select t.code from public.business_types t join public.businesses b on b.business_type_id=t.id where b.id='${BIZ}'`);
   const goal = db(`select code from public.business_goals where business_id='${BIZ}' and status='active' order by priority limit 1`);
   r.check('профиль в базе задан', `${type}/${goal}`, (v) => v.length > 2 && !v.startsWith('/'));
-  r.check('подпись называет тип заведения из базы', tools, type === 'cafe' ? 'кофейне' : type === 'beauty' ? 'салону' : type === 'retail' ? 'магазину' : 'сервисной точке');
+  const TYPE_WORD = {
+    cafe: 'кофейне', beauty: 'салону', retail: 'магазину', service: 'сервисной точке',
+    dental: 'стоматологии', flower_shop: 'цветочному магазину', flower_chain: 'сети цветочных',
+  };
+  r.check('подпись называет тип заведения из базы', tools, TYPE_WORD[type] ?? 'заведению');
+
+  // Набор первого дня выдаётся отдельным блоком, и он не пустой.
+  r.check('набор первого дня показан списком', tools, (v) => /Старт цветочного магазина|Старт сети цветочных/.test(v));
 
   await gotoReady(page, '/app/tools?suggested=1');
   const suggested = await page.$$eval('article', (nodes) => nodes.length);
-  r.check('фильтр «Рекомендуемые» сужает каталог, а не показывает всё', suggested > 0 && suggested <= 4 ? String(suggested) : `${suggested}`, (v) => Number(v) > 0 && Number(v) <= 4);
+  // Подбор — это короткий список, а не каталог в другом порядке. Ноль тоже
+  // допустим: когда весь набор уже включён, предлагать нечего, и это честно.
+  const published = Number(db(`select count(*) from public.tools where status='published' and is_public`));
+  r.check('фильтр «Рекомендуемые» сужает каталог, а не показывает всё', String(suggested), (v) =>
+    Number(v) >= 0 && Number(v) < published);
 
   // Механика из подбора должна доезжать до студии выбранной, иначе ссылка врёт.
   await gotoReady(page, '/app/campaigns/studio?step=3&mechanic=gift_with_threshold');

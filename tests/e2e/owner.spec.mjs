@@ -10,7 +10,7 @@ try {
   // ---------------------------------------------------------------- 1
   process.stdout.write('\nOWNER-1  Landing CTA leads to sign-up and demo login\n');
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-  r.check('landing renders the value proposition', await page.textContent('h1'), 'выгодное действие');
+  r.check('landing renders the value proposition', await page.textContent('h1'), 'Свежие цветы вовремя');
   const ctas = await page.$$eval('a[href^="/signup"], a[href="/demo"], a[href="/login"]', (nodes) =>
     nodes.map((n) => n.getAttribute('href')));
   r.check('landing exposes sign-up, demo and login CTAs', ctas.join(' '), (v) =>
@@ -119,22 +119,21 @@ try {
   await shot(page, 'owner-03-catalogue');
 
   // ---------------------------------------------------------------- 4
-  process.stdout.write('\nOWNER-4  Today signal: -27%, 64 inactive, 18 eligible\n');
+  process.stdout.write('\nOWNER-4  Кабинет цветочного: очередь решений, деньги и история\n');
   await gotoReady(page, '/app/today');
   const today = await page.textContent('main');
-  // Экран печатает человеческий заголовок сигнала, а ключ метрики остаётся в
-  // evidence: проверять надо, что сигнал показан, а не как он назван внутри.
-  r.check('the top signal is rendered', today, (v) => /Тихие часы|weekday_revenue/.test(v));
-  // The check is named for what it should assert: that the figure on screen is
-  // the figure in the database. Pinning it to «27» asserted the opposite — that
-  // the number is a constant — and went red the moment the detector re-measured
-  // the demo's own sales and honestly got −22%.
-  // The screen prints `change_bps / 100` as-is, so the assertion compares
-  // against exactly that. Rounding it here was my second attempt at the same
-  // mistake: inventing a number and then checking the product against it.
-  const measuredBps = db(`select change_bps::text from public.signals where business_id='${BIZ}' and metric_key='weekday_revenue_afternoon_15_18' limit 1`);
-  r.check('signal magnitude comes from the database', today, (v) => v.includes(String(Number(measuredBps) / 100)));
-  r.check('and it is a real drop, not a rounding artefact', measuredBps, (v) => Number(v) <= -1500);
+  // Кабинет сменил задачу вместе с продуктом: раньше он показывал маркетинговый
+  // сигнал «тихие часы», теперь — очередь решений цветочного магазина. Проверять
+  // надо то, что он обещает сегодня, а не то, что обещал прошлой версии.
+  r.check('the queue names how many decisions are due', today, (v) => /Решений на сегодня: \d+|Ничего не горит/.test(v));
+  r.check('shortage and spoilage money are shown apart, not summed', today, (v) =>
+    v.includes('не хватит до заказа') && v.includes('может уйти в мусор'));
+  // Число на экране — это число из базы. Позиции в очереди берутся из тех же
+  // строк, по которым считается риск, поэтому их количество и сверяется.
+  const positions = db(`select count(*) from public.supply_items where business_id='${BIZ}'`);
+  r.check('the queue counts the shop\'s own positions', today, (v) => v.includes(`${positions} позиций на витрине`));
+  r.check('every queue card offers a way out, not just a warning', today, (v) =>
+    !/Решений на сегодня: [1-9]/.test(v) || v.includes('Открыть решение'));
   r.check('64 inactive customers in the segment', db(`select count(*) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'`), '64');
   r.check('18 of them consent to Telegram marketing', db(`select count(*) from public.effective_consent_customers('${BIZ}','marketing.telegram', (select array_agg(id) from public.customers where business_id='${BIZ}' and lifecycle_stage='inactive'))`), '18');
   await shot(page, 'owner-04-today-signal');

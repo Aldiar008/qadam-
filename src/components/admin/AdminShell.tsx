@@ -5,11 +5,20 @@ import { refreshAdminReauth } from '@/app/admin/actions';
 
 /** Shared chrome for the console: nav, banners and the re-auth control. */
 
+// Порядок повторяет то, как справочник влияет на магазин: сначала чем он
+// торгует, потом сколько это стоит и живёт, потом когда заказывать, потом чем
+// он это делает. Служебные разделы платформы — в конце.
 const ADMIN_NAV = [
   { href: '/admin', label: 'Обзор' },
+  { href: '/admin/flower-categories', label: 'Категории цветов' },
+  { href: '/admin/policies', label: 'Товарная политика' },
+  { href: '/admin/rules', label: 'Правила автозаказа' },
+  { href: '/admin/calendar', label: 'Календарь поводов' },
+  { href: '/admin/templates', label: 'Шаблоны поставщиков' },
   { href: '/admin/tools', label: 'Инструменты' },
-  { href: '/admin/categories', label: 'Категории и типы' },
-  { href: '/admin/templates', label: 'Шаблоны' },
+  { href: '/admin/bundles', label: 'Наборы' },
+  { href: '/admin/categories', label: 'Категории каталога' },
+  { href: '/admin/business-types', label: 'Типы бизнеса' },
 ];
 
 export function AdminNav({ current }: { current: string }) {

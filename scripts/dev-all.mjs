@@ -286,7 +286,7 @@ if (!ready) {
 } else {
   process.stdout.write(`
 ${c.green('━'.repeat(64))}
-  ${c.bold('QADAM Growth OS запущен')}
+  ${c.bold('QOR Autopilot запущен')}
 
   ${c.bold('Приложение')}        ${c.cyan(base)}
   ${c.bold('Supabase Studio')}   ${c.cyan(supabase.STUDIO_URL)}

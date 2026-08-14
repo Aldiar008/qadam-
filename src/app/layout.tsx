@@ -12,12 +12,12 @@ import { demoTenantsEnabled } from '@/lib/app-mode';
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} — AI Growth Operating System`,
+    default: `${siteConfig.name} — автопилот снабжения для цветочного магазина`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  keywords: ['AI Growth OS', 'Казахстан', 'малый бизнес', 'маркетинг', 'Margin Shield', 'Growth Contract', 'лояльность'],
-  authors: [{ name: 'QADAM Team' }],
+  keywords: ['цветочный магазин', 'снабжение', 'свежесть цветов', 'учёт остатков', 'автозаказ', 'прогноз спроса', 'поставщики', 'Казахстан', '8 марта'],
+  authors: [{ name: 'QOR Team' }],
   openGraph: {
     title: siteConfig.name,
     description: siteConfig.description,

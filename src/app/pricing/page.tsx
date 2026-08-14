@@ -33,7 +33,7 @@ export default function PricingPage() {
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{language === 'ru' ? 'Вложение в измеримый рост' : 'Өлшенетін өсуге салым'}</span>
+              <span>{language === 'ru' ? 'Дешевле одной сорванной поставки' : 'Бір бұзылған жеткізілімнен арзан'}</span>
             </div>
             <h1 className="text-4xl sm:text-6xl font-extrabold text-foreground tracking-tight">
               {language === 'ru' ? 'Простые и прозрачные тарифы' : 'Қарапайым және мөлдір тарифтер'}

@@ -9,7 +9,7 @@ import { loadLocalEnv } from './env.mjs';
 
 loadLocalEnv();
 
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin', 'mini-app', 'growth'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['owner', 'customer', 'admin', 'mini-app', 'growth', 'supply', 'decision', 'thin'];
 
 // Resetting the local stack while the suites drive a deployed environment
 // would prove nothing and quietly desynchronise the run, so the target decides.

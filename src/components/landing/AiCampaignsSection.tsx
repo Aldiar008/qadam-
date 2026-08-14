@@ -2,141 +2,144 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, ArrowRight, Gift, Clock, Tag, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Flower2, Leaf, Package, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export function AiCampaignsSection() {
   const { language } = useLanguage();
 
-  const goals = [
-    { id: 'winback', nameRu: 'Вернуть клиентов', nameKk: 'Клиенттерді қайтару' },
-    { id: 'avg_check', nameRu: 'Повысить средний чек', nameKk: 'Орташа чекті көтеру' },
-    { id: 'quiet_hours', nameRu: 'Заполнить тихие часы', nameKk: 'Тыныш сағаттарды толтыру' },
-    { id: 'promote', nameRu: 'Продвинуть товар', nameKk: 'Тауарды жылжыту' },
+  const events = [
+    { id: 'normal', nameRu: 'Обычная неделя', nameKk: 'Кәдімгі апта' },
+    { id: 'nauryz', nameRu: '8 марта через 4 дня', nameKk: '8 наурызға 4 күн' },
+    { id: 'heat', nameRu: 'Жара +35°', nameKk: 'Ыстық +35°' },
+    { id: 'school', nameRu: 'Выпускные', nameKk: 'Бітіру кештері' },
   ];
 
-  const [selectedGoal, setSelectedGoal] = useState('winback');
+  const [selectedEvent, setSelectedEvent] = useState('normal');
 
-  const campaignOptions = {
-    winback: [
+  // Каждый вариант — позиция с базовым прогнозом, коэффициентом события и
+  // рекомендованным количеством. Источник коэффициента подписан на карточке:
+  // без события это история продаж, с событием — отраслевой шаблон.
+  const forecastOptions = {
+    normal: [
       {
-        icon: Gift,
-        tag: 'Рекомендация #1',
-        titleRu: 'Подарок при чеке от 3 500 ₸',
-        titleKk: '3 500 ₸ чек үшін сыйлық',
-        descRu: 'Миндальный круассан в подарок для 18 клиентов, не заходивших 30+ дней.',
-        descKk: '30+ күн келмеген 18 клиентке миндаль круассаны сыйлыққа.',
+        icon: Flower2,
+        tag: 'Расход по истории',
+        titleRu: 'Роза красная 60 см — 32 стебля в день',
+        titleKk: 'Қызыл раушан 60 см — күніне 32 сабақ',
+        descRu: 'Базовый прогноз по 28 дням продаж с поправкой на день недели. Пятница и суббота дают половину недельного расхода.',
+        descKk: '28 күндік сатылым бойынша базалық болжам, апта күніне түзетумен. Жұма мен сенбі апталық шығыстың жартысын береді.',
         recommended: true,
       },
       {
-        icon: Tag,
-        tag: 'Вариант #2',
-        titleRu: 'Персональный купон на 1 000 ₸',
-        titleKk: '1 000 ₸ жеке купон',
-        descRu: 'Ограниченный купон со сроком действия 5 дней при заказе сета.',
-        descKk: 'Жиынтыққа тапсырыс бергенде 5 күн мерзімі бар шектеулі купон.',
+        icon: Leaf,
+        tag: 'Расход по истории',
+        titleRu: 'Эвкалипт — 6 пучков в день',
+        titleKk: 'Эвкалипт — күніне 6 шоқ',
+        descRu: 'Зелень уходит вместе с букетом, а не отдельно: её расход считается от числа собранных букетов.',
+        descKk: 'Көгал букетпен бірге кетеді: оның шығысы жиналған букет санынан есептеледі.',
         recommended: false,
       },
       {
-        icon: Clock,
-        tag: 'Вариант #3',
-        titleRu: 'Счастливый час 15:00-18:00',
-        titleKk: 'Бақытты сағат 15:00-18:00',
-        descRu: 'Второй напиток за 50% в будни для гостей с пониженным чеком.',
-        descKk: 'Төмендеген чегі бар қонақтар үшін екінші сусын 50%-ға.',
+        icon: Package,
+        tag: 'Расход по истории',
+        titleRu: 'Упаковочная бумага — 21 лист в день',
+        titleKk: 'Қаптама қағаз — күніне 21 парақ',
+        descRu: 'Позиция без срока: выгоднее заказывать раз в две недели крупной партией и не думать о ней.',
+        descKk: 'Мерзімі жоқ позиция: екі аптада бір рет ірі партиямен алған тиімді.',
         recommended: false,
       },
     ],
-    avg_check: [
+    nauryz: [
       {
-        icon: Gift,
-        tag: 'Рекомендация #1',
-        titleRu: 'Сет "Десерт + Напиток" за +15% к чеку',
-        titleKk: 'Чекке +15% үшін "Десерт + Сусын" жиынтығы',
-        descRu: 'Предложение фирменного десерта при сумме в корзине от 2 800 ₸.',
-        descKk: 'Себет сомасы 2 800 ₸-ден бастап фирмалық десертті ұсыну.',
+        icon: Flower2,
+        tag: 'Гипотеза · отраслевой шаблон',
+        titleRu: 'Роза красная — 58 стеблей в день (×1,8)',
+        titleKk: 'Қызыл раушан — күніне 58 сабақ (×1,8)',
+        descRu: 'Главный день года. Коэффициент взят из отраслевого шаблона и помечен гипотезой: он не двигает прогноз, пока владелец его не одобрит.',
+        descKk: 'Жылдың басты күні. Коэффициент салалық үлгіден алынған және болжам деп белгіленген.',
         recommended: true,
       },
       {
-        icon: Tag,
-        tag: 'Вариант #2',
-        titleRu: 'Бесплатный топпинг / сироп',
-        titleKk: 'Тегін топпинг / сироп',
-        descRu: 'Добавление премиум сиропа в подарок при заказе большого объема.',
-        descKk: 'Үлкен көлемге тапсырыс бергенде сыйлыққа премиум сироп қосу.',
+        icon: Leaf,
+        tag: 'Гипотеза · отраслевой шаблон',
+        titleRu: 'Эвкалипт — 11 пучков в день (×1,8)',
+        titleKk: 'Эвкалипт — күніне 11 шоқ (×1,8)',
+        descRu: 'Зелень растёт вместе с розой, но стоит на два дня меньше: заказ разбит на две поставки, чтобы не уйти в списание десятого.',
+        descKk: 'Көгал раушанмен бірге өседі, бірақ екі күн аз тұрады: тапсырыс екі жеткізілімге бөлінген.',
         recommended: false,
       },
       {
-        icon: Clock,
-        tag: 'Вариант #3',
-        titleRu: 'Бонусные балы х2 на вечерние заказы',
-        titleKk: 'Кешкі тапсырыстарға х2 бонус ұпайлары',
-        descRu: 'Двойное начисление баллов при покупке от 4 000 ₸ после 18:00.',
-        descKk: '18:00-ден кейін 4 000 ₸-ден бастап сатып алғанда екі есе балл жинау.',
+        icon: Package,
+        tag: 'Гипотеза · отраслевой шаблон',
+        titleRu: 'Упаковка и лента — ×2,1',
+        titleKk: 'Қаптама мен таспа — ×2,1',
+        descRu: 'Растёт сильнее цветов: восьмого марта почти каждый стебель уходит в оформленном букете, а не поштучно.',
+        descKk: 'Гүлден күштірек өседі: 8 наурызда әр сабақ дерлік безендірілген букетпен кетеді.',
         recommended: false,
       },
     ],
-    quiet_hours: [
+    heat: [
       {
-        icon: Clock,
-        tag: 'Рекомендация #1',
-        titleRu: 'Happy Hours 15:00–18:00',
-        titleKk: 'Happy Hours 15:00–18:00',
-        descRu: 'Минимальный чек 3 500 ₸ дает бесплатный круассан в тихие часы.',
-        descKk: 'Ең төменгі чек 3 500 ₸ тыныш сағаттарда тегін круассан береді.',
+        icon: Flower2,
+        tag: 'Гипотеза · погода',
+        titleRu: 'Роза красная — срок минус два дня',
+        titleKk: 'Қызыл раушан — мерзімі екі күнге қысқа',
+        descRu: 'При +35° срез стоит не пять дней, а три. Прогноз спроса не меняется, а вот риск списания вырастает вдвое.',
+        descKk: '+35°-та кесік бес күн емес, үш күн тұрады. Сұраныс болжамы өзгермейді, ал есептен шығару қатері екі есе өседі.',
         recommended: true,
       },
       {
-        icon: Gift,
-        tag: 'Вариант #2',
-        titleRu: 'Скидка 30% на выпечку после 17:00',
-        titleKk: '17:00-ден кейін пісірілген өнімдерге 30% жеңілдік',
-        descRu: 'Распродажа дневного выпечного ассортимента для постоянных гостей.',
-        descKk: 'Тұрақты қонақтар үшін күндізгі өнімдерді сату.',
+        icon: Leaf,
+        tag: 'Гипотеза · погода',
+        titleRu: 'Эвкалипт — без изменений',
+        titleKk: 'Эвкалипт — өзгеріссіз',
+        descRu: 'Сухая зелень переносит жару лучше срезанного цветка: ни спрос, ни срок заметно не двигаются.',
+        descKk: 'Құрғақ көгал ыстықты кесілген гүлден жақсы көтереді: сұраныс та, мерзім де айтарлықтай өзгермейді.',
         recommended: false,
       },
       {
-        icon: Tag,
-        tag: 'Вариант #3',
-        titleRu: 'Комбо "Рабочий полдень"',
-        titleKk: '"Жұмыс түсі" комбосы',
-        descRu: 'Сэндвич + Кофе со скидкой 15% с 14:00 до 16:00.',
-        descKk: '14:00-ден 16:00-ге дейін 15% жеңілдікпен сэндвич + кофе.',
+        icon: Package,
+        tag: 'Гипотеза · погода',
+        titleRu: 'Заказ роз урезан до двух дней покрытия',
+        titleKk: 'Раушан тапсырысы екі күндік жабуға дейін қысқарды',
+        descRu: 'Правило «тормоз на списание» режет объём, когда позиция уже под риском увядания. Лучше довезти в четверг, чем выбросить в среду.',
+        descKk: '«Есептен шығару тежегіші» ережесі көлемді қысқартады. Сәрсенбіде тастағаннан гөрі бейсенбіде жеткізген жақсы.',
         recommended: false,
       },
     ],
-    promote: [
+    school: [
       {
-        icon: Tag,
-        tag: 'Рекомендация #1',
-        titleRu: 'Презентация нового Мача Латте',
-        titleKk: 'Жаңа Мача Латте презентациясы',
-        descRu: 'Промокод на дегустационную порцию при любой покупке от 2 000 ₸.',
-        descKk: '2 000 ₸-ден басталатын кез келген сатып алуда дегустациялық порцияға промокод.',
+        icon: Flower2,
+        tag: 'Гипотеза · календарь',
+        titleRu: 'Хризантема — ×2,4',
+        titleKk: 'Хризантема — ×2,4',
+        descRu: 'Выпускные идут волной с конца мая: даты плавают по школам, поэтому окно шире обычного — четыре дня вместо трёх.',
+        descKk: 'Бітіру кештері мамырдың соңынан толқынмен жүреді: күндер мектеп бойынша ауысады, сондықтан терезе кеңірек.',
         recommended: true,
       },
       {
-        icon: Gift,
-        tag: 'Вариант #2',
-        titleRu: '1+1 на сезонные напитки',
-        titleKk: 'Маусымдық сусындарға 1+1',
-        descRu: 'При покупке авторского чая второй аналогичный в подарок.',
-        descKk: 'Авторлық шай сатып алғанда екінші ұқсас шай сыйлыққа.',
+        icon: Flower2,
+        tag: 'Гипотеза · календарь',
+        titleRu: 'Роза красная — ×1,3',
+        titleKk: 'Қызыл раушан — ×1,3',
+        descRu: 'Растёт слабее хризантемы: на выпускной чаще берут светлые и смешанные букеты, а не монобукет из красных роз.',
+        descKk: 'Хризантемадан әлсіз өседі: бітіру кешіне ашық және аралас букет жиірек алынады.',
         recommended: false,
       },
       {
-        icon: Clock,
-        tag: 'Вариант #3',
-        titleRu: 'Закрытый предпоказ меню для VIP',
-        titleKk: 'VIP үшін мәзірді жабық алдын ала қарау',
-        descRu: 'Персональное приглашение для сегмента с максимальным LTV.',
-        descKk: 'Максималды LTV бар сегмент үшін жеке шақыру.',
+        icon: Package,
+        tag: 'Гипотеза · календарь',
+        titleRu: 'Упаковка — ×2,4',
+        titleKk: 'Қаптама — ×2,4',
+        descRu: 'Повторяет цветы: букет без оформления на выпускной почти не берут. Позиция не портится, поэтому заказывается сразу на всю волну.',
+        descKk: 'Гүлді қайталайды. Позиция бүлінбейді, сондықтан бірден бүкіл толқынға тапсырыс беріледі.',
         recommended: false,
       },
     ],
   };
 
-  const currentOptions = campaignOptions[selectedGoal as keyof typeof campaignOptions] || campaignOptions.winback;
+  const currentOptions = forecastOptions[selectedEvent as keyof typeof forecastOptions] || forecastOptions.normal;
 
   return (
     <section className="py-24 md:py-36 bg-background relative overflow-hidden">
@@ -145,26 +148,26 @@ export function AiCampaignsSection() {
         <div className="max-w-3xl mb-12 space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Offer Generator</span>
+            <span>Local Pulse Forecast</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight">
-            {language === 'ru' ? 'AI-генератор безопасных акций' : 'Қауіпсіз акциялардың AI-генераторы'}
+            {language === 'ru' ? 'Flower Calendar: прогноз, который знает про восьмое марта' : 'Flower Calendar: 8 наурызды білетін болжам'}
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
             {language === 'ru'
-              ? 'Выберите цель вашего бизнеса — QADAM моментально сформирует 3 выверенных сценария с подготовленными текстами и просчитанной экономикой.'
-              : 'Бизнесіңіздің мақсатын таңдаңыз — QADAM лезде дайындалған мәтіндері бар 3 сценарийді қалыптастырады.'}
+              ? 'Базовый прогноз строится на истории продаж и дне недели. Поводы — восьмое марта, выпускные, жара — добавляются отдельным коэффициентом с указанием источника и уверенности. Пока владелец не одобрил повод, коэффициент лежит рядом и на прогноз не влияет.'
+              : 'Базалық болжам сатылым тарихы мен апта күніне негізделеді. Себептер бөлек коэффициентпен, дереккөзі мен сенімділігі көрсетіліп қосылады. Иесі мақұлдамайынша, коэффициент болжамға әсер етпейді.'}
           </p>
         </div>
 
-        {/* Goal Selector Buttons */}
+        {/* Event Selector Buttons */}
         <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-4 mb-8 no-scrollbar">
-          {goals.map((g) => {
-            const isSelected = selectedGoal === g.id;
+          {events.map((g) => {
+            const isSelected = selectedEvent === g.id;
             return (
               <button
                 key={g.id}
-                onClick={() => setSelectedGoal(g.id)}
+                onClick={() => setSelectedEvent(g.id)}
                 className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all border ${
                   isSelected
                     ? 'bg-primary text-primary-foreground border-primary shadow-md'
@@ -177,10 +180,10 @@ export function AiCampaignsSection() {
           })}
         </div>
 
-        {/* Campaign Options Grid */}
+        {/* Forecast Options Grid */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={selectedGoal}
+            key={selectedEvent}
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
@@ -201,7 +204,7 @@ export function AiCampaignsSection() {
                   {opt.recommended && (
                     <div className="absolute -top-3.5 left-6 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-mono font-bold flex items-center gap-1 shadow-sm">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{language === 'ru' ? 'Выбор QADAM' : 'QADAM таңдауы'}</span>
+                      <span>{language === 'ru' ? 'Главный риск' : 'Басты тәуекел'}</span>
                     </div>
                   )}
 
@@ -224,10 +227,10 @@ export function AiCampaignsSection() {
 
                   <div className="pt-6 mt-6 border-t border-border flex items-center justify-between">
                     <span className="text-xs font-mono text-emerald-600 font-bold">
-                      Margin Shield OK
+                      WAPE 12%
                     </span>
                     <button className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-                      <span>{language === 'ru' ? 'Сформировать' : 'Қалыптастыру'}</span>
+                      <span>{language === 'ru' ? 'Открыть решение' : 'Шешімді ашу'}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

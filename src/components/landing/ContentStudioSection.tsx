@@ -2,29 +2,82 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, MessageSquare, Instagram, Send, Copy, Check, type LucideIcon } from 'lucide-react';
+import { Scale, Truck, Copy, Check, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { mockContentStudioItems } from '@/mock-data/campaigns';
 
+/**
+ * Сравнение поставщиков: цена — только один из пяти параметров.
+ *
+ * Табы переключают не каналы, а поставщиков одной и той же позиции. Внизу
+ * лежит готовое сообщение для выбранного: решение доводится до отправки, но
+ * отправка остаётся отдельным действием владельца.
+ */
 export function ContentStudioSection() {
   const { language, setLanguage } = useLanguage();
-  const [activeChannel, setActiveChannel] = useState<'whatsapp' | 'instagram_post' | 'telegram'>('whatsapp');
+  const [activeSupplier, setActiveSupplier] = useState<'bereke' | 'aisu' | 'dala'>('aisu');
   const [copied, setCopied] = useState(false);
 
-  const channels: { id: 'whatsapp' | 'instagram_post' | 'telegram'; name: string; icon: LucideIcon }[] = [
-    { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare },
-    { id: 'instagram_post', name: 'Instagram', icon: Instagram },
-    { id: 'telegram', name: 'Telegram', icon: Send },
+  const suppliers: { id: 'bereke' | 'aisu' | 'dala'; name: string; icon: LucideIcon }[] = [
+    { id: 'bereke', name: 'База «Барыс»', icon: Truck },
+    { id: 'aisu', name: 'Ферма «Талгар»', icon: Truck },
+    { id: 'dala', name: 'Green Line', icon: Truck },
   ];
 
-  const currentContent = mockContentStudioItems.find((c) => c.channel === activeChannel) || mockContentStudioItems[0];
+  const offers = {
+    bereke: {
+      price: '820 ₸/шт',
+      lead: '10 часов',
+      otif: '96%',
+      sample: '24 поставки',
+      moq: 'от 10 стеблей, кратность 10',
+      score: '0.81',
+      verdictRu: 'Самый быстрый и единственный, кто успевает до пустой витрины. Дороже на 130 ₸ за стебель — берём только срочную часть.',
+      verdictKk: 'Ең жылдам және бос витринаға дейін үлгеретін жалғыз. Сабағына 130 ₸ қымбат — тек жедел бөлігін аламыз.',
+      messageRu: 'Здравствуйте! TAMYR Flowers, Бостандыкский.\nСрочный заказ на сегодня до 15:00:\n• Роза красная 60 см — 40 стеблей\nСумма: 32 800 ₸. Оплата при получении.',
+      messageKk: 'Сәлеметсіз бе! TAMYR Flowers, Бостандық.\nБүгінге 15:00-ге дейінгі жедел тапсырыс:\n• Қызыл раушан 60 см — 40 сабақ\nСома: 32 800 ₸.',
+    },
+    aisu: {
+      price: '690 ₸/шт',
+      lead: '42 часа',
+      otif: '88%',
+      sample: '17 поставок',
+      moq: 'от 20 стеблей, кратность 10',
+      score: '0.74',
+      verdictRu: 'Дешевле и свежее: срез шесть дней против четырёх. Но 42 часа не закрывают разрыв — берём основной объём, не срочный.',
+      verdictKk: 'Арзан әрі сергегірек: кесік алты күн, төртеудің орнына. Бірақ 42 сағат алшақтықты жаппайды — негізгі көлемді аламыз.',
+      messageRu: 'Здравствуйте! TAMYR Flowers, Бостандыкский.\nЗаказ на 17 августа:\n• Роза красная 60 см — 120 стеблей\nСумма: 82 800 ₸. Оплата по счёту.',
+      messageKk: 'Сәлеметсіз бе! TAMYR Flowers, Бостандық.\n17 тамызға тапсырыс:\n• Қызыл раушан 60 см — 120 сабақ\nСома: 82 800 ₸.',
+    },
+    dala: {
+      price: '640 ₸/шт',
+      lead: '18 часов',
+      otif: 'недостаточно данных',
+      sample: '3 поставки',
+      moq: 'от 10 стеблей, кратность 10',
+      score: '—',
+      verdictRu: 'Дешевле всех и везёт быстро, но у него только пятидесятка: сорт не совпадает с нужным. Отклонён по сорту, а не по цене — и это видно в списке.',
+      verdictKk: 'Бәрінен арзан әрі жылдам, бірақ онда тек 50 см бар: сұрып сәйкес келмейді. Бағасы емес, сұрыбы бойынша қабылданбады.',
+      messageRu: 'Поставщик не прошёл ограничения решения: нужен сорт «красная 60 см», в наличии только 50 см.',
+      messageKk: 'Жеткізуші шешім шектеулерінен өтпеді: «қызыл 60 см» сұрыбы қажет, тек 50 см бар.',
+    },
+  };
+
+  const current = offers[activeSupplier];
 
   const handleCopy = () => {
-    const text = language === 'ru' ? currentContent.textRu : currentContent.textKk;
+    const text = language === 'ru' ? current.messageRu : current.messageKk;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const rows = [
+    { labelRu: 'Цена', labelKk: 'Бағасы', value: current.price },
+    { labelRu: 'Срок поставки', labelKk: 'Жеткізу мерзімі', value: current.lead },
+    { labelRu: 'Вовремя и полностью', labelKk: 'Уақытында әрі толық', value: `${current.otif} · ${current.sample}` },
+    { labelRu: 'Партия и упаковка', labelKk: 'Партия мен қаптама', value: current.moq },
+    { labelRu: 'Общая оценка', labelKk: 'Жалпы баға', value: current.score },
+  ];
 
   return (
     <section className="py-24 md:py-36 bg-background relative overflow-hidden">
@@ -32,32 +85,32 @@ export function ContentStudioSection() {
         {/* Section Header */}
         <div className="max-w-3xl mb-12 space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Multilingual Content Studio</span>
+            <Scale className="w-3.5 h-3.5" />
+            <span>Supplier Compare</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight">
-            {language === 'ru' ? 'Адаптация оффера под все каналы' : 'Офферды барлық арналарға бейімдеу'}
+            {language === 'ru' ? 'Дешевле — не значит выгоднее' : 'Арзан — тиімді дегенді білдірмейді'}
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
             {language === 'ru'
-              ? 'Один утвержденный Growth Contract мгновенно превращается в готовые посты, сообщения и видеосценарии на русском и казахском языках.'
-              : 'Бір расталған Growth Contract орыс және қазақ тілдеріндегі дайын хабарламаларға лезде айналады.'}
+              ? 'Поставщики сравниваются по пяти параметрам: цена, срок, доля поставок вовремя и полностью, минимальная партия и условия. Обязательные ограничения отсекают вариант до подсчёта оценки.'
+              : 'Жеткізушілер бес параметр бойынша салыстырылады: баға, мерзім, уақытында әрі толық жеткізу үлесі, ең аз партия және шарттар.'}
           </p>
         </div>
 
-        {/* Studio Box */}
+        {/* Compare Box */}
         <div className="bg-surface rounded-3xl border border-border p-6 sm:p-10 shadow-xl max-w-4xl mx-auto space-y-6">
           {/* Header Controls */}
           <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-border">
-            {/* Channel Tabs */}
+            {/* Supplier Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto">
-              {channels.map((ch) => {
-                const Icon = ch.icon;
-                const isActive = activeChannel === ch.id;
+              {suppliers.map((s) => {
+                const Icon = s.icon;
+                const isActive = activeSupplier === s.id;
                 return (
                   <button
-                    key={ch.id}
-                    onClick={() => setActiveChannel(ch.id)}
+                    key={s.id}
+                    onClick={() => setActiveSupplier(s.id)}
                     className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-sm'
@@ -65,7 +118,7 @@ export function ContentStudioSection() {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{ch.name}</span>
+                    <span>{s.name}</span>
                   </button>
                 );
               })}
@@ -92,10 +145,10 @@ export function ContentStudioSection() {
             </div>
           </div>
 
-          {/* Active Content Preview */}
+          {/* Active Supplier Preview */}
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeChannel + language}
+              key={activeSupplier + language}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -104,16 +157,34 @@ export function ContentStudioSection() {
             >
               <div className="p-6 rounded-2xl bg-surface-muted border border-border space-y-4">
                 <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-                  <span>Предпросмотр сообщения</span>
-                  {currentContent.promoCode && (
-                    <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
-                      Код: {currentContent.promoCode}
-                    </span>
-                  )}
+                  <span>Роза красная 60 см · потребность 160 стеблей</span>
+                  <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                    {language === 'ru' ? 'Оценка' : 'Баға'}: {current.score}
+                  </span>
                 </div>
 
-                <p className="text-base text-foreground font-sans leading-relaxed whitespace-pre-line">
-                  {language === 'ru' ? currentContent.textRu : currentContent.textKk}
+                <div className="space-y-2">
+                  {rows.map((row) => (
+                    <div key={row.labelRu} className="flex items-center justify-between gap-4 text-sm">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {language === 'ru' ? row.labelRu : row.labelKk}
+                      </span>
+                      <span className="font-semibold text-foreground text-right">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="pt-3 border-t border-border text-base text-foreground font-sans leading-relaxed">
+                  {language === 'ru' ? current.verdictRu : current.verdictKk}
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-surface-muted border border-border space-y-3">
+                <div className="text-xs font-mono text-muted-foreground">
+                  {language === 'ru' ? 'Готовое сообщение поставщику' : 'Жеткізушіге дайын хабарлама'}
+                </div>
+                <p className="text-sm text-foreground font-sans leading-relaxed whitespace-pre-line">
+                  {language === 'ru' ? current.messageRu : current.messageKk}
                 </p>
               </div>
 
@@ -123,14 +194,14 @@ export function ContentStudioSection() {
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-surface-muted transition-all flex items-center justify-center gap-2"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? (language === 'ru' ? 'Скопировано!' : 'Көшірілді!') : (language === 'ru' ? 'Скопировать текст' : 'Мәтінді көшіру')}</span>
+                  <span>{copied ? (language === 'ru' ? 'Скопировано!' : 'Көшірілді!') : (language === 'ru' ? 'Скопировать заказ' : 'Тапсырысты көшіру')}</span>
                 </button>
 
                 <a
                   href="/demo"
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary-hover transition-all text-center"
                 >
-                  {language === 'ru' ? currentContent.ctaTextRu : currentContent.ctaTextKk}
+                  {language === 'ru' ? 'Выбрать поставщика' : 'Жеткізушіні таңдау'}
                 </a>
               </div>
             </motion.div>

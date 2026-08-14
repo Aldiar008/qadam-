@@ -19,7 +19,7 @@ export function FinalCtaSection() {
           <div className="relative z-10 space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold">
               <QadamSignal size={20} />
-              <span>Growth OS Engine</span>
+              <span>QOR Supply Engine</span>
             </div>
 
             <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-foreground tracking-tight max-w-3xl mx-auto leading-tight">
@@ -35,7 +35,7 @@ export function FinalCtaSection() {
                 href="/demo"
                 className="w-full sm:w-auto px-8 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base hover:bg-primary-hover transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 group"
               >
-                <span>{language === 'ru' ? 'Открыть демо' : 'Демоны ашу'}</span>
+                <span>{language === 'ru' ? 'Проверить остатки' : 'Қалдықты тексеру'}</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
 

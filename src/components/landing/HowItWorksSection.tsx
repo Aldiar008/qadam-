@@ -34,53 +34,53 @@ const steps: StoryStep[] = [
   {
     id: 'observe',
     icon: Eye,
-    tag: '01. Observe',
+    tag: '01. Считает',
     title: {
-      ru: 'Система видит данные и изменения',
-      kk: 'Жүйе деректерді және өзгерістерді көреді',
+      ru: 'Ведёт остатки по каждой позиции',
+      kk: 'Әр позиция бойынша қалдықты жүргізеді',
     },
     description: {
-      ru: 'QADAM агрегирует транзакции, истории визитов и время покупок без участия человека.',
-      kk: 'QADAM транзакцияларды, келу тарихын және сатып алу уақытын адамның қатысуынсыз біріктіреді.',
+      ru: 'Приёмка, расход, списание и перемещение между точками складываются в один остаток. Обновить его можно прямо из чата.',
+      kk: 'Қабылдау, шығыс, есептен шығару және нүктелер арасындағы ауыстыру бір қалдыққа жиналады. Оны чаттан жаңартуға болады.',
     },
   },
   {
     id: 'detect',
     icon: Search,
-    tag: '02. Detect',
+    tag: '02. Предупреждает',
     title: {
-      ru: 'Находит проблему или возможность',
-      kk: 'Мәселені немесе мүмкіндікті табады',
+      ru: 'Считает часы до нуля и разрыв до поставки',
+      kk: 'Нөлге дейінгі сағат пен жеткізілімге дейінгі алшақтықты санайды',
     },
     description: {
-      ru: 'Выявляет скрытые паттерны: провал чеков в будни с 15:00 до 18:00 и 64 «спящих» клиента.',
-      kk: 'Жасырын үлгілерді анықтайды: жұмыс күндері 15:00-ден 18:00-ге дейінгі чектердің төмендеуі.',
+      ru: 'Красная роза закончится через 29 часов, а ферма везёт 42. Разрыв виден до того, как витрина опустела.',
+      kk: 'Қызыл раушан 29 сағаттан кейін бітеді, ал ферма 42 сағат жүреді. Алшақтық витрина босағанға дейін көрінеді.',
     },
   },
   {
     id: 'compile',
     icon: FileCheck,
-    tag: '03. Compile',
+    tag: '03. Решает',
     title: {
-      ru: 'Собирает безопасный Growth Contract',
-      kk: 'Қауіпсіз Growth Contract жинайды',
+      ru: 'Собирает карточку решения',
+      kk: 'Шешім картасын жинайды',
     },
     description: {
-      ru: 'Margin Shield блокирует убыточные скидки 20% и формирует подарок при чеке от 3 500 ₸.',
-      kk: 'Margin Shield 20% тиімсіз жеңілдіктерді бұғаттайды және 3 500 ₸ чегіне сыйлық қалыптастырады.',
+      ru: 'Сколько заказать, у кого и почём — с учётом упаковки, минимальной партии и надёжности поставщика. Одно подтверждение владельца.',
+      kk: 'Қанша, кімнен және қандай бағамен — қаптама, ең аз партия және жеткізуші сенімділігін ескере отырып. Иесінің бір растауы.',
     },
   },
   {
     id: 'measure',
     icon: BarChart3,
-    tag: '04. Measure',
+    tag: '04. Проверяет',
     title: {
-      ru: 'Показывает влияние на прибыль',
-      kk: 'Пайдаға әсерін көрсетеді',
+      ru: 'Фиксирует факт поставки',
+      kk: 'Жеткізілім фактісін тіркейді',
     },
     description: {
-      ru: 'Автоматически сопоставляет отклики клиентов и сэкономленный бюджет в Impact Ledger.',
-      kk: 'Impact Ledger-де клиенттердің жауаптарын және үнемделген бюджетті автоматты түрде салыстырады.',
+      ru: 'Пришло 28 из 30 с опозданием на день — расхождение записано, остаток обновлён, рейтинг поставщика пересчитан.',
+      kk: '30-дың 28-і бір күн кешігіп келді — айырма жазылды, қалдық жаңарды, жеткізуші рейтингі қайта есептелді.',
     },
   },
 ];
@@ -143,7 +143,7 @@ function MockupContent({ step }: { step: number }) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-2xl border border-accent/20 bg-accent/10 p-4 font-mono text-sm text-accent">
-          <span>[ПОТОК ДАННЫХ] Касса подключена</span>
+          <span>[ОСТАТКИ] Обновлено из чата · 2 мин назад</span>
           <span className="inline-flex items-center gap-2 text-xs font-bold">
             <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
             LIVE
@@ -151,12 +151,12 @@ function MockupContent({ step }: { step: number }) {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-border bg-surface-muted p-4">
-            <p className="font-mono text-xs text-muted-foreground">Чеки за день</p>
-            <p className="font-mono text-2xl font-bold text-foreground">142 шт</p>
+            <p className="font-mono text-xs text-muted-foreground">Позиций на учёте</p>
+            <p className="font-mono text-2xl font-bold text-foreground">8 позиций</p>
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-4">
-            <p className="font-mono text-xs text-muted-foreground">Средний чек</p>
-            <p className="font-mono text-2xl font-bold text-foreground">3 150 ₸</p>
+            <p className="font-mono text-xs text-muted-foreground">Роза красная 60 см</p>
+            <p className="font-mono text-2xl font-bold text-foreground">70 шт</p>
           </div>
         </div>
       </div>
@@ -168,15 +168,15 @@ function MockupContent({ step }: { step: number }) {
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-2xl border border-warning/20 bg-warning/10 p-4 text-sm font-semibold text-foreground">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden="true" />
-          <span>Выявлена возможность: выручка с 15:00 до 18:00 упала на 27%</span>
+          <span>Риск дефицита: красная роза закончится через 29 часов</span>
         </div>
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface-muted p-4">
           <div>
-            <p className="font-mono text-xs text-muted-foreground">Целевой сегмент</p>
-            <p className="font-bold text-foreground">Спящие постоянники · 64 клиента</p>
+            <p className="font-mono text-xs text-muted-foreground">Срок поставки фермы «Талгар»</p>
+            <p className="font-bold text-foreground">42 часа · разрыв 13 часов</p>
           </div>
           <span className="shrink-0 rounded-full bg-warning/10 px-3 py-1 font-mono text-xs font-bold text-warning">
-            Score 87
+            Уверенность 87%
           </span>
         </div>
       </div>
@@ -188,20 +188,20 @@ function MockupContent({ step }: { step: number }) {
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-2xl border border-success/20 bg-success/10 p-4 text-sm font-semibold text-foreground">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-          <span>Growth Contract сформирован: круассан при чеке от 3 500 ₸</span>
+          <span>Решение готово: 10 л срочно + 30 л плановой поставкой</span>
         </div>
         <div className="space-y-3 rounded-2xl border border-border bg-surface-muted p-4 font-mono text-xs text-muted-foreground">
           <div className="flex justify-between gap-4">
-            <span>Минимальный чек</span>
-            <strong className="text-foreground">3 500 ₸</strong>
+            <span>Срочная часть</span>
+            <strong className="text-foreground">База «Барыс» · 10 ч · 820 ₸/шт</strong>
           </div>
           <div className="flex justify-between gap-4">
-            <span>Маржа до / после</span>
-            <strong className="text-foreground">62% → 49.1%</strong>
+            <span>Основная часть</span>
+            <strong className="text-foreground">Ферма «Талгар» · 42 ч · 690 ₸/шт</strong>
           </div>
           <div className="flex justify-between gap-4">
-            <span>Stop-rule</span>
-            <strong className="text-primary">Max 15 купонов</strong>
+            <span>Против одного заказа</span>
+            <strong className="text-primary">−800 ₸ и без простоя</strong>
           </div>
         </div>
       </div>
@@ -212,16 +212,16 @@ function MockupContent({ step }: { step: number }) {
     <div className="space-y-4">
       <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/10 p-4 text-sm font-semibold text-foreground">
         <TrendingUp className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-        <span>Демонстрационный результат собран в Impact Ledger</span>
+        <span>Приёмка: 28 из 30 · опоздание на 1 день · расхождение записано</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-2xl border border-success/20 bg-success/10 p-4">
-          <p className="font-mono text-xs text-primary">Simulated incremental revenue</p>
-          <p className="font-mono text-2xl font-bold text-primary">+48 700 ₸</p>
+          <p className="font-mono text-xs text-primary">Личный OTIF фермы «Талгар»</p>
+          <p className="font-mono text-2xl font-bold text-primary">94% → 88%</p>
         </div>
         <div className="rounded-2xl border border-accent/20 bg-accent/10 p-4">
-          <p className="font-mono text-xs text-accent">Simulated ROI</p>
-          <p className="font-mono text-2xl font-bold text-accent">168%</p>
+          <p className="font-mono text-xs text-accent">Поставок в выборке</p>
+          <p className="font-mono text-2xl font-bold text-accent">17</p>
         </div>
       </div>
     </div>
@@ -252,7 +252,7 @@ function AppMockup({
           <span className="size-3 rounded-full bg-danger/70" />
           <span className="size-3 rounded-full bg-warning/70" />
           <span className="size-3 rounded-full bg-success/70" />
-          <span className="ml-2 font-mono text-xs text-muted-foreground">QADAM OS Engine</span>
+          <span className="ml-2 font-mono text-xs text-muted-foreground">QOR Supply Engine</span>
         </div>
         <QadamSignal size={24} />
       </div>
@@ -277,7 +277,7 @@ function AppMockup({
 
       <div className="mt-6 flex items-center justify-between border-t border-border pt-6 font-mono text-xs text-muted-foreground">
         <span>Шаг {activeStep + 1} из 4</span>
-        <div className="flex gap-2" aria-label="Этапы Growth Loop">
+        <div className="flex gap-2" aria-label="Этапы цикла снабжения">
           {steps.map((step, index) => (
             <button
               key={step.id}
@@ -338,15 +338,15 @@ export function HowItWorksSection() {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6">
         <header className="mb-12 max-w-3xl lg:sticky lg:top-36 lg:z-20 lg:w-[40%] lg:max-w-none lg:bg-background lg:py-4 lg:pr-4">
           <span className="font-mono text-xs font-bold uppercase tracking-widest text-primary">
-            {language === 'ru' ? 'Архитектура действия' : 'Әрекет архитектурасы'}
+            {language === 'ru' ? 'Цикл снабжения' : 'Жабдықтау циклі'}
           </span>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
             {t.howTitle}
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
             {language === 'ru'
-              ? 'Прокрутите вниз: каждый этап Growth Loop последовательно меняет интерфейс QADAM.'
-              : 'Төмен айналдырыңыз: Growth Loop-тың әр кезеңі QADAM интерфейсін ретімен өзгертеді.'}
+              ? 'Прокрутите вниз: каждый этап цикла снабжения последовательно меняет интерфейс QOR.'
+              : 'Төмен айналдырыңыз: жабдықтау циклінің әр кезеңі QOR интерфейсін ретімен өзгертеді.'}
           </p>
         </header>
 

@@ -9,17 +9,17 @@ export function CinematicHeroSection() {
 
   return (
     <CinematicHero
-      tagline1={isRussian ? 'Самое выгодное действие —' : 'Ең тиімді әрекет —'}
-      tagline2={isRussian ? 'сегодня.' : 'бүгін.'}
-      cardHeading={isRussian ? 'Рост, рассчитанный до деталей.' : 'Әр бөлшегіне дейін есептелген өсім.'}
+      tagline1={isRussian ? 'Свежие цветы вовремя.' : 'Гүл уақытында әрі сергек.'}
+      tagline2={isRussian ? 'Деньги не в списании.' : 'Ақша қоқысқа кетпейді.'}
+      cardHeading={isRussian ? 'Витрина полная. Ведро пустое.' : 'Витрина толы. Шелек бос.'}
       cardDescription={t.heroSubtitle}
-      metricLabel={isRussian ? 'Потенциал роста' : 'Өсу әлеуеті'}
+      metricLabel={isRussian ? 'Часов до пустой витрины' : 'Бос витринаға дейінгі сағат'}
       ctaHeading={t.finalCtaTitle}
       ctaDescription={t.finalCtaSub}
-      primaryCtaLabel={isRussian ? 'Найти клиентов' : 'Клиенттерді табу'}
-      secondaryCtaLabel={isRussian ? 'Создать акцию' : 'Акция жасау'}
-      primaryCtaHref="/signup?intent=find-customers"
-      secondaryCtaHref="/signup?intent=create-campaign"
+      primaryCtaLabel={isRussian ? 'Открыть демо-решение' : 'Демо-шешімді ашу'}
+      secondaryCtaLabel={isRussian ? 'Сравнить поставщиков' : 'Жеткізушілерді салыстыру'}
+      primaryCtaHref="/demo"
+      secondaryCtaHref="/signup?intent=compare-suppliers"
     />
   );
 }

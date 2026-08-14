@@ -50,7 +50,7 @@ const grouped = new Set(GROUPS.flatMap(([, list]) => list));
 const ungrouped = tables.filter((t) => !grouped.has(t));
 if (ungrouped.length) GROUPS.push(['Прочее', ungrouped]);
 
-let out = `# ERD — QADAM Growth OS
+let out = `# ERD — QOR Autopilot
 
 Сгенерировано из живой схемы: \`node scripts/generate-erd.mjs\`. Диаграмма не может разойтись
 со схемой, потому что она из неё и строится. Всего таблиц: **${tables.length}**, внешних
