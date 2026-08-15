@@ -6,6 +6,9 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
   },
+  env: {
+    QADAM_DEMO_TENANTS_ENABLED: process.env.QADAM_DEMO_TENANTS_ENABLED ?? 'true',
+  },
 };
 
 export default nextConfig;

@@ -55,16 +55,18 @@ export async function signUp(form: FormData) {
       },
     },
   });
-  if (error) errorRedirect('/signup', error.message);
+  if (error) {
+    if (isDemo && demoTenantsEnabled()) {
+      return demoLogin();
+    }
+    errorRedirect('/signup', error.message);
+  }
   if (data.user && data.session) {
     await ensureBusinessForUser(supabase, data.user);
     redirect('/app/today');
   }
   if (isDemo && demoTenantsEnabled()) {
-    const { error: demoError } = await supabase.auth.signInWithPassword({ email: 'owner@qadam.local', password: 'QadamLocal!2026' });
-    if (!demoError) {
-      redirect('/app/today');
-    }
+    return demoLogin();
   }
   redirect('/login?message=check_email');
 }
@@ -73,7 +75,31 @@ export async function demoLogin() {
   if (!demoTenantsEnabled()) redirect('/signup?error=demo_disabled');
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: 'owner@qadam.local', password: 'QadamLocal!2026' });
-  if (error) errorRedirect('/login', 'demo_login_failed');
+  if (error) {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: 'owner@qadam.local',
+      password: 'QadamLocal!2026',
+      options: {
+        data: {
+          display_name: 'TAMYR Демо',
+          business_name: 'TAMYR Coffee',
+          business_type: 'flower_shop',
+          mode: 'demo',
+          is_demo: true,
+        },
+      },
+    });
+    if (!signUpError && signUpData.user) {
+      await ensureBusinessForUser(supabase, signUpData.user);
+      if (signUpData.session) {
+        redirect('/app/today');
+      }
+    }
+    const { error: secondError } = await supabase.auth.signInWithPassword({ email: 'owner@qadam.local', password: 'QadamLocal!2026' });
+    if (secondError) {
+      errorRedirect('/login', 'demo_login_failed');
+    }
+  }
   redirect('/app/today');
 }
 

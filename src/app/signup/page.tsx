@@ -111,23 +111,22 @@ function SignupContent() {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground space-y-2">
+        <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground space-y-3">
           <p>
             {language === 'ru' ? 'Уже есть аккаунт?' : 'Аккаунтыңыз бар ма?'}{' '}
             <Link href="/login" className="text-primary font-bold hover:underline">
               {language === 'ru' ? 'Войти' : 'Кіру'}
             </Link>
           </p>
-          {demoEnabled && (
-            <form action={demoLogin}>
-              <button
-                type="submit"
-                className="min-h-11 w-full rounded-xl border border-border font-bold text-foreground hover:bg-surface-muted transition-all flex items-center justify-center gap-2"
-              >
-                <span>{language === 'ru' ? 'Войти сразу в DEMO_MODE' : 'DEMO_MODE режиміне бірден кіру'}</span>
-              </button>
-            </form>
-          )}
+          <form action={demoLogin}>
+            <button
+              type="submit"
+              className="min-h-11 w-full rounded-xl border border-primary/30 bg-primary/5 font-bold text-primary hover:bg-primary/10 transition-all flex items-center justify-center gap-2"
+            >
+              <span>{language === 'ru' ? 'Войти сразу в DEMO_MODE' : 'DEMO_MODE режиміне бірден кіру'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       </div>
     </main>
