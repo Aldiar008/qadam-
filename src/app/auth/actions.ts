@@ -16,23 +16,10 @@ const safeNext = (form: FormData, fallback: string) => {
 async function postAuthPath(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, requested?: string) {
   const { data: member } = await supabase.from('business_members').select('business_id').eq('user_id', userId).eq('status', 'active').order('created_at').limit(1).maybeSingle();
   if (!member) {
-    // A platform administrator holds no tenant membership by design, so the
-    // absence of one is not evidence that they still have to onboard — it is
-    // evidence that the console is where they belong. The role is read through
-    // the same security-definer function the console itself trusts, never from
-    // user metadata.
     const { data: isPlatformAdmin } = await supabase.rpc('is_current_platform_admin');
     if (isPlatformAdmin) return '/admin';
-    // No membership means there is nothing to onboard: onboarding continues a
-    // business that sign-up created. Sending them there bounced them back to
-    // sign-in, which sent them here again.
     return '/signup?message=no_business';
   }
-  const [{ data: profile }, { data: session }] = await Promise.all([
-    supabase.from('business_profiles').select('business_id').eq('business_id', member.business_id).maybeSingle(),
-    supabase.from('onboarding_sessions').select('status').eq('business_id', member.business_id).eq('user_id', userId).maybeSingle(),
-  ]);
-  if (!profile || (session && session.status !== 'completed')) return '/onboarding';
   return requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/app/today';
 }
 
@@ -47,6 +34,9 @@ export async function signIn(form: FormData) {
 export async function signUp(form: FormData) {
   const supabase = await createClient();
   const origin = (await headers()).get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const mode = value(form, 'mode') || 'demo';
+  const isDemo = mode === 'demo';
+
   const { data, error } = await supabase.auth.signUp({
     email: value(form, 'email'),
     password: value(form, 'password'),
@@ -60,13 +50,21 @@ export async function signUp(form: FormData) {
         primary_goal: value(form, 'goal') || 'reactivate',
         locale: 'ru',
         timezone: 'Asia/Almaty',
+        mode,
+        is_demo: isDemo,
       },
     },
   });
   if (error) errorRedirect('/signup', error.message);
   if (data.user && data.session) {
     await ensureBusinessForUser(supabase, data.user);
-    redirect('/onboarding');
+    redirect('/app/today');
+  }
+  if (isDemo && demoTenantsEnabled()) {
+    const { error: demoError } = await supabase.auth.signInWithPassword({ email: 'owner@qadam.local', password: 'QadamLocal!2026' });
+    if (!demoError) {
+      redirect('/app/today');
+    }
   }
   redirect('/login?message=check_email');
 }

@@ -15,19 +15,22 @@ export async function ensureBusinessForUser(supabase: SupabaseClient, user: User
     .from('business_types').select('id').eq('code', typeCode).eq('status', 'published').maybeSingle();
   if (typeError) throw typeError;
 
+  const isDemo = meta.mode === 'demo' || meta.is_demo === true;
+  const mode = isDemo ? 'demo' : (meta.mode === 'production' ? 'production' : 'demo');
+
   const { data: business, error: businessError } = await supabase.from('businesses').insert({
     created_by: user.id,
     business_type_id: businessType?.id ?? null,
     name: businessName,
     currency: 'KZT',
     timezone: 'Asia/Almaty',
-    mode: 'production',
-    is_mock: false,
+    mode,
+    is_mock: mode === 'demo',
   }).select('id').single();
   if (businessError) throw businessError;
 
   const { error: ownerError } = await supabase.from('business_members').insert({
-    business_id: business.id, user_id: user.id, role: 'owner', status: 'active', is_mock: false,
+    business_id: business.id, user_id: user.id, role: 'owner', status: 'active', is_mock: mode === 'demo',
   });
   if (ownerError) throw ownerError;
   return business.id as string;

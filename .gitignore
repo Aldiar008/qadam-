@@ -1,5 +1,6 @@
 # Зависимости
 node_modules/
+.npm-cache/
 
 # Сборка Next
 .next/

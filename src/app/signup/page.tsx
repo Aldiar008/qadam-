@@ -7,10 +7,12 @@ import { ArrowRight, Lock, Mail, Store, User } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { DemoBadge } from '@/components/common/DemoBadge';
 import { useLanguage } from '@/context/LanguageContext';
-import { signUp } from '@/app/auth/actions';
+import { signUp, demoLogin } from '@/app/auth/actions';
+import { useAppMode } from '@/context/AppModeContext';
 
 function SignupContent() {
   const { language } = useLanguage();
+  const { demoEnabled } = useAppMode();
   const searchParams = useSearchParams();
   return (
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-background flex flex-col justify-center items-center p-4 outline-none">
@@ -42,6 +44,7 @@ function SignupContent() {
         )}
 
         <form className="space-y-4" action={signUp}>
+          <input type="hidden" name="mode" value="demo" />
           <div className="space-y-1">
             <label className="text-xs font-mono text-muted-foreground">Название заведения</label>
             <div className="relative">
@@ -108,13 +111,23 @@ function SignupContent() {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground">
+        <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground space-y-2">
           <p>
             {language === 'ru' ? 'Уже есть аккаунт?' : 'Аккаунтыңыз бар ма?'}{' '}
             <Link href="/login" className="text-primary font-bold hover:underline">
               {language === 'ru' ? 'Войти' : 'Кіру'}
             </Link>
           </p>
+          {demoEnabled && (
+            <form action={demoLogin}>
+              <button
+                type="submit"
+                className="min-h-11 w-full rounded-xl border border-border font-bold text-foreground hover:bg-surface-muted transition-all flex items-center justify-center gap-2"
+              >
+                <span>{language === 'ru' ? 'Войти сразу в DEMO_MODE' : 'DEMO_MODE режиміне бірден кіру'}</span>
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </main>
