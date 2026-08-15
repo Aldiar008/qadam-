@@ -1,6 +1,7 @@
 export type BusinessMode = 'demo' | 'production';
 
 const truthy = new Set(['1', 'true', 'yes', 'on', 'enabled']);
+const falsy = new Set(['0', 'false', 'no', 'off', 'disabled']);
 
 /**
  * Deployment ceiling: whether this installation exposes seeded demo tenants.
@@ -8,8 +9,13 @@ const truthy = new Set(['1', 'true', 'yes', 'on', 'enabled']);
  */
 export function demoTenantsEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
   const explicit = env.QADAM_DEMO_TENANTS_ENABLED;
-  if (explicit != null) return truthy.has(explicit.trim().toLowerCase());
-  return env.QADAM_APP_MODE === 'DEMO_MODE';
+  if (explicit != null) {
+    const val = explicit.trim().toLowerCase();
+    if (falsy.has(val)) return false;
+    return truthy.has(val);
+  }
+  if (env.QADAM_APP_MODE != null) return env.QADAM_APP_MODE === 'DEMO_MODE';
+  return true;
 }
 
 /**

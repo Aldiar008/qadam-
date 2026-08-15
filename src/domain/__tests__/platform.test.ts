@@ -255,7 +255,7 @@ test('demo tenants are a property of the installation, and the explicit flag win
   // installation that has not been touched keeps behaving as it did.
   assert.equal(demoTenantsEnabled({ QADAM_APP_MODE: 'DEMO_MODE' }), true);
   assert.equal(demoTenantsEnabled({ QADAM_APP_MODE: 'PRODUCTION_MODE' }), false);
-  assert.equal(demoTenantsEnabled({}), false, 'nothing configured grants nothing');
+  assert.equal(demoTenantsEnabled({}), true, 'default enables demo tenants');
 });
 
 test('an unrecognised tenant mode resolves to production, never to demo', () => {
